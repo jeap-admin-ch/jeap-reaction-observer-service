@@ -1,0 +1,12 @@
+---
+services:
+  postgresql-db-local:
+    image: bitnami/postgresql:15.3.0
+    container_name: postgresql-db-local
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=db-user
+      - POSTGRES_PASSWORD=db-pass
+      - POSTGRES_DB=sample-db
+
