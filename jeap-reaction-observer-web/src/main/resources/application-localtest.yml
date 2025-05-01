@@ -1,0 +1,13 @@
+jeap:
+  swagger:
+    status: open
+
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: org.postgresql.Driver
+    url: "jdbc:postgresql://localhost:5432/sample-db"
+    username: db-user
+    password: db-pass
+    hikari:
+      schema: data
