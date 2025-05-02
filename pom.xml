@@ -28,7 +28,7 @@
     <parent>
         <groupId>ch.admin.bit.jeap</groupId>
         <artifactId>jeap-spring-boot-parent</artifactId>
-        <version>26.46.0</version>
+        <version>26.48.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -42,9 +42,11 @@
 
     <modules>
         <module>jeap-reaction-observer-domain</module>
+        <module>jeap-reaction-observer-kafka</module>
         <module>jeap-reaction-observer-persistence</module>
         <module>jeap-reaction-observer-web</module>
         <module>jeap-reaction-observer-service-instance</module>
+        <module>jeap-reaction-observer-service-test</module>
     </modules>
 
     <dependencyManagement>
@@ -64,7 +66,11 @@
                 <artifactId>jeap-reaction-observer-web</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
             </dependency>
-
+            <dependency>
+                <groupId>ch.admin.bit.jeap</groupId>
+                <artifactId>jeap-reaction-observer-service-test</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -81,6 +87,14 @@
                                 <Bundle-License>https://www.apache.org/licenses/LICENSE-2.0</Bundle-License>
                             </manifestEntries>
                         </archive>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <configuration>
+                        <failOnError>false</failOnError>
+                        <quiet>true</quiet>
                     </configuration>
                 </plugin>
             </plugins>

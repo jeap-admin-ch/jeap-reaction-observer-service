@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: test
+  main:
+    banner-mode: off
+
+jeap:
+  reaction:
+    observer:
+      service:
+        kafka:
+          reaction-identified-topic: reaction-identified
+          reactions-observed-topic: reactions-observed
+
+logging:
+  level:
+    org: WARN
+    kafka: ERROR
+    state.change.logger: WARN
+    ch.admin.bit.jeap.messaging.kafka.serde.confluent.config: WARN
+    io.confluent.kafka.serializers: WARN
+    org.apache.zookeeper: WARN
