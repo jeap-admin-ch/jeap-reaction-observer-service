@@ -6,6 +6,7 @@ import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 
@@ -15,6 +16,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ContextConfiguration(classes = PersistenceAutoConfiguration.class)
 @Slf4j
 class ReactionRepositoryImplTest {
@@ -26,11 +28,11 @@ class ReactionRepositoryImplTest {
     void save_noProps() {
         Observation trigger = new Observation("triggerType", "triggerFqn", Map.of());
         Observation action = new Observation("actionType", "actionFqn", Map.of());
-        var identifiedReaction = new Reaction("component1", "reaction1", trigger, action, ZonedDateTime.now());
+        var identifiedReaction = new Reaction("component0", "reaction0", trigger, action, ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 
-        var foundReaction = reactionRepository.findByComponentAndReactionId("component1", "reaction1");
+        var foundReaction = reactionRepository.findByComponentAndReactionId("component0", "reaction0");
         assertThat(foundReaction)
                 .isPresent();
         Reaction reaction = foundReaction.get();

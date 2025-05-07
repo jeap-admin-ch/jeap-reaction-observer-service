@@ -13,7 +13,7 @@ import static lombok.AccessLevel.PROTECTED;
 @Getter
 @Entity
 @Table(name = "reaction")
-public class ReactionEntity {
+class ReactionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "reaction_sequence")

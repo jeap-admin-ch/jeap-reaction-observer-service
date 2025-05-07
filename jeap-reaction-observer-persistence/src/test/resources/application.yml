@@ -1,8 +1,13 @@
 spring:
   application:
     name: test
+
   datasource:
     url: "jdbc:h2:mem:${random.uuid};MODE=PostgreSQL"
+    username: sa
+    password: password
+    driverClassName: org.h2.Driver
+
   flyway:
     locations: classpath:db/migration/common
   main:

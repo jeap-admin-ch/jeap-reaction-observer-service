@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.stream.Stream;
 
 @Repository
-public interface JpaObservationPropertiesRepository extends CrudRepository<ObservationProperty, Long> {
+interface JpaObservationPropertiesRepository extends CrudRepository<ObservationProperty, Long> {
 
     Stream<ObservationProperty> findByReactionTriggerFk(Long reactionId);
 

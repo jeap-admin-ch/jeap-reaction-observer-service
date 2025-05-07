@@ -1,8 +1,6 @@
-jeap:
-  swagger:
-    status: open
-
 spring:
+  application:
+    name: jeap-reaction-observer-service
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
     driver-class-name: org.postgresql.Driver
@@ -11,3 +9,34 @@ spring:
     password: db-pass
     hikari:
       schema: data
+  main:
+    banner-mode: off
+
+jeap:
+  reaction:
+    observer:
+      service:
+        kafka:
+          reaction-identified-topic: "reaction-identified"
+          reactions-observed-topic: "reactions-observed"
+
+  swagger:
+    status: open
+
+  messaging:
+    kafka:
+      bootstrapServers: "http://localhost:9092"
+      schemaRegistryUrl: "http://localhost:7781"
+      username: user
+      password: user-secret
+      securityProtocol: SASL_PLAINTEXT
+      system-name: jeap
+      error-topic-name: message-processing-failed
+  monitor:
+    prometheus:
+      password: "{noop}secret"
+
+logging.level:
+  org.apache.kafka: WARN
+  io.confluent.kafka: WARN
+  ch.admin.bit.jeap.messaging.kafka.serde.confluent.config: WARN

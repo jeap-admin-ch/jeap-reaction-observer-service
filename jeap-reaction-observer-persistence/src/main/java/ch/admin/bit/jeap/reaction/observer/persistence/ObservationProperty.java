@@ -12,7 +12,7 @@ import static lombok.AccessLevel.PROTECTED;
 @Getter
 @Entity
 @Table(name = "observation_property")
-public class ObservationProperty {
+class ObservationProperty {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "observation_property_sequence")

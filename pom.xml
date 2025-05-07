@@ -68,6 +68,11 @@
             </dependency>
             <dependency>
                 <groupId>ch.admin.bit.jeap</groupId>
+                <artifactId>jeap-reaction-observer-kafka</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.admin.bit.jeap</groupId>
                 <artifactId>jeap-reaction-observer-service-test</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
             </dependency>

@@ -6,20 +6,25 @@ import ch.admin.bit.jeap.reaction.observer.event.identified.ActionOnly;
 import ch.admin.bit.jeap.reaction.observer.event.identified.Observation;
 import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
 import ch.admin.bit.jeap.reaction.observer.event.identified.TriggerOnly;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
-@RequiredArgsConstructor
+@Slf4j
 class ReactionIdentifiedEventListener {
 
     private final ReactionRepository reactionRepository;
 
+    ReactionIdentifiedEventListener(ReactionRepository reactionRepository) {
+        this.reactionRepository = reactionRepository;
+    }
+
     @KafkaListener(topics = "${jeap.reaction.observer.service.kafka.reaction-identified-topic}")
     public void onReactionIdentifiedEvent(ReactionIdentifiedEvent event) {
         Reaction reaction = createReaction(event);
+        log.debug("Identified reaction: {}", reaction);
         reactionRepository.save(reaction);
     }
 

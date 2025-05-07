@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class ReactionsObservedEventBuilder extends AvroDomainEventBuilder<ReactionsObservedEventBuilder, ReactionsObservedEvent> {
 
@@ -36,14 +35,14 @@ public class ReactionsObservedEventBuilder extends AvroDomainEventBuilder<Reacti
         return this;
     }
 
-    public ReactionsObservedEventBuilder countByReactionId(Map<String, AtomicInteger> countByReactionId) {
+    public ReactionsObservedEventBuilder countByReactionId(Map<String, Integer> countByReactionId) {
         this.observations = toObservations(countByReactionId);
         return this;
     }
 
-    private List<Observation> toObservations(Map<String, AtomicInteger> countByReactionId) {
+    private List<Observation> toObservations(Map<String, Integer> countByReactionId) {
         return countByReactionId.entrySet().stream()
-                .map(entry -> new Observation(entry.getKey(), entry.getValue().get()))
+                .map(entry -> new Observation(entry.getKey(), entry.getValue()))
                 .toList();
     }
 

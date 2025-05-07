@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: test
+  main:
+    banner-mode: off
+  datasource:
+    url: "jdbc:h2:mem:integrationtest;MODE=PostgreSQL"
+    username: sa
+    password: password
+    driverClassName: org.h2.Driver
+  jpa:
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+
+jeap:
+  reaction:
+    observer:
+      service:
+        kafka:
+          reaction-identified-topic: reaction-identified
+          reactions-observed-topic: reactions-observed
+
+logging:
+  level:
+    ch.admin.bit.jeap.reaction.observer: DEBUG
+    org: WARN
+    kafka: ERROR
+    state.change.logger: WARN
+    ch.admin.bit.jeap.messaging.kafka.serde.confluent.config: WARN
+    io.confluent.kafka.serializers: WARN
+    org.hibernate.SQL: DEBUG

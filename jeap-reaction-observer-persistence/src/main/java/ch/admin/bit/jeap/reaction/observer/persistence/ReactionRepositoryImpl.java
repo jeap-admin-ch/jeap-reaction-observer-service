@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Slf4j
-public class ReactionRepositoryImpl implements ReactionRepository {
+class ReactionRepositoryImpl implements ReactionRepository {
 
     private final JpaReactionRepository jpaReactionRepository;
     private final JpaObservationPropertiesRepository jpaObservationPropertiesRepository;

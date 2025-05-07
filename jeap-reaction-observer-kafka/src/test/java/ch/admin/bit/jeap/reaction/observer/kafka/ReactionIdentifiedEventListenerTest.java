@@ -2,7 +2,7 @@ package ch.admin.bit.jeap.reaction.observer.kafka;
 
 import ch.admin.bit.jeap.messaging.annotations.JeapMessageConsumerContract;
 import ch.admin.bit.jeap.messaging.kafka.test.KafkaIntegrationTestBase;
-import ch.admin.bit.jeap.reaction.observer.domain.Observation;
+import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
@@ -18,8 +18,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Duration;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.verify;
@@ -31,6 +29,8 @@ class ReactionIdentifiedEventListenerTest extends KafkaIntegrationTestBase {
 
     @MockitoBean
     private ReactionRepository reactionRepository;
+    @MockitoBean
+    private ObservedReactionRepository observedReactionRepository;
 
     @Test
     void onReactionIdentifiedEvent() {
@@ -43,7 +43,7 @@ class ReactionIdentifiedEventListenerTest extends KafkaIntegrationTestBase {
         sendSync("reaction-identified", event);
 
         // then: the identified reaction is stored in the repository
-        Reaction expectedReaction = createExpectedReaction(event, testReaction);
+        Reaction expectedReaction = testReaction.createExpectedReaction(event);
         await().untilAsserted(() -> verify(reactionRepository).save(expectedReaction));
     }
 
@@ -58,7 +58,7 @@ class ReactionIdentifiedEventListenerTest extends KafkaIntegrationTestBase {
         sendSync("reaction-identified", event);
 
         // then: the identified reaction is stored in the repository
-        Reaction expectedReaction = createExpectedReaction(event, testReaction);
+        Reaction expectedReaction = testReaction.createExpectedReaction(event);
         await().untilAsserted(() -> verify(reactionRepository).save(expectedReaction));
     }
 
@@ -73,26 +73,8 @@ class ReactionIdentifiedEventListenerTest extends KafkaIntegrationTestBase {
         sendSync("reaction-identified", event);
 
         // then: the identified reaction is stored in the repository
-        Reaction expectedReaction = createExpectedReaction(event, testReaction);
+        Reaction expectedReaction = testReaction.createExpectedReaction(event);
         await().untilAsserted(() -> verify(reactionRepository).save(expectedReaction));
-    }
-
-    private static Reaction createExpectedReaction(ReactionIdentifiedEvent event, TestReaction testReaction) {
-        Observation trigger = null;
-        if (testReaction.trigger() != null) {
-            trigger = new Observation(
-                    testReaction.trigger().type(), testReaction.trigger().fqn(), testReaction.trigger().props());
-        }
-
-        Observation action = null;
-        if (testReaction.action() != null) {
-            action = new Observation(
-                    testReaction.action().type(), testReaction.action().fqn(), testReaction.action().props());
-        }
-
-        return new Reaction(event.getPublisher().getService(), event.getPayload().getReactionId(),
-                trigger, action,
-                ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()));
     }
 
     @BeforeAll
