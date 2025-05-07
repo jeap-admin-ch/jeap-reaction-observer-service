@@ -1,0 +1,59 @@
+package ch.admin.bit.jeap.reaction.observer.kafka;
+
+import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
+import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
+import ch.admin.bit.jeap.reaction.observer.event.identified.ActionOnly;
+import ch.admin.bit.jeap.reaction.observer.event.identified.Observation;
+import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
+import ch.admin.bit.jeap.reaction.observer.event.identified.TriggerOnly;
+import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.annotation.KafkaListener;
+
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+
+@RequiredArgsConstructor
+class ReactionIdentifiedEventListener {
+
+    private final ReactionRepository reactionRepository;
+
+    @KafkaListener(topics = "${jeap.reaction.observer.service.kafka.reaction-identified-topic}")
+    public void onReactionIdentifiedEvent(ReactionIdentifiedEvent event) {
+        Reaction reaction = createReaction(event);
+        reactionRepository.save(reaction);
+    }
+
+    private static Reaction createReaction(ReactionIdentifiedEvent event) {
+        var reactionPayload = event.getPayload().getReaction();
+        Observation action = null;
+        Observation trigger = null;
+        switch (reactionPayload) {
+            case ch.admin.bit.jeap.reaction.observer.event.identified.Reaction reaction -> {
+                action = reaction.getAction();
+                trigger = reaction.getTrigger();
+            }
+            case TriggerOnly triggerOnly -> trigger = triggerOnly.getTrigger();
+            case ActionOnly actionOnly -> action = actionOnly.getAction();
+            default ->
+                    throw new IllegalArgumentException("Unknown reaction payload type: " + reactionPayload.getClass());
+        }
+
+        return createReaction(event, trigger, action);
+    }
+
+    private static Reaction createReaction(ReactionIdentifiedEvent event, Observation trigger, Observation action) {
+        return new Reaction(
+                event.getPublisher().getService(),
+                event.getPayload().getReactionId(),
+                toDomainObservation(trigger),
+                toDomainObservation(action),
+                ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()));
+    }
+
+    private static ch.admin.bit.jeap.reaction.observer.domain.Observation toDomainObservation(Observation trigger) {
+        if (trigger == null) {
+            return null;
+        }
+        return new ch.admin.bit.jeap.reaction.observer.domain.Observation(trigger.getType(), trigger.getFqn(), trigger.getProps());
+    }
+}
