@@ -11,9 +11,12 @@ import org.springframework.test.context.ContextConfiguration;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.StreamSupport;
 
+import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getStartOfDay;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -57,6 +60,41 @@ class ObservedReactionRepositoryImplTest {
 
         assertThat(foundObservedReactions)
                 .containsExactly(observedReaction);
+    }
+
+    @Test
+    void deleteByTimeframeStart() {
+        // given: a reaction and several observations over different periods
+        String reactionId = "reactionId456";
+        String component = "component123";
+        Reaction reaction = new Reaction(component, reactionId,
+                new Observation("triggerType", "triggerFqn", Map.of()),
+                new Observation("actionType", "actionFqn", Map.of()),
+                ZonedDateTime.now());
+        reactionRepository.save(reaction);
+        ZonedDateTime yesterday = getStartOfDay().minusDays(1);
+        ZonedDateTime theDayBeforeYesterday = yesterday.minusDays(1);
+
+        save(new ObservedReaction(component, reactionId, new Timeframe(theDayBeforeYesterday, theDayBeforeYesterday.plusHours(1)), 1));
+        ObservedReaction yesterdaysObservedReaction = new ObservedReaction(component, reactionId, new Timeframe(yesterday, yesterday.plusHours(1)), 5);
+        save(yesterdaysObservedReaction);
+        ObservedReaction todaysObservedReaction = new ObservedReaction(component, reactionId, new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 5);
+        save(todaysObservedReaction);
+
+        // when
+        observedReactionRepository.deleteByTimeframeStartBefore(yesterday);
+
+        // then: observed reactions before yesterday are deleted
+        var foundObservedReactions = StreamSupport.stream(jpaObservedReactionRepository.findAll().spliterator(), false)
+                .map(entity -> entity.toDomainObject(reaction))
+                .toList();
+
+        assertEquals(2, foundObservedReactions.size());
+        assertThat(foundObservedReactions).containsExactly(yesterdaysObservedReaction, todaysObservedReaction);
+    }
+
+    private void save(ObservedReaction observedReaction) {
+        observedReactionRepository.saveAll(UUID.randomUUID().toString(), List.of(observedReaction));
     }
 
 }

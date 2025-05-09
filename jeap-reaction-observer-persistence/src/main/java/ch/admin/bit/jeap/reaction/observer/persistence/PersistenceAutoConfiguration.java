@@ -30,6 +30,11 @@ class PersistenceAutoConfiguration {
     }
 
     @Bean
+    ObservedReactionsAggregatedRepositoryImpl observedReactionsAggregatedRepository(JpaObservedReactionsAggregatedRepository jpaObservedReactionsAggregatedRepository) {
+        return new ObservedReactionsAggregatedRepositoryImpl(jpaObservedReactionsAggregatedRepository);
+    }
+
+    @Bean
     public Caffeine<Object, Object> caffeineConfig() {
         return Caffeine.newBuilder()
                 .maximumSize(10_000)

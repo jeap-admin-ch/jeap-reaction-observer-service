@@ -4,6 +4,7 @@ import ch.admin.bit.jeap.reaction.observer.domain.ObservedReaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
 class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
@@ -26,6 +27,11 @@ class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
         if (!jpaObservedReactionRepository.existsByIdempotenceId(idempotenceId)) {
             jpaObservedReactionRepository.saveAll(entities);
         }
+    }
+
+    @Override
+    public void deleteByTimeframeStartBefore(ZonedDateTime startOfDay) {
+        jpaObservedReactionRepository.deleteByTimeframeStartBefore(startOfDay);
     }
 
     private ObservedReactionEntity toEntity(String idempotenceId, ObservedReaction observedReaction) {

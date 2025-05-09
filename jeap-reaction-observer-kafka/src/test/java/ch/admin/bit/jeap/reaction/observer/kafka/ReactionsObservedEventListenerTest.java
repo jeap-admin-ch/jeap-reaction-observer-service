@@ -4,6 +4,7 @@ import ch.admin.bit.jeap.messaging.annotations.JeapMessageConsumerContract;
 import ch.admin.bit.jeap.messaging.kafka.test.KafkaIntegrationTestBase;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
+import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
 import ch.admin.bit.jeap.reaction.observer.service.test.ReactionsObservedEventBuilder;
@@ -31,14 +32,19 @@ class ReactionsObservedEventListenerTest extends KafkaIntegrationTestBase {
 
     @MockitoBean
     private ObservedReactionRepository observedReactionRepository;
+
     @MockitoBean
     private ReactionRepository reactionRepository;
+
+    @MockitoBean
+    private ObservedReactionsAggregatedRepository observedReactionsAggregatedRepository;
+
 
     @Test
     void onReactionsObservedEvent() {
         // given: observed reactions
         Instant now = Instant.now();
-        ReactionsObservedEvent event = new ReactionsObservedEventBuilder("test", "test")
+        ReactionsObservedEvent event = new ReactionsObservedEventBuilder("test", "system")
                 .serviceInstanceIdentifier(UUID.randomUUID())
                 .countByReactionId(Map.of("r1", 10, "r2", 20))
                 .timeframe(now.minusSeconds(300), now)

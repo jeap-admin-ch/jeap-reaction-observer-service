@@ -3,6 +3,7 @@ package ch.admin.bit.jeap.reaction.observer.kafka;
 import ch.admin.bit.jeap.messaging.annotations.JeapMessageConsumerContract;
 import ch.admin.bit.jeap.messaging.kafka.test.KafkaIntegrationTestBase;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
+import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
@@ -29,8 +30,12 @@ class ReactionIdentifiedEventListenerTest extends KafkaIntegrationTestBase {
 
     @MockitoBean
     private ReactionRepository reactionRepository;
+
     @MockitoBean
     private ObservedReactionRepository observedReactionRepository;
+
+    @MockitoBean
+    private ObservedReactionsAggregatedRepository observedReactionsAggregatedRepository;
 
     @Test
     void onReactionIdentifiedEvent() {
