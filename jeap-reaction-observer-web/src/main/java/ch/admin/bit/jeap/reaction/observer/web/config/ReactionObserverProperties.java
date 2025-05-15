@@ -14,4 +14,10 @@ public class ReactionObserverProperties {
     @Value("${jeap.reaction.observer.service.statistics-period-in-days}")
     private Long statisticsPeriodInDays;
 
+    @Value("${jeap.reaction.observer.service.housekeeping-observed-reactions-cron-expression}")
+    private String housekeepingObservedReactionsCronExpression;
+
+    @Value("${jeap.reaction.observer.service.housekeeping-aggregated-data-cron-expression}")
+    private String housekeepingAggregatedDataCronExpression;
+
 }
