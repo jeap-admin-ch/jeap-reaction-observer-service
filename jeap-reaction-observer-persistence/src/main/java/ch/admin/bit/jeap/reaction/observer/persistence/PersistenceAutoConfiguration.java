@@ -8,6 +8,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import java.util.concurrent.TimeUnit;
@@ -30,8 +31,8 @@ class PersistenceAutoConfiguration {
     }
 
     @Bean
-    ObservedReactionsAggregatedRepositoryImpl observedReactionsAggregatedRepository(JpaObservedReactionsAggregatedRepository jpaObservedReactionsAggregatedRepository) {
-        return new ObservedReactionsAggregatedRepositoryImpl(jpaObservedReactionsAggregatedRepository);
+    ObservedReactionsAggregatedRepositoryImpl observedReactionsAggregatedRepository(JdbcTemplate jdbcTemplate) {
+        return new ObservedReactionsAggregatedRepositoryImpl(jdbcTemplate);
     }
 
     @Bean

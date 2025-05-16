@@ -3,6 +3,7 @@ package ch.admin.bit.jeap.reaction.observer.web.service;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.aggregation.AggregationService;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
+import io.micrometer.core.annotation.Timed;
 import lombok.AllArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,7 @@ public class ScheduledTasksService {
     private final ObservedReactionRepository observedReactionRepository;
     private final ReactionObserverProperties properties;
 
+    @Timed("reaction_observer_service_aggregate_data")
     @Scheduled(cron = "${jeap.reaction.observer.service.data-aggregation-cron-expression}")
     public void aggregateData() {
         LocalDate yesterday = getToday().minusDays(1L);

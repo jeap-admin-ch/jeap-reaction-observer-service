@@ -1,18 +1,22 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
 import ch.admin.bit.jeap.reaction.observer.domain.*;
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
 
+import java.sql.SQLException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.StreamSupport;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getStartOfDay;
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
@@ -39,7 +43,10 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     private ObservedReactionsAggregatedRepository observedReactionsAggregatedRepository;
 
     @Autowired
-    private JpaObservedReactionsAggregatedRepository jpaObservedReactionsAggregatedRepository;
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     void aggregation_statistics_single_day() {
@@ -172,7 +179,7 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     }
 
     @Test
-    void delete_aggregated_data() {
+    void delete_aggregated_data() throws SQLException {
         // given: a reaction and several observations over different periods
         String reactionId = "reactionId4";
         String component = "component2";
@@ -198,11 +205,69 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         observedReactionsAggregatedRepository.deleteAggregatedDataOlderThan(cutoffDate);
 
         // then: observed reactions older than 30 days are deleted
-        List<ObservedReactionsAggregatedEntity> aggregatedEntities = StreamSupport.stream(jpaObservedReactionsAggregatedRepository.findAll().spliterator(), false).toList();
-        assertThat(aggregatedEntities.size()).isEqualTo(2);
-        aggregatedEntities.forEach(aggregatedEntity -> {
-            assertThat(aggregatedEntity.getDate()).isAfterOrEqualTo(cutoffDate);
+        List<Map<String, Object>> result = jdbcTemplate.queryForList("select date from observed_reactions_aggregated");
+        result.forEach(map -> {
+            java.sql.Date date = (java.sql.Date) map.get("date");
+            assertThat(date.toLocalDate()).isAfterOrEqualTo(cutoffDate);
         });
+    }
+
+    @Test
+    void aggregation_statistics_only_action() {
+        String reactionId = "reactionId5";
+        String component = "component1";
+        ZonedDateTime startOfDay = getStartOfDay();
+        Reaction reaction = new Reaction(component, reactionId,
+                null,
+                new Observation("actionType", "actionFqn", Map.of()),
+                startOfDay);
+        reactionRepository.save(reaction);
+
+
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay, startOfDay.plusHours(1)), 3));
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(1), startOfDay.plusHours(2)), 5));
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
+
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
+
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        assertEquals(1, statistics.size());
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
+        assertEquals("component1", statisticsEntry.component());
+        assertEquals("actionType", statisticsEntry.actionType());
+        assertEquals("actionFqn", statisticsEntry.actionFqn());
+        assertEquals(15, statisticsEntry.count());
+        assertEquals(15f, statisticsEntry.median());
+        assertEquals(100.00, statisticsEntry.percentage());
+    }
+
+    @Test
+    void aggregation_statistics_only_trigger() {
+        String reactionId = "reactionId6";
+        String component = "component1";
+        ZonedDateTime startOfDay = getStartOfDay();
+        Reaction reaction = new Reaction(component, reactionId,
+                new Observation("triggerType", "triggerFqn", Map.of()),
+                null,
+                startOfDay);
+        reactionRepository.save(reaction);
+
+
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay, startOfDay.plusHours(1)), 3));
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(1), startOfDay.plusHours(2)), 5));
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
+
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
+
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        assertEquals(1, statistics.size());
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
+        assertEquals("component1", statisticsEntry.component());
+        assertEquals("triggerType", statisticsEntry.triggerType());
+        assertEquals("triggerFqn", statisticsEntry.triggerFqn());
+        assertEquals(15, statisticsEntry.count());
+        assertEquals(15f, statisticsEntry.median());
+        assertEquals(100.00, statisticsEntry.percentage());
     }
 
     private static Reaction createReaction(String component, String reactionId, String triggerType, String triggerFqn, String actionType, String actionFqn) {
@@ -213,6 +278,7 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
     private void save(ObservedReaction observedReaction) {
         observedReactionRepository.saveAll(randomUUID().toString(), List.of(observedReaction));
+        entityManager.flush();
     }
 
 }
