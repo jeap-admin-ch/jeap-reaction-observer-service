@@ -31,29 +31,35 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
     @Override
     public List<ObservedReactionsAggregatedStatistics> getStatistics(String component, LocalDate fromDate) {
         return this.jdbcTemplate.query("""
-                SELECT
-                    component,
-                    trigger_type,
-                    trigger_fqn,
-                    action_type,
-                    action_fqn,
-                    SUM(count) AS count,
-                    CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY count) AS FLOAT) AS median,
-                    CAST((TRUNC(SUM(count) * 100.0 / SUM(SUM(count)) OVER (PARTITION BY component, trigger_type, trigger_fqn), 2)) AS FLOAT) AS percentage
-                FROM observed_reactions_aggregated
-                WHERE component = ? and date >= ?
-                GROUP BY component, trigger_type, trigger_fqn, action_type, action_fqn
-                """,
-                (rs, rowNum) -> new ObservedReactionsAggregatedStatistics(
-                        rs.getString("component"),
-                        rs.getString("trigger_type"),
-                        rs.getString("trigger_fqn"),
-                        rs.getString("action_type"),
-                        rs.getString("action_fqn"),
-                        rs.getInt("count"),
-                        rs.getDouble("median"),
-                        rs.getDouble("percentage")
-                ),
+                        SELECT
+                            component,
+                            trigger_type,
+                            trigger_fqn,
+                            action_type,
+                            action_fqn,
+                            SUM(count) AS count,
+                            CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY count) AS FLOAT) AS median,
+                            CASE WHEN trigger_type IS NULL AND trigger_fqn IS NULL THEN NULL ELSE CAST((TRUNC(SUM(count) * 100.0 / NULLIF(SUM(SUM(count)) OVER (PARTITION BY component, trigger_type, trigger_fqn), 0), 2)) AS FLOAT) END AS percentage
+                        FROM observed_reactions_aggregated
+                        WHERE component = ? and date >= ?
+                        GROUP BY component, trigger_type, trigger_fqn, action_type, action_fqn
+                        """,
+                (rs, rowNum) -> {
+                    Double percentage = rs.getDouble("percentage");
+                    if (rs.wasNull()) {
+                        percentage = null;
+                    }
+                    return new ObservedReactionsAggregatedStatistics(
+                            rs.getString("component"),
+                            rs.getString("trigger_type"),
+                            rs.getString("trigger_fqn"),
+                            rs.getString("action_type"),
+                            rs.getString("action_fqn"),
+                            rs.getInt("count"),
+                            rs.getDouble("median"),
+                            percentage
+                    );
+                },
                 component, fromDate
         );
 

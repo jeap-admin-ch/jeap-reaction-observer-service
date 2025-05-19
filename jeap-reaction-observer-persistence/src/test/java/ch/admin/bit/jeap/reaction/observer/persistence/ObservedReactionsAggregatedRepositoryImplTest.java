@@ -23,6 +23,7 @@ import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.g
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -215,58 +216,75 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     @Test
     void aggregation_statistics_only_action() {
         String reactionId = "reactionId5";
+        String reactionId1 = "reactionId6";
         String component = "component1";
         ZonedDateTime startOfDay = getStartOfDay();
-        Reaction reaction = new Reaction(component, reactionId,
-                null,
-                new Observation("actionType", "actionFqn", Map.of()),
-                startOfDay);
+        Reaction reaction = createReaction(component, reactionId, null, null, "actionType", "actionFqn");
+        Reaction reaction1 = createReaction(component, reactionId1, null, null, "actionType1", "actionFqn1");
         reactionRepository.save(reaction);
+        reactionRepository.save(reaction1);
 
 
         save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay, startOfDay.plusHours(1)), 3));
         save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(1), startOfDay.plusHours(2)), 5));
-        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
+        save(new ObservedReaction(component, reactionId1, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
         List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
-        assertEquals(1, statistics.size());
+        assertEquals(2, statistics.size());
         ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component1", statisticsEntry.component());
         assertEquals("actionType", statisticsEntry.actionType());
         assertEquals("actionFqn", statisticsEntry.actionFqn());
-        assertEquals(15, statisticsEntry.count());
-        assertEquals(15f, statisticsEntry.median());
-        assertEquals(100.00, statisticsEntry.percentage());
+        assertEquals(8, statisticsEntry.count());
+        assertEquals(8f, statisticsEntry.median());
+        assertNull(statisticsEntry.percentage());
+
+        statisticsEntry = statistics.getLast();
+        assertEquals("component1", statisticsEntry.component());
+        assertEquals("actionType1", statisticsEntry.actionType());
+        assertEquals("actionFqn1", statisticsEntry.actionFqn());
+        assertEquals(7, statisticsEntry.count());
+        assertEquals(7f, statisticsEntry.median());
+        assertNull(statisticsEntry.percentage());
     }
 
     @Test
     void aggregation_statistics_only_trigger() {
-        String reactionId = "reactionId6";
+        String reactionId = "reactionId7";
+        String reactionId1 = "reactionId8";
         String component = "component1";
         ZonedDateTime startOfDay = getStartOfDay();
-        Reaction reaction = new Reaction(component, reactionId,
-                new Observation("triggerType", "triggerFqn", Map.of()),
-                null,
-                startOfDay);
+        Reaction reaction = createReaction(component, reactionId, "triggerType", "triggerFqn", null, null);
+        Reaction reaction1 = createReaction(component, reactionId1, "triggerType1", "triggerFqn1", null, null);
         reactionRepository.save(reaction);
+        reactionRepository.save(reaction1);
 
 
         save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay, startOfDay.plusHours(1)), 3));
         save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(1), startOfDay.plusHours(2)), 5));
-        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
+        save(new ObservedReaction(component, reactionId1, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
         List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
-        assertEquals(1, statistics.size());
+        assertEquals(2, statistics.size());
         ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component1", statisticsEntry.component());
         assertEquals("triggerType", statisticsEntry.triggerType());
         assertEquals("triggerFqn", statisticsEntry.triggerFqn());
-        assertEquals(15, statisticsEntry.count());
-        assertEquals(15f, statisticsEntry.median());
+        assertEquals(8, statisticsEntry.count());
+        assertEquals(8f, statisticsEntry.median());
+        assertEquals(100.00, statisticsEntry.percentage());
+
+
+        statisticsEntry = statistics.getLast();
+        assertEquals("component1", statisticsEntry.component());
+        assertEquals("triggerType1", statisticsEntry.triggerType());
+        assertEquals("triggerFqn1", statisticsEntry.triggerFqn());
+        assertEquals(7, statisticsEntry.count());
+        assertEquals(7f, statisticsEntry.median());
         assertEquals(100.00, statisticsEntry.percentage());
     }
 
