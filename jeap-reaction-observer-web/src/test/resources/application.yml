@@ -17,10 +17,14 @@ spring:
 jeap:
   reaction:
     observer:
+      read-user:
+        username: read
+        password: "{noop}secret"
       service:
         kafka:
           reaction-identified-topic: reaction-identified
           reactions-observed-topic: reactions-observed
+        statistics-period-in-days: 30
 
 logging:
   level:
@@ -31,3 +35,4 @@ logging:
     ch.admin.bit.jeap.messaging.kafka.serde.confluent.config: WARN
     io.confluent.kafka.serializers: WARN
     org.hibernate.SQL: DEBUG
+    org.springframework.security: TRACE

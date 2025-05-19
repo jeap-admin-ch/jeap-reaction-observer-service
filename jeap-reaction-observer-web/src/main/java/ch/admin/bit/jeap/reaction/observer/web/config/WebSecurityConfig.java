@@ -20,16 +20,16 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 public class WebSecurityConfig {
 
-    @Value("${jeap.reaction-observer.read-user.username}")
+    @Value("${jeap.reaction.observer.read-user.username}")
     private String readUserUsername;
 
-    @Value("${jeap.reaction-observer.read-user.password}")
+    @Value("${jeap.reaction.observer.read-user.password}")
     private String readUserPassword;
 
-    @Value("${jeap.reaction-observer.write-user.username}")
+    @Value("${jeap.reaction.observer.write-user.username}")
     private String writeUserUsername;
 
-    @Value("${jeap.reaction-observer.write-user.password}")
+    @Value("${jeap.reaction.observer.write-user.password}")
     private String writeUserPassword;
 
     @Bean
