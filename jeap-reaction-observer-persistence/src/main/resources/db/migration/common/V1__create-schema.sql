@@ -56,8 +56,10 @@ CREATE TABLE observed_reactions_aggregated
     reaction_fk     BIGINT                   NOT NULL
         CONSTRAINT observed_reactions_aggregated_reaction_fk_fkey REFERENCES reaction (id) ON DELETE CASCADE,
     component       VARCHAR(1024)            NOT NULL,
+    trigger_id      VARCHAR(1024),
     trigger_type    VARCHAR(64),
     trigger_fqn     VARCHAR(1024),
+    action_id       VARCHAR(1024),
     action_type     VARCHAR(64),
     action_fqn      VARCHAR(1024),
     date            DATE                     NOT NULL,

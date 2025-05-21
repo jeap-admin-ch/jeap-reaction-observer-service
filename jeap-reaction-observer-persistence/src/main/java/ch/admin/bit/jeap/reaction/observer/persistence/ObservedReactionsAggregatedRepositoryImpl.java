@@ -20,8 +20,9 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
     @Override
     public void aggregateObservedReactionsForDay(LocalDate date) {
         this.jdbcTemplate.update("""
-                INSERT INTO observed_reactions_aggregated (reaction_fk, component, trigger_type, trigger_fqn, action_type, action_fqn, date, count)
-                SELECT obsreaction.reaction_fk as rid, r.component, r.trigger_type, r.trigger_fqn, r.action_type, r.action_fqn, CAST(obsreaction.timeframe_start AS DATE), sum(obsreaction.count) FROM observed_reaction obsreaction
+                INSERT INTO observed_reactions_aggregated (reaction_fk, component, trigger_id, trigger_type, trigger_fqn, action_id, action_type, action_fqn, date, count)
+                SELECT obsreaction.reaction_fk as rid, r.component, r.trigger_id, r.trigger_type, r.trigger_fqn, r.action_id, r.action_type, r.action_fqn, CAST(obsreaction.timeframe_start AS DATE), sum(obsreaction.count) 
+                FROM observed_reaction obsreaction
                 INNER JOIN reaction r on obsreaction.reaction_fk= r.id                                                             
                        WHERE CAST(obsreaction.timeframe_start AS DATE) = ?
                        GROUP BY obsreaction.reaction_fk, CAST(obsreaction.timeframe_start AS DATE)
@@ -39,10 +40,14 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
                             action_fqn,
                             SUM(count) AS count,
                             CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY count) AS FLOAT) AS median,
-                            CASE WHEN trigger_type IS NULL AND trigger_fqn IS NULL THEN NULL ELSE CAST((TRUNC(SUM(count) * 100.0 / NULLIF(SUM(SUM(count)) OVER (PARTITION BY component, trigger_type, trigger_fqn), 0), 2)) AS FLOAT) END AS percentage
+                            CASE WHEN trigger_id IS NULL 
+                                THEN NULL 
+                            ELSE 
+                                CAST((TRUNC(SUM(count) * 100.0 / NULLIF(SUM(SUM(count)) OVER (PARTITION BY component, trigger_id), 0), 2)) AS FLOAT) 
+                            END AS percentage
                         FROM observed_reactions_aggregated
                         WHERE component = ? and date >= ?
-                        GROUP BY component, trigger_type, trigger_fqn, action_type, action_fqn
+                        GROUP BY component, trigger_id, action_id
                         """,
                 (rs, rowNum) -> {
                     Double percentage = rs.getDouble("percentage");

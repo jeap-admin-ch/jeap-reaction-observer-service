@@ -51,7 +51,7 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
     @Test
     void aggregation_statistics_single_day() {
-        String reactionId = "reactionId1";
+        String reactionId = "triggerId0#actionId0";
         String component = "component1";
         ZonedDateTime startOfDay = getStartOfDay();
         Reaction reaction = new Reaction(component, reactionId,
@@ -82,7 +82,7 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
     @Test
     void aggregation_statistics_different_days() {
-        String reactionId = "reactionId2";
+        String reactionId = "triggerId1#actionId1";
         String component = "component2";
         ZonedDateTime startOfDay = getStartOfDay();
         ZonedDateTime yesterday = startOfDay.minusDays(1);
@@ -121,8 +121,8 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     @Test
     void aggregation_statistics_two_different_actions_same_trigger() {
         String component = "component1";
-        Reaction reaction = createReaction(component, "reaction1", "triggerType", "triggerFqn", "actionType", "actionFqn");
-        Reaction reaction1 = createReaction(component, "reaction2", "triggerType", "triggerFqn", "actionType1", "actionFqn1");
+        Reaction reaction = createReaction(component, "triggerId2#actionId0", "triggerType", "triggerFqn", "actionType", "actionFqn");
+        Reaction reaction1 = createReaction(component, "triggerId2#actionId1", "triggerType", "triggerFqn", "actionType1", "actionFqn1");
         reactionRepository.save(reaction);
         reactionRepository.save(reaction1);
 
@@ -130,10 +130,10 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         ZonedDateTime yesterday = startOfDay.minusDays(1);
         ZonedDateTime theDayBefore = yesterday.minusDays(1);
 
-        save(new ObservedReaction(component, "reaction1", new Timeframe(theDayBefore, theDayBefore.plusHours(1)), 60));
-        save(new ObservedReaction(component, "reaction1", new Timeframe(yesterday, yesterday.plusHours(1)), 10));
-        save(new ObservedReaction(component, "reaction1", new Timeframe(startOfDay, startOfDay.plusHours(1)), 10));
-        save(new ObservedReaction(component, "reaction2", new Timeframe(startOfDay, startOfDay.plusHours(1)), 20));
+        save(new ObservedReaction(component, "triggerId2#actionId0", new Timeframe(theDayBefore, theDayBefore.plusHours(1)), 60));
+        save(new ObservedReaction(component, "triggerId2#actionId0", new Timeframe(yesterday, yesterday.plusHours(1)), 10));
+        save(new ObservedReaction(component, "triggerId2#actionId0", new Timeframe(startOfDay, startOfDay.plusHours(1)), 10));
+        save(new ObservedReaction(component, "triggerId2#actionId1", new Timeframe(startOfDay, startOfDay.plusHours(1)), 20));
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(theDayBefore.toLocalDate());
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(yesterday.toLocalDate());
@@ -154,13 +154,14 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
     @Test
     void aggregation_statistics_same_reactions_different_components() {
-        Reaction reaction = createReaction("component1", "reaction3", "triggerType", "triggerFqn", "actionType", "actionFqn");
-        Reaction reaction1 = createReaction("component2", "reaction3", "triggerType", "triggerFqn", "actionType", "actionFqn");
+        String reactionId = "triggerId3#actionId0";
+        Reaction reaction = createReaction("component1", reactionId, "triggerType", "triggerFqn", "actionType", "actionFqn");
+        Reaction reaction1 = createReaction("component2", reactionId, "triggerType", "triggerFqn", "actionType", "actionFqn");
         reactionRepository.save(reaction);
         reactionRepository.save(reaction1);
 
-        save(new ObservedReaction("component1", "reaction3", new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 10));
-        save(new ObservedReaction("component2", "reaction3", new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 20));
+        save(new ObservedReaction("component1", reactionId, new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 10));
+        save(new ObservedReaction("component2", reactionId, new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 20));
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
@@ -215,8 +216,8 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
     @Test
     void aggregation_statistics_only_action() {
-        String reactionId = "reactionId5";
-        String reactionId1 = "reactionId6";
+        String reactionId = "#actionId0";
+        String reactionId1 = "#actionId1";
         String component = "component1";
         ZonedDateTime startOfDay = getStartOfDay();
         Reaction reaction = createReaction(component, reactionId, null, null, "actionType", "actionFqn");
@@ -252,8 +253,8 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
     @Test
     void aggregation_statistics_only_trigger() {
-        String reactionId = "reactionId7";
-        String reactionId1 = "reactionId8";
+        String reactionId = "triggerId5";
+        String reactionId1 = "triggerId6";
         String component = "component1";
         ZonedDateTime startOfDay = getStartOfDay();
         Reaction reaction = createReaction(component, reactionId, "triggerType", "triggerFqn", null, null);
