@@ -27,11 +27,17 @@ class ReactionEntity {
     @Column(name = "component")
     private String component;
 
+    @Column(name = "trigger_id")
+    private String triggerId;
+
     @Column(name = "trigger_type")
     private String triggerType;
 
     @Column(name = "trigger_fqn")
     private String triggerFqn;
+
+    @Column(name = "action_id")
+    private String actionId;
 
     @Column(name = "action_type")
     private String actionType;
@@ -44,14 +50,16 @@ class ReactionEntity {
 
     @Builder
     private ReactionEntity(@NonNull String reactionId, @NonNull String component,
-                           String triggerType, String triggerFqn,
-                           String actionType, String actionFqn,
+                           String triggerId, String triggerType, String triggerFqn,
+                           String actionId, String actionType, String actionFqn,
                            @NonNull ZonedDateTime identifiedAt) {
         this.reactionId = reactionId;
         this.component = component;
         this.identifiedAt = identifiedAt;
+        this.triggerId = triggerId;
         this.triggerType = triggerType;
         this.triggerFqn = triggerFqn;
+        this.actionId = actionId;
         this.actionType = actionType;
         this.actionFqn = actionFqn;
     }

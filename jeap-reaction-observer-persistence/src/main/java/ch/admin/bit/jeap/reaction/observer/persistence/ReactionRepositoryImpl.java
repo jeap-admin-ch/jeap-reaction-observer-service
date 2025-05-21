@@ -34,10 +34,12 @@ class ReactionRepositoryImpl implements ReactionRepository {
                     .reactionId(reaction.reactionId())
                     .identifiedAt(reaction.identifiedAt());
             if (trigger != null) {
+                builder.triggerId(getTriggerId(reaction.reactionId()));
                 builder.triggerType(trigger.type());
                 builder.triggerFqn(trigger.fqn());
             }
             if (action != null) {
+                builder.actionId(getActionId(reaction.reactionId()));
                 builder.actionType(action.type());
                 builder.actionFqn(action.fqn());
             }
@@ -96,5 +98,18 @@ class ReactionRepositoryImpl implements ReactionRepository {
             return null;
         }
         return new Observation(type, fqn, props);
+    }
+
+    private String getTriggerId(String reactionId) {
+        String triggerIdFragment = reactionId.split("#")[0];
+        return triggerIdFragment.isBlank() ? null : triggerIdFragment;
+    }
+
+    private String getActionId(String reactionId) {
+        String[] parts = reactionId.split("#");
+        if (parts.length > 1) {
+            return parts[1];
+        }
+        return null;
     }
 }

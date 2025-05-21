@@ -12,6 +12,7 @@ import org.springframework.test.context.ContextConfiguration;
 
 import java.time.ZonedDateTime;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,6 +24,9 @@ class ReactionRepositoryImplTest {
 
     @Autowired
     private ReactionRepository reactionRepository;
+
+    @Autowired
+    private JpaReactionRepository jpaReactionRepository;
 
     @Test
     void save_noProps() {
@@ -105,4 +109,47 @@ class ReactionRepositoryImplTest {
         assertThat(reaction)
                 .isEqualTo(identifiedReaction);
     }
+
+    @Test
+    void save_triggerId_isSaved() {
+        Observation trigger = new Observation("triggerType", "triggerFqn", Map.of());
+        Observation action = new Observation("actionType", "actionFqn", Map.of());
+        var identifiedReaction = new Reaction("component0", "trigger0", trigger, action, ZonedDateTime.now());
+
+        reactionRepository.save(identifiedReaction);
+
+        Optional<ReactionEntity> entity = jpaReactionRepository.findByComponentAndReactionId("component0", "trigger0");
+        assertThat(entity).isPresent();
+        assertThat(entity.get().getTriggerId()).isEqualTo("trigger0");
+        assertThat(entity.get().getActionId()).isNull();
+    }
+
+    @Test
+    void save_actionId_isSaved() {
+        Observation trigger = new Observation("triggerType", "triggerFqn", Map.of());
+        Observation action = new Observation("actionType", "actionFqn", Map.of());
+        var identifiedReaction = new Reaction("component0", "#action0", trigger, action, ZonedDateTime.now());
+
+        reactionRepository.save(identifiedReaction);
+
+        Optional<ReactionEntity> entity = jpaReactionRepository.findByComponentAndReactionId("component0", "#action0");
+        assertThat(entity).isPresent();
+        assertThat(entity.get().getActionId()).isEqualTo("action0");
+        assertThat(entity.get().getTriggerId()).isNull();
+    }
+
+    @Test
+    void save_triggerAndActionIds_areSaved() {
+        Observation trigger = new Observation("triggerType", "triggerFqn", Map.of());
+        Observation action = new Observation("actionType", "actionFqn", Map.of());
+        var identifiedReaction = new Reaction("component0", "trigger0#action0", trigger, action, ZonedDateTime.now());
+
+        reactionRepository.save(identifiedReaction);
+
+        Optional<ReactionEntity> entity = jpaReactionRepository.findByComponentAndReactionId("component0", "trigger0#action0");
+        assertThat(entity).isPresent();
+        assertThat(entity.get().getActionId()).isEqualTo("action0");
+        assertThat(entity.get().getTriggerId()).isEqualTo("trigger0");
+    }
+
 }
