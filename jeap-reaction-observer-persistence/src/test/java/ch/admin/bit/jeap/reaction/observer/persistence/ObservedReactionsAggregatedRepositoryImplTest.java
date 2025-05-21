@@ -11,10 +11,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
 
 import java.sql.SQLException;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
-import java.util.Date;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -54,12 +53,13 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         String reactionId = "triggerId0#actionId0";
         String component = "component1";
         ZonedDateTime startOfDay = getStartOfDay();
+        Map<String, String> triggerProps = Map.of("triggerKey1", "triggerValue1", "triggerKey2", "triggerValue2");
+        Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
         Reaction reaction = new Reaction(component, reactionId,
-                new Observation("triggerType", "triggerFqn", Map.of()),
-                new Observation("actionType", "actionFqn", Map.of()),
+                new Observation("triggerType", "triggerFqn", triggerProps),
+                new Observation("actionType", "actionFqn", actionProps),
                 startOfDay);
         reactionRepository.save(reaction);
-
 
         save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay, startOfDay.plusHours(1)), 3));
         save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(1), startOfDay.plusHours(2)), 5));
@@ -78,6 +78,18 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         assertEquals(15, statisticsEntry.count());
         assertEquals(15f, statisticsEntry.median());
         assertEquals(100.00, statisticsEntry.percentage());
+
+        // Verify trigger properties
+        assertThat(statisticsEntry.triggerProperties()).isNotNull();
+        assertEquals(2, statisticsEntry.triggerProperties().size());
+        assertEquals("triggerValue1", statisticsEntry.triggerProperties().get("triggerKey1"));
+        assertEquals("triggerValue2", statisticsEntry.triggerProperties().get("triggerKey2"));
+
+        // Verify action properties
+        assertThat(statisticsEntry.actionProperties()).isNotNull();
+        assertEquals(2, statisticsEntry.actionProperties().size());
+        assertEquals("actionValue1", statisticsEntry.actionProperties().get("actionKey1"));
+        assertEquals("actionValue2", statisticsEntry.actionProperties().get("actionKey2"));
     }
 
     @Test
@@ -111,6 +123,8 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         assertEquals("component2", statisticsEntry.component());
         assertEquals("triggerType", statisticsEntry.triggerType());
         assertEquals("triggerFqn", statisticsEntry.triggerFqn());
+        assertEquals(Collections.emptyMap(), statisticsEntry.actionProperties());
+        assertEquals(Collections.emptyMap(), statisticsEntry.triggerProperties());
         assertEquals("actionType", statisticsEntry.actionType());
         assertEquals("actionFqn", statisticsEntry.actionFqn());
         assertEquals(15, statisticsEntry.count());
@@ -290,8 +304,10 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     }
 
     private static Reaction createReaction(String component, String reactionId, String triggerType, String triggerFqn, String actionType, String actionFqn) {
-        Observation trigger = new Observation(triggerType, triggerFqn, Map.of());
-        Observation action = new Observation(actionType, actionFqn, Map.of());
+        Map<String, String> triggerProps = triggerType != null ? Map.of("triggerKey1", "triggerValue1", "triggerKey2", "triggerValue2") : Map.of();
+        Map<String, String> actionProps = actionType != null ? Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2") : Map.of();
+        Observation trigger = new Observation(triggerType, triggerFqn, triggerProps);
+        Observation action = new Observation(actionType, actionFqn, actionProps);
         return new Reaction(component, reactionId, trigger, action, ZonedDateTime.now());
     }
 

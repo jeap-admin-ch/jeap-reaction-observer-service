@@ -40,7 +40,7 @@ class StatisticsControllerTest {
         // Arrange
         String component = "testComponent";
         List<ObservedReactionsAggregatedStatistics> mockStatistics = Collections.singletonList(
-                new ObservedReactionsAggregatedStatistics(component, "triggerType", "triggerFqn", null, null, 5, 10, 15d)
+                new ObservedReactionsAggregatedStatistics(component, "triggerType", "triggerFqn", null, null, 5, 10, 15d, Collections.singletonMap("triggerProp", "triggerVal"), Collections.singletonMap("actionProp", "actionVal"))
         );
 
         when(observedReactionsAggregatedRepository.getStatistics(any(), any())).thenReturn(mockStatistics);
@@ -51,6 +51,6 @@ class StatisticsControllerTest {
                         .with(httpBasic("read", "secret"))
                 )
                 .andExpect(status().isOk())
-                .andExpect(content().json("[{\"component\":\"testComponent\",\"triggerType\":\"triggerType\",\"triggerFqn\":\"triggerFqn\",\"actionType\":null,\"actionFqn\":null,\"count\":5,\"median\":10.0,\"percentage\":15.0}]"));
+                .andExpect(content().json("[{\"component\":\"testComponent\",\"triggerType\":\"triggerType\",\"triggerFqn\":\"triggerFqn\",\"actionType\":null,\"actionFqn\":null,\"count\":5,\"median\":10.0,\"percentage\":15.0,\"triggerProperties\":{\"triggerProp\":\"triggerVal\"},\"actionProperties\":{\"actionProp\":\"actionVal\"}}]"));
     }
 }
