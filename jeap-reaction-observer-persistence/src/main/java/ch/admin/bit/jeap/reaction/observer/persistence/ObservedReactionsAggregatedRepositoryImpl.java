@@ -23,11 +23,11 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
     public void aggregateObservedReactionsForDay(LocalDate date) {
         this.jdbcTemplate.update("""
                 INSERT INTO observed_reactions_aggregated (reaction_fk, component, trigger_id, trigger_type, trigger_fqn, action_id, action_type, action_fqn, date, count)
-                SELECT obsreaction.reaction_fk as rid, r.component, r.trigger_id, r.trigger_type, r.trigger_fqn, r.action_id, r.action_type, r.action_fqn, CAST(obsreaction.timeframe_start AS DATE), sum(obsreaction.count) 
+                SELECT obsreaction.reaction_fk as rid, r.component, r.trigger_id, r.trigger_type, r.trigger_fqn, r.action_id, r.action_type, r.action_fqn, obsreaction.observation_date, sum(obsreaction.count) 
                 FROM observed_reaction obsreaction
                 INNER JOIN reaction r on obsreaction.reaction_fk= r.id                                                             
-                       WHERE CAST(obsreaction.timeframe_start AS DATE) = ?
-                       GROUP BY obsreaction.reaction_fk, CAST(obsreaction.timeframe_start AS DATE)
+                       WHERE obsreaction.observation_date = ?
+                       GROUP BY obsreaction.reaction_fk, obsreaction.observation_date
                 """, date);
     }
 

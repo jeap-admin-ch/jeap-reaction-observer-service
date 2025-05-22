@@ -35,11 +35,13 @@ class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
     }
 
     private ObservedReactionEntity toEntity(String idempotenceId, ObservedReaction observedReaction) {
+        ZonedDateTime start = observedReaction.timeframe().start();
         return ObservedReactionEntity.builder()
                 .reactionFk(reactionFk(observedReaction.component(), observedReaction.reactionId()))
                 .idempotenceId(idempotenceId)
-                .timeframeStart(observedReaction.timeframe().start())
+                .timeframeStart(start)
                 .timeframeEnd(observedReaction.timeframe().end())
+                .observationDate(start.toLocalDate())
                 .count(observedReaction.count())
                 .build();
     }

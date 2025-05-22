@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 
@@ -39,15 +40,19 @@ class ObservedReactionEntity {
     @Column(name = "timeframe_end")
     private ZonedDateTime timeframeEnd;
 
+    @Column(name = "observation_date")
+    private LocalDate observationDate;
+
     @Column(name = "count")
     private int count;
 
     @Builder
-    private ObservedReactionEntity(Long reactionFk, String idempotenceId, ZonedDateTime timeframeStart, ZonedDateTime timeframeEnd, int count) {
+    private ObservedReactionEntity(Long reactionFk, String idempotenceId, ZonedDateTime timeframeStart, ZonedDateTime timeframeEnd, LocalDate observationDate, int count) {
         this.reactionFk = reactionFk;
         this.idempotenceId = idempotenceId;
         this.timeframeStart = timeframeStart;
         this.timeframeEnd = timeframeEnd;
+        this.observationDate = observationDate;
         this.count = count;
     }
 

@@ -37,14 +37,15 @@ CREATE INDEX observation_property_action_fk ON observation_property (reaction_ac
 CREATE SEQUENCE observed_reaction_sequence START WITH 1 INCREMENT 10 CYCLE;
 CREATE TABLE observed_reaction
 (
-    id              BIGINT                   NOT NULL
+    id               BIGINT                   NOT NULL
         CONSTRAINT observed_reaction_pkey PRIMARY KEY,
-    reaction_fk     BIGINT                   NOT NULL
+    reaction_fk      BIGINT                   NOT NULL
         CONSTRAINT observed_reaction_reaction_fk_fkey REFERENCES reaction (id) ON DELETE CASCADE,
-    idempotence_id  VARCHAR(1024)            NOT NULL,
-    timeframe_start TIMESTAMP WITH TIME ZONE NOT NULL,
-    timeframe_end   TIMESTAMP WITH TIME ZONE NOT NULL,
-    count           INT                      NOT NULL
+    idempotence_id   VARCHAR(1024)            NOT NULL,
+    timeframe_start  TIMESTAMP WITH TIME ZONE NOT NULL,
+    timeframe_end    TIMESTAMP WITH TIME ZONE NOT NULL,
+    observation_date DATE                     NOT NULL,
+    count            INT                      NOT NULL
 );
 
 -- observed reactions aggregated counts within a certain day
