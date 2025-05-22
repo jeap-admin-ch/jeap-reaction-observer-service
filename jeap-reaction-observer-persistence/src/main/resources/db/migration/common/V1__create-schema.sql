@@ -47,6 +47,9 @@ CREATE TABLE observed_reaction
     observation_date DATE                     NOT NULL,
     count            INT                      NOT NULL
 );
+CREATE INDEX observed_reaction_reaction_fk ON observed_reaction (reaction_fk);
+CREATE INDEX observed_reaction_observation_date ON observed_reaction (observation_date);
+CREATE INDEX observed_reaction_fk_date ON observed_reaction (reaction_fk, observation_date);
 
 -- observed reactions aggregated counts within a certain day
 CREATE SEQUENCE observed_reactions_aggregated_sequence START WITH 1 INCREMENT 10 CYCLE;
@@ -66,3 +69,5 @@ CREATE TABLE observed_reactions_aggregated
     date            DATE                     NOT NULL,
     count           INT                      NOT NULL
 );
+CREATE INDEX observed_reactions_component_date ON observed_reactions_aggregated (component, date);
+CREATE INDEX observed_reactions_component_trigger_id ON observed_reactions_aggregated (component, trigger_id);
