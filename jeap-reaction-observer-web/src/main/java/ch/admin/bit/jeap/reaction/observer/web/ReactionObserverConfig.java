@@ -1,5 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.web;
 
+import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
@@ -9,6 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @AutoConfiguration
 @EnableConfigurationProperties
 @EnableScheduling
+@EnableSchedulerLock(defaultLockAtMostFor = "10m")
 @ComponentScan(basePackageClasses = {ReactionObserverApplication.class})
 @PropertySource("classpath:reactionObserverDefaultProperties.properties")
 class ReactionObserverConfig {

@@ -303,6 +303,27 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         assertEquals(100.00, statisticsEntry.percentage());
     }
 
+    @Test
+    void statistics_not_found() {
+        String reactionId = "triggerId5#actionId5";
+        String component = "component1";
+        ZonedDateTime startOfDay = getStartOfDay();
+        Reaction reaction = new Reaction(component, reactionId,
+                new Observation("triggerType", "triggerFqn", Collections.emptyMap()),
+                new Observation("actionType", "actionFqn", Collections.emptyMap()),
+                startOfDay);
+        reactionRepository.save(reaction);
+
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay, startOfDay.plusHours(1)), 3));
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(1), startOfDay.plusHours(2)), 5));
+        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
+
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
+
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics("unknown", getToday().minusDays(1L));
+        assertEquals(0, statistics.size());
+    }
+
     private static Reaction createReaction(String component, String reactionId, String triggerType, String triggerFqn, String actionType, String actionFqn) {
         Map<String, String> triggerProps = triggerType != null ? Map.of("triggerKey1", "triggerValue1", "triggerKey2", "triggerValue2") : Map.of();
         Map<String, String> actionProps = actionType != null ? Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2") : Map.of();

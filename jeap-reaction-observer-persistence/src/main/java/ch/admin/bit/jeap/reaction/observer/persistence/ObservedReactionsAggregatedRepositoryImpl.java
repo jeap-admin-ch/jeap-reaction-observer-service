@@ -27,7 +27,7 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
                 FROM observed_reaction obsreaction
                 INNER JOIN reaction r on obsreaction.reaction_fk= r.id                                                             
                        WHERE obsreaction.observation_date = ?
-                       GROUP BY obsreaction.reaction_fk, obsreaction.observation_date
+                       GROUP BY obsreaction.reaction_fk, obsreaction.observation_date, r.component, r.trigger_id, r.trigger_type, r.trigger_fqn, r.action_id, r.action_type, r.action_fqn
                 """, date);
     }
 
