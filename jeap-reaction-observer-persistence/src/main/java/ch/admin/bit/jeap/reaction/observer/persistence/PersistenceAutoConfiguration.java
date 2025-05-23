@@ -1,6 +1,5 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -11,7 +10,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import javax.sql.DataSource;
-import java.util.concurrent.TimeUnit;
 
 @AutoConfiguration
 @EnableTransactionManagement
