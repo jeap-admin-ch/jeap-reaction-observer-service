@@ -33,6 +33,7 @@ public class ScheduledTasksService {
         LockAssert.assertLocked();
         LocalDate yesterday = getToday().minusDays(1L);
         this.aggregationService.aggregateData(yesterday);
+        log.info("Finished scheduled data aggregation");
     }
 
     @SchedulerLock(name = "observedreactions-housekeeping-task", lockAtLeastFor = "5s", lockAtMostFor = "2h")
@@ -41,6 +42,7 @@ public class ScheduledTasksService {
         log.info("Starting scheduled housekeeping for observed reactions");
         LockAssert.assertLocked();
         this.observedReactionRepository.deleteByTimeframeStartBefore(getStartOfDay());
+        log.info("Finished scheduled housekeeping for observed reactions");
     }
 
     @SchedulerLock(name = "aggregated-data-housekeeping-task", lockAtLeastFor = "5s", lockAtMostFor = "2h")
@@ -49,6 +51,7 @@ public class ScheduledTasksService {
         log.info("Starting scheduled housekeeping for aggregated data");
         LockAssert.assertLocked();
         this.aggregationService.deleteAggregatedDataOlderThan(getToday().minusDays(properties.getStatisticsPeriodInDays()));
+        log.info("Finished scheduled housekeeping for aggregated data");
     }
 
 }
