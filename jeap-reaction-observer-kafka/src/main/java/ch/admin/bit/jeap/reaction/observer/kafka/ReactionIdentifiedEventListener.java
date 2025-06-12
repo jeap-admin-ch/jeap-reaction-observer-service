@@ -33,6 +33,7 @@ class ReactionIdentifiedEventListener {
         Reaction reaction = createReaction((ReactionIdentifiedEvent) event);
         log.debug("Identified reaction: {}", reaction);
         reactionRepository.save(reaction);
+        ack.acknowledge();
     }
 
     private static Reaction createReaction(ReactionIdentifiedEvent event) {
