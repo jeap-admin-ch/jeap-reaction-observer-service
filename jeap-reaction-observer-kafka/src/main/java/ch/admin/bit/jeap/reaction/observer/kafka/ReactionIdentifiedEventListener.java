@@ -1,5 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.kafka;
 
+import ch.admin.bit.jeap.messaging.avro.AvroMessage;
 import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.event.identified.ActionOnly;
@@ -8,6 +9,7 @@ import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEv
 import ch.admin.bit.jeap.reaction.observer.event.identified.TriggerOnly;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -22,8 +24,13 @@ class ReactionIdentifiedEventListener {
     }
 
     @KafkaListener(topics = "${jeap.reaction.observer.service.kafka.reaction-identified-topic}")
-    public void onReactionIdentifiedEvent(ReactionIdentifiedEvent event) {
-        Reaction reaction = createReaction(event);
+    public void onReactionIdentifiedEvent(AvroMessage event, Acknowledgment ack) {
+        if (event instanceof ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent) {
+            log.trace("Received a v2 ReactionIdentifiedEvent, which is not supported by this listener. Ignoring event: {}", event);
+            ack.acknowledge();
+            return;
+        }
+        Reaction reaction = createReaction((ReactionIdentifiedEvent) event);
         log.debug("Identified reaction: {}", reaction);
         reactionRepository.save(reaction);
     }
