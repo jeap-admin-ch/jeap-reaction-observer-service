@@ -3,16 +3,17 @@ package ch.admin.bit.jeap.reaction.observer.kafka;
 import ch.admin.bit.jeap.messaging.avro.AvroMessage;
 import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
-import ch.admin.bit.jeap.reaction.observer.event.identified.ActionOnly;
-import ch.admin.bit.jeap.reaction.observer.event.identified.Observation;
-import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
-import ch.admin.bit.jeap.reaction.observer.event.identified.TriggerOnly;
+import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ActionOnly;
+import ch.admin.bit.jeap.reaction.observer.event.identified.v2.Observation;
+import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
+import ch.admin.bit.jeap.reaction.observer.event.identified.v2.TriggerOnly;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 @Slf4j
 class ReactionIdentifiedEventListener {
@@ -25,8 +26,8 @@ class ReactionIdentifiedEventListener {
 
     @KafkaListener(topics = "${jeap.reaction.observer.service.kafka.reaction-identified-topic}")
     public void onReactionIdentifiedEvent(AvroMessage event, Acknowledgment ack) {
-        if (event instanceof ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent) {
-            log.trace("Received a v2 ReactionIdentifiedEvent, which is not supported by this listener. Ignoring event: {}", event);
+        if (event instanceof ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent) {
+            log.trace("Received a v1 ReactionIdentifiedEvent, which is not supported by this listener anymore. Ignoring event: {}", event);
             ack.acknowledge();
             return;
         }
@@ -38,35 +39,52 @@ class ReactionIdentifiedEventListener {
 
     private static Reaction createReaction(ReactionIdentifiedEvent event) {
         var reactionPayload = event.getPayload().getReaction();
-        Observation action = null;
+        List<Observation> actions = null;
         Observation trigger = null;
+        String reactionId;
         switch (reactionPayload) {
-            case ch.admin.bit.jeap.reaction.observer.event.identified.Reaction reaction -> {
-                action = reaction.getAction();
+            case ch.admin.bit.jeap.reaction.observer.event.identified.v2.Reaction reaction -> {
+                reactionId = reaction.getReactionId();
+                actions = reaction.getActions();
                 trigger = reaction.getTrigger();
             }
-            case TriggerOnly triggerOnly -> trigger = triggerOnly.getTrigger();
-            case ActionOnly actionOnly -> action = actionOnly.getAction();
+            case TriggerOnly triggerOnly -> {
+                reactionId = triggerOnly.getReactionId();
+                trigger = triggerOnly.getTrigger();
+            }
+            case ActionOnly actionOnly -> {
+                reactionId = actionOnly.getReactionId();
+                actions = List.of(actionOnly.getAction());
+            }
             default ->
                     throw new IllegalArgumentException("Unknown reaction payload type: " + reactionPayload.getClass());
         }
 
-        return createReaction(event, trigger, action);
+        return createReaction(event, reactionId, trigger, actions);
     }
 
-    private static Reaction createReaction(ReactionIdentifiedEvent event, Observation trigger, Observation action) {
+    private static Reaction createReaction(ReactionIdentifiedEvent event, String reactionId, Observation trigger, List<Observation> actions) {
         return new Reaction(
                 event.getPublisher().getService(),
-                event.getPayload().getReactionId(),
+                reactionId,
                 toDomainObservation(trigger),
-                toDomainObservation(action),
+                toDomainObservationList(actions),
                 ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()));
     }
 
-    private static ch.admin.bit.jeap.reaction.observer.domain.Observation toDomainObservation(Observation trigger) {
-        if (trigger == null) {
+    private static ch.admin.bit.jeap.reaction.observer.domain.Observation toDomainObservation(Observation observation) {
+        if (observation == null) {
             return null;
         }
-        return new ch.admin.bit.jeap.reaction.observer.domain.Observation(trigger.getType(), trigger.getFqn(), trigger.getProps());
+        return new ch.admin.bit.jeap.reaction.observer.domain.Observation(observation.getId(), observation.getType(), observation.getFqn(), observation.getProps());
+    }
+
+    private static List<ch.admin.bit.jeap.reaction.observer.domain.Observation> toDomainObservationList(List<Observation> observations) {
+        if (observations == null || observations.isEmpty()) {
+            return List.of();
+        }
+        return observations.stream()
+                .map(ReactionIdentifiedEventListener::toDomainObservation)
+                .toList();
     }
 }

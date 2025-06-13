@@ -2,42 +2,32 @@ package ch.admin.bit.jeap.reaction.observer.service.test.model;
 
 import ch.admin.bit.jeap.reaction.observer.domain.Observation;
 import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
-import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
+import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 
-public record TestReaction(TestObservation trigger, TestObservation action, String id) {
-
-    public TestReaction(TestObservation trigger, TestObservation action) {
-        this(trigger, action, createId(trigger, action));
-    }
-
-    private static String createId(TestObservation trigger, TestObservation action) {
-        if (trigger == null) {
-            return "#" + action.id();
-        } else if (action == null) {
-            return trigger.id();
-        } else {
-            return trigger.id() + "#" + action.id();
-        }
-    }
+public record TestReaction(TestObservation trigger, List<TestObservation> actions, String id) {
 
     public Reaction createExpectedReaction(ReactionIdentifiedEvent event) {
         Observation trigger = null;
         if (trigger() != null) {
             trigger = new Observation(
-                    trigger().type(), trigger().fqn(), trigger().props());
+                    trigger().id(), trigger().type(), trigger().fqn(), trigger().props());
         }
 
-        Observation action = null;
-        if (action() != null) {
-            action = new Observation(
-                    action().type(), action().fqn(), action().props());
+        List<Observation> actions = null;
+        if (actions() != null) {
+            actions = actions().stream()
+                    .map(a -> new Observation(a.id(), a.type(), a.fqn(), a.props()))
+                    .toList();
+        } else {
+            actions = List.of();
         }
 
-        return new Reaction(event.getPublisher().getService(), event.getPayload().getReactionId(),
-                trigger, action,
+        return new Reaction(event.getPublisher().getService(), id(),
+                trigger, actions,
                 ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()));
     }
 }

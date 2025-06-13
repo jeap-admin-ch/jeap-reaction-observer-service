@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,26 +29,36 @@ class ReactionRepositoryImpl implements ReactionRepository {
 
         try {
             Observation trigger = reaction.trigger();
-            Observation action = reaction.action();
+
             var builder = ReactionEntity.builder()
                     .component(reaction.component())
                     .reactionId(reaction.reactionId())
                     .identifiedAt(reaction.identifiedAt());
             if (trigger != null) {
-                builder.triggerId(getTriggerId(reaction.reactionId()));
+                builder.triggerId(reaction.trigger().id());
                 builder.triggerType(trigger.type());
                 builder.triggerFqn(trigger.fqn());
             }
-            if (action != null) {
-                builder.actionId(getActionId(reaction.reactionId()));
-                builder.actionType(action.type());
-                builder.actionFqn(action.fqn());
+
+            ReactionEntity reactionEntity = builder.build();
+            for (Observation action : reaction.actions()) {
+                ActionEntity actionEntity = ActionEntity.builder()
+                        .reaction(reactionEntity)
+                        .actionId(action.id())
+                        .actionType(action.type())
+                        .actionFqn(action.fqn())
+                        .build();
+                reactionEntity.addAction(actionEntity);
             }
-            Long reactionId = jpaReactionRepository.save(builder.build()).getId();
 
+            Long reactionId = jpaReactionRepository.save(reactionEntity).getId();
             saveProps(reactionId, trigger, true);
-            saveProps(reactionId, action, false);
-
+            for (ActionEntity actionEntity : reactionEntity.getActions()) {
+                reaction.actions()
+                        .stream()
+                        .filter(action -> action.id().equals(actionEntity.getActionId())).findFirst()
+                        .ifPresent(action -> saveProps(actionEntity.getId(), action, false));
+            }
         } catch (DuplicateKeyException ex) {
             log.debug("Identified reaction already exists, ignoring", ex);
         }
@@ -65,7 +76,7 @@ class ReactionRepositoryImpl implements ReactionRepository {
             if (isTrigger) {
                 builder.reactionTriggerFk(reactionId);
             } else {
-                builder.reactionActionFk(reactionId);
+                builder.actionFk(reactionId);
             }
             jpaObservationPropertiesRepository.save(builder.build());
         });
@@ -75,12 +86,21 @@ class ReactionRepositoryImpl implements ReactionRepository {
     @Transactional
     public Optional<Reaction> findByComponentAndReactionId(String component, String reactionId) {
         return jpaReactionRepository.findByComponentAndReactionId(component, reactionId)
-                .map(entity -> new Reaction(
-                        entity.getComponent(),
-                        entity.getReactionId(),
-                        observation(entity.getTriggerType(), entity.getTriggerFqn(), loadProps(entity.getId(), true)),
-                        observation(entity.getActionType(), entity.getActionFqn(), loadProps(entity.getId(), false)),
-                        entity.getIdentifiedAt()));
+                .map(entity -> {
+                    List<Observation> actions = entity.getActions().stream().map(
+                            actionEntity -> new Observation(
+                                    actionEntity.getActionId(),
+                                    actionEntity.getActionType(),
+                                    actionEntity.getActionFqn(),
+                                    loadProps(actionEntity.getId(), false)
+                            )).collect(Collectors.toList());
+                    return new Reaction(
+                            entity.getComponent(),
+                            entity.getReactionId(),
+                            observation(entity.getTriggerId(), entity.getTriggerType(), entity.getTriggerFqn(), loadProps(entity.getId(), true)),
+                            actions,
+                            entity.getIdentifiedAt());
+                });
     }
 
     private Map<String, String> loadProps(Long reactionId, boolean isTrigger) {
@@ -88,16 +108,16 @@ class ReactionRepositoryImpl implements ReactionRepository {
             return jpaObservationPropertiesRepository.findByReactionTriggerFk(reactionId)
                     .collect(Collectors.toMap(ObservationProperty::getKey, ObservationProperty::getValue));
         } else {
-            return jpaObservationPropertiesRepository.findByReactionActionFk(reactionId)
+            return jpaObservationPropertiesRepository.findByActionFk(reactionId)
                     .collect(Collectors.toMap(ObservationProperty::getKey, ObservationProperty::getValue));
         }
     }
 
-    private Observation observation(String type, String fqn, Map<String, String> props) {
+    private Observation observation(String id, String type, String fqn, Map<String, String> props) {
         if (type == null) {
             return null;
         }
-        return new Observation(type, fqn, props);
+        return new Observation(id, type, fqn, props);
     }
 
     private String getTriggerId(String reactionId) {

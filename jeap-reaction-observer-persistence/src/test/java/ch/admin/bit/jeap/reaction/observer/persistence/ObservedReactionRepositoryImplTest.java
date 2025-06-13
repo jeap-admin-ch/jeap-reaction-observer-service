@@ -40,8 +40,8 @@ class ObservedReactionRepositoryImplTest {
         String component = "component123";
         String idempotenceId = "idempotence123";
         Reaction reaction = new Reaction(component, reactionId,
-                new Observation("triggerType", "triggerFqn", Map.of()),
-                new Observation("actionType", "actionFqn", Map.of()),
+                new Observation("t1", "triggerType", "triggerFqn", Map.of()),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of())),
                 ZonedDateTime.now());
         reactionRepository.save(reaction);
         int count = 5;
@@ -68,8 +68,8 @@ class ObservedReactionRepositoryImplTest {
         String reactionId = "reactionId456";
         String component = "component123";
         Reaction reaction = new Reaction(component, reactionId,
-                new Observation("triggerType", "triggerFqn", Map.of()),
-                new Observation("actionType", "actionFqn", Map.of()),
+                new Observation("t1", "triggerType", "triggerFqn", Map.of()),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of())),
                 ZonedDateTime.now());
         reactionRepository.save(reaction);
         ZonedDateTime yesterday = getStartOfDay().minusDays(1);

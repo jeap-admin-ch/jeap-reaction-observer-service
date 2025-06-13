@@ -35,6 +35,12 @@
         </dependency>
         <dependency>
             <groupId>ch.admin.bit.jeap.messagetype.jeap</groupId>
+            <artifactId>reaction-identified-event</artifactId>
+            <version>2.0.0</version>
+            <classifier>2.0.0</classifier>
+        </dependency>
+        <dependency>
+            <groupId>ch.admin.bit.jeap.messagetype.jeap</groupId>
             <artifactId>reactions-observed-event</artifactId>
             <version>1.0.0</version>
         </dependency>

@@ -10,5 +10,5 @@ interface JpaObservationPropertiesRepository extends CrudRepository<ObservationP
 
     Stream<ObservationProperty> findByReactionTriggerFk(Long reactionId);
 
-    Stream<ObservationProperty> findByReactionActionFk(Long reactionId);
+    Stream<ObservationProperty> findByActionFk(Long reactionId);
 }

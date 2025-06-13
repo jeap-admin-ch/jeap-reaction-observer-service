@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import static lombok.AccessLevel.PROTECTED;
@@ -45,6 +47,9 @@ class ReactionEntity {
     @Column(name = "action_fqn")
     private String actionFqn;
 
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "reaction")
+    private List<ActionEntity> actions = new ArrayList<>();
+
     @Column(name = "identified_at")
     private ZonedDateTime identifiedAt;
 
@@ -62,6 +67,14 @@ class ReactionEntity {
         this.actionId = actionId;
         this.actionType = actionType;
         this.actionFqn = actionFqn;
+    }
+
+    public void addAction(ActionEntity action) {
+        if (actions == null) {
+            actions = new ArrayList<>();
+        }
+        action.setReaction(this);
+        actions.add(action);
     }
 
     @Override

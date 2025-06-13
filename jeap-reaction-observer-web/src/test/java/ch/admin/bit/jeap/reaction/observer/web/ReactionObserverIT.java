@@ -1,15 +1,16 @@
 package ch.admin.bit.jeap.reaction.observer.web;
 
 import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
-import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
+import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
-import ch.admin.bit.jeap.reaction.observer.service.test.ReactionIdentifiedEventBuilder;
+import ch.admin.bit.jeap.reaction.observer.service.test.ReactionIdentifiedV2EventBuilder;
 import ch.admin.bit.jeap.reaction.observer.service.test.ReactionsObservedEventBuilder;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestObservation;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestReaction;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,10 +22,10 @@ class ReactionObserverIT extends IntegrationTestBase {
     void identified_and_observed_reaction_is_persisted() {
         // given: an identified reaction
         TestReaction testReaction = new TestReaction(
-                TestObservation.ofEvent("MyEvent"), TestObservation.ofCommand("MyCommand"));
+                TestObservation.ofEvent("MyEvent"), List.of(TestObservation.ofCommand("MyCommand")), "reaction1");
 
         // when: the identified reaction is notified to the reaction observer service
-        ReactionIdentifiedEvent identifiedEvent = ReactionIdentifiedEventBuilder.buildEvent("system", "test", testReaction);
+        ReactionIdentifiedEvent identifiedEvent = ReactionIdentifiedV2EventBuilder.buildEvent("system", "test", testReaction);
         sendSync("reaction-identified", identifiedEvent);
 
         // then: the identified reaction is stored in the repository

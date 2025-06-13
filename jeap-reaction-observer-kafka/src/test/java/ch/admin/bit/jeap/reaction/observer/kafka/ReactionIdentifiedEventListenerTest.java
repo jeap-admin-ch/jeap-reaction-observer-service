@@ -6,8 +6,8 @@ import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
-import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
-import ch.admin.bit.jeap.reaction.observer.service.test.ReactionIdentifiedEventBuilder;
+import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
+import ch.admin.bit.jeap.reaction.observer.service.test.ReactionIdentifiedV2EventBuilder;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestObservation;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestReaction;
 import org.awaitility.Awaitility;
@@ -20,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Duration;
 
+import static java.util.Collections.singletonList;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.verify;
 
@@ -41,8 +42,8 @@ class ReactionIdentifiedEventListenerTest extends KafkaIntegrationTestBase {
     void onReactionIdentifiedEvent() {
         // given: an identified reaction
         TestReaction testReaction = new TestReaction(
-                TestObservation.ofEvent("MyEvent"), TestObservation.ofCommand("MyCommand"));
-        ReactionIdentifiedEvent event = ReactionIdentifiedEventBuilder.buildEvent("test", "test", testReaction);
+                TestObservation.ofEvent("MyEvent"), singletonList(TestObservation.ofCommand("MyCommand")), "reaction1");
+        ReactionIdentifiedEvent event = ReactionIdentifiedV2EventBuilder.buildEvent("test", "test", testReaction);
 
         // when: the identified reaction is notified to the reaction observer service
         sendSync("reaction-identified", event);
@@ -56,8 +57,8 @@ class ReactionIdentifiedEventListenerTest extends KafkaIntegrationTestBase {
     void onReactionIdentifiedEvent_triggerOnly() {
         // given: an identified reaction
         TestReaction testReaction = new TestReaction(
-                TestObservation.ofEvent("MyEvent"), null);
-        ReactionIdentifiedEvent event = ReactionIdentifiedEventBuilder.buildEvent("test", "test", testReaction);
+                TestObservation.ofEvent("MyEvent"), null, "reaction1");
+        ReactionIdentifiedEvent event = ReactionIdentifiedV2EventBuilder.buildEvent("test", "test", testReaction);
 
         // when: the identified reaction is notified to the reaction observer service
         sendSync("reaction-identified", event);
@@ -71,8 +72,8 @@ class ReactionIdentifiedEventListenerTest extends KafkaIntegrationTestBase {
     void onReactionIdentifiedEvent_actionOnly() {
         // given: an identified reaction
         TestReaction testReaction = new TestReaction(
-                null, TestObservation.ofCommand("MyCommand"));
-        ReactionIdentifiedEvent event = ReactionIdentifiedEventBuilder.buildEvent("test", "test", testReaction);
+                null, singletonList(TestObservation.ofCommand("MyCommand")), "reaction1");
+        ReactionIdentifiedEvent event = ReactionIdentifiedV2EventBuilder.buildEvent("test", "test", testReaction);
 
         // when: the identified reaction is notified to the reaction observer service
         sendSync("reaction-identified", event);

@@ -1,33 +1,34 @@
 package ch.admin.bit.jeap.reaction.observer.service.test;
 
 import ch.admin.bit.jeap.domainevent.avro.AvroDomainEventBuilder;
-import ch.admin.bit.jeap.reaction.observer.event.identified.*;
+import ch.admin.bit.jeap.reaction.observer.event.identified.v2.*;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestObservation;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestReaction;
 
+import java.util.List;
 import java.util.Map;
 
-public class ReactionIdentifiedEventBuilder extends AvroDomainEventBuilder<ReactionIdentifiedEventBuilder, ReactionIdentifiedEvent> {
+public class ReactionIdentifiedV2EventBuilder extends AvroDomainEventBuilder<ReactionIdentifiedV2EventBuilder, ReactionIdentifiedEvent> {
 
     private final String serviceName;
     private final String systemName;
     private TestReaction reaction;
 
     public static ReactionIdentifiedEvent buildEvent(String systemName, String serviceName, TestReaction reaction) {
-        ReactionIdentifiedEventBuilder builder = new ReactionIdentifiedEventBuilder(serviceName, systemName);
+        ReactionIdentifiedV2EventBuilder builder = new ReactionIdentifiedV2EventBuilder(serviceName, systemName);
         builder.setReaction(reaction);
         return builder.build();
     }
 
     private void setReaction(TestReaction reaction) {
-        if (reaction.action() == null && reaction.trigger() == null) {
+        if ((reaction.actions() == null || reaction.actions().isEmpty()) && reaction.trigger() == null) {
             throw new IllegalArgumentException("Reaction must have at least an action or a trigger");
         }
         this.reaction = reaction;
         idempotenceId("ri_" + reaction.id());
     }
 
-    private ReactionIdentifiedEventBuilder(String serviceName, String systemName) {
+    private ReactionIdentifiedV2EventBuilder(String serviceName, String systemName) {
         super(ReactionIdentifiedEvent::new);
         this.serviceName = serviceName;
         this.systemName = systemName;
@@ -36,17 +37,17 @@ public class ReactionIdentifiedEventBuilder extends AvroDomainEventBuilder<React
     @Override
     public ReactionIdentifiedEvent build() {
         Object reactionPayload;
-        if (reaction.action() == null) {
+        if (reaction.actions() == null || reaction.actions().isEmpty()) {
             Observation observation = createObservation(reaction.trigger());
-            reactionPayload = new TriggerOnly(observation);
+            reactionPayload = new TriggerOnly(reaction.id(), observation);
         } else if (reaction.trigger() == null) {
-            Observation observation = createObservation(reaction.action());
-            reactionPayload = new ActionOnly(observation);
+            Observation observation = createObservation(reaction.actions().getFirst());
+            reactionPayload = new ActionOnly(reaction.id(), observation);
         } else {
-            reactionPayload = new ch.admin.bit.jeap.reaction.observer.event.identified.Reaction(
-                    createObservation(reaction.trigger()), createObservation(reaction.action()));
+            reactionPayload = new Reaction(reaction.id(),
+                    createObservation(reaction.trigger()), createObservations(reaction.actions()));
         }
-        setPayload(new ReactionIdentifiedPayload(reaction.id(), reactionPayload));
+        setPayload(new ReactionIdentifiedPayload(reactionPayload));
         return super.build();
     }
 
@@ -55,7 +56,13 @@ public class ReactionIdentifiedEventBuilder extends AvroDomainEventBuilder<React
         if (props == null) {
             props = Map.of();
         }
-        return new Observation(observation.type(), observation.fqn(), props);
+        return new Observation(observation.id(), observation.type(), observation.fqn(), props);
+    }
+
+    private List<Observation> createObservations(List<TestObservation> observations) {
+        return observations.stream()
+                .map(this::createObservation)
+                .toList();
     }
 
     @Override
@@ -69,7 +76,7 @@ public class ReactionIdentifiedEventBuilder extends AvroDomainEventBuilder<React
     }
 
     @Override
-    protected ReactionIdentifiedEventBuilder self() {
+    protected ReactionIdentifiedV2EventBuilder self() {
         return this;
     }
 }

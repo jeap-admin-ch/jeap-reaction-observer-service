@@ -26,6 +26,9 @@ class ObservationProperty {
     @Column(name = "reaction_action_fk")
     private Long reactionActionFk;
 
+    @Column(name = "action_fk")
+    private Long actionFk;
+
     @Column(name = "property_key")
     private String key;
 
@@ -33,9 +36,10 @@ class ObservationProperty {
     private String value;
 
     @Builder
-    private ObservationProperty(Long reactionTriggerFk, Long reactionActionFk, @NonNull String key, @NonNull String value) {
+    private ObservationProperty(Long reactionTriggerFk, Long reactionActionFk, Long actionFk, @NonNull String key, @NonNull String value) {
         this.reactionTriggerFk = reactionTriggerFk;
-        this.reactionActionFk = reactionActionFk;
+        this.reactionActionFk = reactionActionFk;// Backwards compatibility with old ReactionIdentifiedEvents
+        this.actionFk = actionFk;
         this.key = key;
         this.value = value;
     }

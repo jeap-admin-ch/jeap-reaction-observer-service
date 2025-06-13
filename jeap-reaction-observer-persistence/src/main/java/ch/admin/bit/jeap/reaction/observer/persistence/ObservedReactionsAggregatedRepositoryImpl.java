@@ -1,16 +1,17 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
+import ch.admin.bit.jeap.reaction.observer.domain.Action;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatistics;
+import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatisticsV2;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Component
 @AllArgsConstructor
@@ -32,68 +33,112 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
     }
 
     @Override
-    public List<ObservedReactionsAggregatedStatistics> getStatistics(String component, LocalDate fromDate) {
+    public List<ObservedReactionsAggregatedStatisticsV2> getStatistics(String component, LocalDate fromDate) {
         String sql = """
                 WITH base_stats AS (
                     SELECT
                         ora.component,
                         ora.trigger_type,
                         ora.trigger_fqn,
-                        ora.action_type,
-                        ora.action_fqn,
+                        ora.action_type as old_action_type,
+                        ora.action_fqn as old_action_fqn,                        
                         ora.reaction_fk,
                         SUM(ora.count) AS count,
                         CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ora.count) AS FLOAT) AS median,
                         CASE WHEN ora.trigger_id IS NULL 
                             THEN NULL 
                         ELSE 
-                            CAST((TRUNC(SUM(ora.count) * 100.0 / NULLIF(SUM(SUM(ora.count)) OVER (PARTITION BY ora.component, ora.trigger_id), 0), 2)) AS FLOAT) 
+                            CAST((TRUNC(SUM(ora.count) * 100.0 / NULLIF(SUM(SUM(ora.count)) OVER (PARTITION BY ora.trigger_id), 0), 2)) AS FLOAT) 
                         END AS percentage
                     FROM observed_reactions_aggregated ora
                     WHERE ora.component = ? AND ora.date >= ?
-                    GROUP BY ora.component, ora.trigger_id, ora.action_id, ora.trigger_type, ora.trigger_fqn, ora.action_type, ora.action_fqn, ora.reaction_fk
+                    GROUP BY ora.component, ora.reaction_fk, ora.trigger_id, ora.action_id, ora.trigger_type, ora.trigger_fqn, ora.action_type, ora.action_fqn
                 )
                 SELECT 
                     bs.component,
                     bs.trigger_type,
                     bs.trigger_fqn,
-                    bs.action_type,
-                    bs.action_fqn,
+                    act.action_type,
+                    act.action_fqn,
+                    bs.old_action_type,
+                    bs.old_action_fqn,
                     bs.count,
                     bs.median,
                     bs.percentage,
                     bs.reaction_fk,
+                    act.id as action_id,
                     STRING_AGG(opt.property_key || '=' || opt.property_value, ',') AS trigger_properties,
-                    STRING_AGG(opa.property_key || '=' || opa.property_value, ',') AS action_properties
+                    STRING_AGG(opa.property_key || '=' || opa.property_value, ',') AS old_action_properties,
+                    STRING_AGG(prop.property_key || '=' || prop.property_value, ',') AS action_properties
                 FROM base_stats bs
                 LEFT JOIN observation_property opt ON bs.reaction_fk = opt.reaction_trigger_fk
                 LEFT JOIN observation_property opa ON bs.reaction_fk = opa.reaction_action_fk
-                GROUP BY bs.component, bs.trigger_type, bs.trigger_fqn, bs.action_type, bs.action_fqn, bs.count, bs.median, bs.percentage, bs.reaction_fk
+                LEFT JOIN action act ON bs.reaction_fk = act.reaction_id
+                LEFT JOIN observation_property prop on prop.action_fk=act.id
+                GROUP BY bs.component, bs.trigger_type, bs.trigger_fqn, bs.old_action_type, bs.old_action_fqn, act.action_type, act.action_fqn, bs.count, bs.median, bs.percentage, bs.reaction_fk, act.id
+                ORDER BY bs.reaction_fk DESC
                 """;
 
-        return this.jdbcTemplate.query(
+        Collection<ObservedReactionsAggregatedStatisticsV2> query = this.jdbcTemplate.query(
                 sql,
-                (rs, rowNum) -> {
-                    Double percentage = rs.getDouble("percentage");
-                    if (rs.wasNull()) {
-                        percentage = null;
+                rs -> {
+                    Map<Long, ObservedReactionsAggregatedStatisticsV2> statisticsMap = new LinkedHashMap<>();
+
+                    while (rs.next()) {
+                        Long reactionFk = rs.getLong("reaction_fk");
+                        ObservedReactionsAggregatedStatisticsV2 statistics = statisticsMap.computeIfAbsent(reactionFk, k -> {
+                            try {
+                                String triggerType = rs.getString("trigger_type");
+                                Double percentage = rs.getDouble("percentage");
+                                if (rs.wasNull() || triggerType == null) {
+                                    percentage = null;
+                                }
+                                return new ObservedReactionsAggregatedStatisticsV2(
+                                        rs.getString("component"),
+                                        triggerType,
+                                        rs.getString("trigger_fqn"),
+                                        new ArrayList<>(),
+                                        rs.getLong("count"),
+                                        rs.getDouble("median"),
+                                        percentage,
+                                        parseAsMap(rs.getString("trigger_properties"))
+                                );
+                            } catch (SQLException e) {
+                                throw new DataAccessException("Error processing result set", e) {
+                                };
+                            }
+                        });
+                        Map<String, String> actionProperties;
+                        String actionType = rs.getString("old_action_type");
+                        String actionFqn = rs.getString("old_action_fqn");
+                        if (actionType != null && !actionType.isEmpty()) {
+                            //Enable backward compatibility for old action properties
+                            actionProperties = parseAsMap(rs.getString("old_action_properties"));
+                            statistics.actions().add(new Action(
+                                    actionType,
+                                    actionFqn,
+                                    actionProperties
+                            ));
+                        } else {
+                            Long actionId = rs.getLong("action_id");
+                            if (!rs.wasNull()) {
+                                actionType = rs.getString("action_type");
+                                actionFqn = rs.getString("action_fqn");
+                                actionProperties = parseAsMap(rs.getString("action_properties"));
+                                statistics.actions().add(new Action(
+                                        actionType,
+                                        actionFqn,
+                                        actionProperties
+                                ));
+                            }
+                        }
                     }
-                    return new ObservedReactionsAggregatedStatistics(
-                            rs.getString("component"),
-                            rs.getString("trigger_type"),
-                            rs.getString("trigger_fqn"),
-                            rs.getString("action_type"),
-                            rs.getString("action_fqn"),
-                            rs.getLong("count"),
-                            rs.getDouble("median"),
-                            percentage,
-                            parseAsMap(rs.getString("trigger_properties")),
-                            parseAsMap(rs.getString("action_properties"))
-                    );
+
+                    return statisticsMap.values();
                 },
                 component, fromDate
         );
-
+        return new ArrayList<>(query == null ? Collections.emptyList() : query);
     }
 
     private Map<String, String> parseAsMap(String propsString) {
