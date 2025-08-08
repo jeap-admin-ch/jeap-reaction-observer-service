@@ -14,11 +14,20 @@ softwareType: library
 description:
   en:
     localisedName: jeap-reaction-observer-service
-    shortDescription: TODO (Max. 150 characters)
+    shortDescription: The jEAP Reaction Observation Service records and aggregates triggers, actions, and reactions from events and makes the data available via a REST API.
     longDescription: >
-      TODO (Min. 150 characters)
+      The jEAP Reaction Observation Service collects, stores, and analyzes runtime
+      behaviour data produced by the jEAP Reaction Observer library. It consumes
+      Reaction Identified Events and Reactions Observed Events from multiple
+      microservices, aggregates the captured triggers, actions, and reactions, and
+      makes this information accessible through a REST API for consumption by the jEAP Architecture Repository Service.
+      The Arch Repo Service will use this data to provide an automated documentation of the interactions 
+      between microservices, enabling better understanding and management of the system's architecture.
     features:
-      - TODO
+      - Consumes and processes events from the jEAP Reaction Observer library
+      - Aggregates triggers, actions, and reactions across microservices
+      - Stores detailed reaction history and statistical summaries
+      - Exposes reaction data and metrics via a REST API for consumption by the jEAP Architecture Repository Service
 legal:
   license: Apache-2.0
 maintenance:
