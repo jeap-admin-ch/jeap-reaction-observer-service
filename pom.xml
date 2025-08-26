@@ -34,7 +34,7 @@
 
     <artifactId>jeap-reaction-observer-service</artifactId>
     <name>${project.groupId}:${project.artifactId}</name>
-    <version>1.9.2-SNAPSHOT</version>
+    <version>1.9.3-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -55,27 +55,27 @@
             <dependency>
                 <groupId>ch.admin.bit.jeap</groupId>
                 <artifactId>jeap-reaction-observer-domain</artifactId>
-                <version>1.9.2-SNAPSHOT</version>
+                <version>1.9.3-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>ch.admin.bit.jeap</groupId>
                 <artifactId>jeap-reaction-observer-persistence</artifactId>
-                <version>1.9.2-SNAPSHOT</version>
+                <version>1.9.3-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>ch.admin.bit.jeap</groupId>
                 <artifactId>jeap-reaction-observer-web</artifactId>
-                <version>1.9.2-SNAPSHOT</version>
+                <version>1.9.3-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>ch.admin.bit.jeap</groupId>
                 <artifactId>jeap-reaction-observer-kafka</artifactId>
-                <version>1.9.2-SNAPSHOT</version>
+                <version>1.9.3-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>ch.admin.bit.jeap</groupId>
                 <artifactId>jeap-reaction-observer-service-test</artifactId>
-                <version>1.9.2-SNAPSHOT</version>
+                <version>1.9.3-SNAPSHOT</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

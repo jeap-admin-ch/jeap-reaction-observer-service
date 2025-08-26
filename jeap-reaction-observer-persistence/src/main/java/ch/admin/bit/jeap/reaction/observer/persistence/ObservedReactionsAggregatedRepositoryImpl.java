@@ -155,6 +155,7 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
         return triggerProperties;
     }
 
+    @Transactional
     @Override
     public void deleteAggregatedDataOlderThan(LocalDate date) {
         this.jdbcTemplate.update("DELETE FROM observed_reactions_aggregated WHERE date < ?", date);
