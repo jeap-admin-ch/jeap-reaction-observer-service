@@ -7,6 +7,7 @@ import ch.admin.bit.jeap.reaction.observer.event.observed.Observation;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 
 import java.util.List;
 
@@ -21,10 +22,11 @@ class ReactionsObservedEventListener {
     }
 
     @KafkaListener(topics = "${jeap.reaction.observer.service.kafka.reactions-observed-topic}")
-    public void onReactionsObservedEvent(ReactionsObservedEvent event) {
+    public void onReactionsObservedEvent(ReactionsObservedEvent event, Acknowledgment ack) {
         List<ObservedReaction> observedReactions = toObservedReactions(event);
         log.debug("Observed reactions: {}", observedReactions);
         observedReactionRepository.saveAll(event.getIdentity().getIdempotenceId(), observedReactions);
+        ack.acknowledge();
     }
 
     private List<ObservedReaction> toObservedReactions(ReactionsObservedEvent event) {
