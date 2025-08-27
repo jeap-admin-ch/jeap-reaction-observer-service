@@ -1,7 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.kafka;
 
 import ch.admin.bit.jeap.messaging.avro.AvroMessage;
-import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ActionOnly;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.Observation;
@@ -73,14 +73,14 @@ class ReactionIdentifiedEventListener {
                 ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()));
     }
 
-    private static ch.admin.bit.jeap.reaction.observer.domain.Observation toDomainObservation(Observation observation) {
+    private static ch.admin.bit.jeap.reaction.observer.domain.models.Observation toDomainObservation(Observation observation) {
         if (observation == null) {
             return null;
         }
-        return new ch.admin.bit.jeap.reaction.observer.domain.Observation(observation.getId(), observation.getType(), observation.getFqn(), observation.getProps());
+        return new ch.admin.bit.jeap.reaction.observer.domain.models.Observation(observation.getId(), observation.getType(), observation.getFqn(), observation.getProps());
     }
 
-    private static List<ch.admin.bit.jeap.reaction.observer.domain.Observation> toDomainObservationList(List<Observation> observations) {
+    private static List<ch.admin.bit.jeap.reaction.observer.domain.models.Observation> toDomainObservationList(List<Observation> observations) {
         if (observations == null || observations.isEmpty()) {
             return List.of();
         }

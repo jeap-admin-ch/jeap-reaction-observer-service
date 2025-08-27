@@ -1,6 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.ObservedReaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
 import org.springframework.transaction.annotation.Transactional;
 

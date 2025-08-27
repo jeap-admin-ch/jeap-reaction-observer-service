@@ -1,6 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
-import ch.admin.bit.jeap.reaction.observer.domain.Action;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Action;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatistics;
 import jakarta.transaction.Transactional;

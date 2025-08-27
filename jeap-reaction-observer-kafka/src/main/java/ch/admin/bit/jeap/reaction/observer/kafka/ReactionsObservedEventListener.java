@@ -1,8 +1,8 @@
 package ch.admin.bit.jeap.reaction.observer.kafka;
 
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.ObservedReaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
-import ch.admin.bit.jeap.reaction.observer.domain.Timeframe;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Timeframe;
 import ch.admin.bit.jeap.reaction.observer.event.observed.Observation;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
 import lombok.extern.slf4j.Slf4j;

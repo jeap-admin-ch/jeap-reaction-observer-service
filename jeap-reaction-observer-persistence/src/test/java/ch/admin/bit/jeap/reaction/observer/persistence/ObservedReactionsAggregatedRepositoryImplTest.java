@@ -1,6 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
 import ch.admin.bit.jeap.reaction.observer.domain.*;
+import ch.admin.bit.jeap.reaction.observer.domain.models.*;
 import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;

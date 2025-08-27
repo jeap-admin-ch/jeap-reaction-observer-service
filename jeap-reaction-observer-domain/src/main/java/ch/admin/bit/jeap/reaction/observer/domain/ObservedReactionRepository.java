@@ -1,5 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.domain;
 
+import ch.admin.bit.jeap.reaction.observer.domain.models.ObservedReaction;
+
 import java.time.ZonedDateTime;
 import java.util.List;
 

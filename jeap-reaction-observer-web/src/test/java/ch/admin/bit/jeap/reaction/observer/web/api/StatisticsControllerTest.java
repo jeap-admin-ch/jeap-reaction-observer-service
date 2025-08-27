@@ -1,7 +1,7 @@
 
 package ch.admin.bit.jeap.reaction.observer.web.api;
 
-import ch.admin.bit.jeap.reaction.observer.domain.Action;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Action;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatistics;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;

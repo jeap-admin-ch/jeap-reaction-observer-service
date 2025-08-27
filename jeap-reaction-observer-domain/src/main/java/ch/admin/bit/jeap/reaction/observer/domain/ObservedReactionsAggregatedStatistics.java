@@ -1,5 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.domain;
 
+import ch.admin.bit.jeap.reaction.observer.domain.models.Action;
+
 import java.util.List;
 import java.util.Map;
 

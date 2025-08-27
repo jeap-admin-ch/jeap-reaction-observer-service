@@ -1,5 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.domain;
 
+import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
+
 import java.util.Optional;
 
 public interface ReactionRepository {

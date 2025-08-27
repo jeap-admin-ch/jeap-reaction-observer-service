@@ -2,10 +2,11 @@ package ch.admin.bit.jeap.reaction.observer.kafka;
 
 import ch.admin.bit.jeap.messaging.annotations.JeapMessageConsumerContract;
 import ch.admin.bit.jeap.messaging.kafka.test.KafkaIntegrationTestBase;
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.ObservedReaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Timeframe;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
 import ch.admin.bit.jeap.reaction.observer.service.test.ReactionsObservedEventBuilder;
 import org.awaitility.Awaitility;
@@ -63,7 +64,7 @@ class ReactionsObservedEventListenerTest extends KafkaIntegrationTestBase {
                 .map(observation -> new ObservedReaction(
                         "test",
                         observation.getReactionId(),
-                        ch.admin.bit.jeap.reaction.observer.domain.Timeframe.ofInstantsInDefaultTimezone(event.getPayload().getTimeframe().getStart(), event.getPayload().getTimeframe().getEnd()),
+                        Timeframe.ofInstantsInDefaultTimezone(event.getPayload().getTimeframe().getStart(), event.getPayload().getTimeframe().getEnd()),
                         observation.getCount()))
                 .toList();
     }

@@ -1,7 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.service.test.model;
 
-import ch.admin.bit.jeap.reaction.observer.domain.Observation;
-import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Observation;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
 
 import java.time.ZoneId;

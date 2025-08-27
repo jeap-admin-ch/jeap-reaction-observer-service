@@ -1,8 +1,8 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReaction;
-import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
-import ch.admin.bit.jeap.reaction.observer.domain.Timeframe;
+import ch.admin.bit.jeap.reaction.observer.domain.models.ObservedReaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Timeframe;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;

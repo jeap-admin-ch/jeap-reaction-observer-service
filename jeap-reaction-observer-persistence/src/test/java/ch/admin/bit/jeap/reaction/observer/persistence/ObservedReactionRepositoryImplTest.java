@@ -1,6 +1,10 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
 import ch.admin.bit.jeap.reaction.observer.domain.*;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Observation;
+import ch.admin.bit.jeap.reaction.observer.domain.models.ObservedReaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Timeframe;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
