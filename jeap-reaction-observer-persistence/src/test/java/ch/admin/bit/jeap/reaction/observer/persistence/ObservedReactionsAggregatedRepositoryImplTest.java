@@ -13,13 +13,12 @@ import org.springframework.test.context.ContextConfiguration;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getStartOfDay;
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
-import static java.util.Collections.emptyMap;
+import static java.util.Collections.*;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,6 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 @ContextConfiguration(classes = PersistenceAutoConfiguration.class)
 @Slf4j
 class ObservedReactionsAggregatedRepositoryImplTest {
+
+    private static Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
 
     @Autowired
     private JpaReactionRepository jpaReactionRepository;
@@ -53,59 +54,6 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     private EntityManager entityManager;
 
     @Test
-    void aggregation_statistics_single_day_backwards_compatibility() {
-        String reactionId = "r2";
-        String component = "component1";
-        ZonedDateTime startOfDay = getStartOfDay();
-        Map<String, String> triggerProps = Map.of("triggerKey1", "triggerValue1", "triggerKey2", "triggerValue2");
-        Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
-
-        ReactionEntity oldReaction = ReactionEntity.builder()
-                .reactionId(reactionId)
-                .component(component)
-                .identifiedAt(startOfDay)
-                .triggerId("t2")
-                .triggerType("triggerType")
-                .triggerFqn("triggerFqn")
-                .actionId("a2")
-                .actionType("actionType")
-                .actionFqn("actionFqn").build();
-        Long oldReactionId = jpaReactionRepository.save(oldReaction).getId();
-        saveProps(oldReactionId, triggerProps, true);
-        saveProps(oldReactionId, actionProps, false);
-
-        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay, startOfDay.plusHours(1)), 3));
-        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(1), startOfDay.plusHours(2)), 5));
-        save(new ObservedReaction(component, reactionId, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
-
-        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
-
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
-        assertEquals(1, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
-        assertEquals("component1", statisticsEntry.component());
-        assertEquals("triggerType", statisticsEntry.triggerType());
-        assertEquals("triggerFqn", statisticsEntry.triggerFqn());
-        assertEquals("actionType", statisticsEntry.actions().getFirst().actionType());
-        assertEquals("actionFqn", statisticsEntry.actions().getFirst().actionFqn());
-        assertEquals(15, statisticsEntry.count());
-        assertEquals(15f, statisticsEntry.median());
-        assertEquals(100.00, statisticsEntry.percentage());
-
-        // Verify trigger properties
-        assertThat(statisticsEntry.triggerProperties()).isNotNull();
-        assertEquals(2, statisticsEntry.triggerProperties().size());
-        assertEquals("triggerValue1", statisticsEntry.triggerProperties().get("triggerKey1"));
-        assertEquals("triggerValue2", statisticsEntry.triggerProperties().get("triggerKey2"));
-
-        // Verify action properties
-        assertThat(statisticsEntry.actions().getFirst().actionProperties()).isNotNull();
-        assertEquals(2, statisticsEntry.actions().getFirst().actionProperties().size());
-        assertEquals("actionValue1", statisticsEntry.actions().getFirst().actionProperties().get("actionKey1"));
-        assertEquals("actionValue2", statisticsEntry.actions().getFirst().actionProperties().get("actionKey2"));
-    }
-
-    @Test
     void aggregation_statistics_single_day() {
         String reactionId = "r1";
         String component = "component1";
@@ -125,9 +73,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
         assertEquals(1, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component1", statisticsEntry.component());
         assertEquals("triggerType", statisticsEntry.triggerType());
         assertEquals("triggerFqn", statisticsEntry.triggerFqn());
@@ -171,9 +119,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
         assertEquals(1, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component1", statisticsEntry.component());
         assertEquals("triggerType", statisticsEntry.triggerType());
         assertEquals("triggerFqn", statisticsEntry.triggerFqn());
@@ -233,10 +181,10 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
         assertEquals(3, statistics.size());
 
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
 
         assertEquals("component1", statisticsEntry.component());
         assertEquals("triggerType", statisticsEntry.triggerType());
@@ -284,9 +232,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
         assertEquals(1, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component1", statisticsEntry.component());
         assertEquals("triggerType", statisticsEntry.triggerType());
         assertEquals("triggerFqn", statisticsEntry.triggerFqn());
@@ -336,9 +284,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
         assertEquals(1, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component1", statisticsEntry.component());
         assertEquals("triggerType", statisticsEntry.triggerType());
         assertEquals("triggerFqn", statisticsEntry.triggerFqn());
@@ -390,9 +338,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(30L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(30L));
         assertEquals(1, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component2", statisticsEntry.component());
         assertEquals("triggerType", statisticsEntry.triggerType());
         assertEquals("triggerFqn", statisticsEntry.triggerFqn());
@@ -409,8 +357,8 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     void aggregation_statistics_two_different_actions_same_trigger() {
         String component = "component1";
         String system = "system1";
-        Reaction reaction = createReaction(system, component, "triggerId2#actionId0", "t1", "triggerType", "triggerFqn", "actionType", "actionFqn");
-        Reaction reaction1 = createReaction(system, component, "triggerId2#actionId1", "t1", "triggerType", "triggerFqn", "actionType1", "actionFqn1");
+        Reaction reaction = createReaction(system, component, "triggerId2#actionId0", "t1", "triggerType", "triggerFqn", singletonList(new Observation("a1", "actionType", "actionFqn", actionProps)));
+        Reaction reaction1 = createReaction(system, component, "triggerId2#actionId1", "t1", "triggerType", "triggerFqn", singletonList(new Observation("a1", "actionType1", "actionFqn1", actionProps)));
         reactionRepository.save(reaction);
         reactionRepository.save(reaction1);
 
@@ -427,14 +375,14 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(yesterday.toLocalDate());
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(30));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(30));
         assertEquals(2, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsFirstReaction = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsFirstReaction = statistics.getFirst();
         assertEquals(20L, statisticsFirstReaction.count());
         assertEquals(20f, statisticsFirstReaction.median());
         assertEquals(20.00, statisticsFirstReaction.percentage());
 
-        ObservedReactionsAggregatedStatisticsV2 statisticsSecondReaction = statistics.getLast();
+        ObservedReactionsAggregatedStatistics statisticsSecondReaction = statistics.getLast();
         assertEquals(80L, statisticsSecondReaction.count());
         assertEquals(10f, statisticsSecondReaction.median());
         assertEquals(80.00, statisticsSecondReaction.percentage());
@@ -444,8 +392,8 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     void aggregation_statistics_same_reactions_different_components() {
         String reactionId = "triggerId3#actionId0";
         String system = "system1";
-        Reaction reaction = createReaction(system, "component1", reactionId, "t1", "triggerType", "triggerFqn", "actionType", "actionFqn");
-        Reaction reaction1 = createReaction(system, "component2", reactionId, "t1", "triggerType", "triggerFqn", "actionType", "actionFqn");
+        Reaction reaction = createReaction(system, "component1", reactionId, "t1", "triggerType", "triggerFqn", singletonList(new Observation("a1", "actionType", "actionFqn", actionProps)));
+        Reaction reaction1 = createReaction(system, "component2", reactionId, "t1", "triggerType", "triggerFqn", singletonList(new Observation("a1", "actionType", "actionFqn", actionProps)));
         reactionRepository.save(reaction);
         reactionRepository.save(reaction1);
 
@@ -454,9 +402,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics("component1", getToday().minusDays(30));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics("component1", getToday().minusDays(30));
         assertEquals(1, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsFirstReaction = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsFirstReaction = statistics.getFirst();
         assertEquals(10L, statisticsFirstReaction.count());
         assertEquals(10f, statisticsFirstReaction.median());
         assertEquals(100.00, statisticsFirstReaction.percentage());
@@ -470,7 +418,7 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     }
 
     @Test
-    void delete_aggregated_data() throws SQLException {
+    void delete_aggregated_data() {
         // given: a reaction and several observations over different periods
         String reactionId = "reactionId4";
         String component = "component2";
@@ -511,8 +459,8 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         String component = "component1";
         String system = "system1";
         ZonedDateTime startOfDay = getStartOfDay();
-        Reaction reaction = createReaction(system, component, reactionId, "t1", null, null, "actionType", "actionFqn");
-        Reaction reaction1 = createReaction(system, component, reactionId1, "t1", null, null, "actionType1", "actionFqn1");
+        Reaction reaction = createReaction(system, component, reactionId, "t1", null, null, singletonList(new Observation("a1", "actionType", "actionFqn", actionProps)));
+        Reaction reaction1 = createReaction(system, component, reactionId1, "t1", null, null, singletonList(new Observation("a1", "actionType1", "actionFqn1", actionProps)));
         reactionRepository.save(reaction);
         reactionRepository.save(reaction1);
 
@@ -523,9 +471,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
         assertEquals(2, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component1", statisticsEntry.component());
         assertEquals("actionType1", statisticsEntry.actions().getFirst().actionType());
         assertEquals("actionFqn1", statisticsEntry.actions().getFirst().actionFqn());
@@ -549,8 +497,8 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         String component = "component1";
         String system = "system1";
         ZonedDateTime startOfDay = getStartOfDay();
-        Reaction reaction = createReaction(system, component, reactionId, "t1", "triggerType", "triggerFqn", null, null);
-        Reaction reaction1 = createReaction(system, component, reactionId1, "t2", "triggerType1", "triggerFqn1", null, null);
+        Reaction reaction = createReaction(system, component, reactionId, "t1", "triggerType", "triggerFqn", emptyList());
+        Reaction reaction1 = createReaction(system, component, reactionId1, "t2", "triggerType1", "triggerFqn1", emptyList());
         reactionRepository.save(reaction);
         reactionRepository.save(reaction1);
 
@@ -561,9 +509,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics(component, getToday().minusDays(1L));
         assertEquals(2, statistics.size());
-        ObservedReactionsAggregatedStatisticsV2 statisticsEntry = statistics.getFirst();
+        ObservedReactionsAggregatedStatistics statisticsEntry = statistics.getFirst();
         assertEquals("component1", statisticsEntry.component());
         assertEquals("triggerType1", statisticsEntry.triggerType());
         assertEquals("triggerFqn1", statisticsEntry.triggerFqn());
@@ -599,35 +547,19 @@ class ObservedReactionsAggregatedRepositoryImplTest {
 
         observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics("unknown", getToday().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics("unknown", getToday().minusDays(1L));
         assertEquals(0, statistics.size());
     }
 
-    private static Reaction createReaction(String system, String component, String reactionId, String triggerId, String triggerType, String triggerFqn, String actionType, String actionFqn) {
+    private static Reaction createReaction(String system, String component, String reactionId, String triggerId, String triggerType, String triggerFqn, List<Observation> actions) {
         Map<String, String> triggerProps = triggerType != null ? Map.of("triggerKey1", "triggerValue1", "triggerKey2", "triggerValue2") : Map.of();
-        Map<String, String> actionProps = actionType != null ? Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2") : Map.of();
         Observation trigger = new Observation(triggerId, triggerType, triggerFqn, triggerProps);
-        Observation action = new Observation("a1", actionType, actionFqn, actionProps);
-        return new Reaction(system, component, reactionId, trigger, action != null ? List.of(action) : null, ZonedDateTime.now());
+        return new Reaction(system, component, reactionId, trigger, actions, ZonedDateTime.now());
     }
 
     private void save(ObservedReaction observedReaction) {
         observedReactionRepository.saveAll(randomUUID().toString(), List.of(observedReaction));
         entityManager.flush();
-    }
-
-    private void saveProps(Long reactionId, Map<String, String> props, boolean isTrigger) {
-        props.forEach((key, value) -> {
-            ObservationProperty.ObservationPropertyBuilder builder = ObservationProperty.builder()
-                    .key(key)
-                    .value(value);
-            if (isTrigger) {
-                builder.reactionTriggerFk(reactionId);
-            } else {
-                builder.reactionActionFk(reactionId);
-            }
-            jpaObservationPropertiesRepository.save(builder.build());
-        });
     }
 
 }

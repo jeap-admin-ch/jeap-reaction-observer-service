@@ -41,15 +41,6 @@ class ReactionEntity {
     @Column(name = "trigger_fqn")
     private String triggerFqn;
 
-    @Column(name = "action_id")
-    private String actionId;
-
-    @Column(name = "action_type")
-    private String actionType;
-
-    @Column(name = "action_fqn")
-    private String actionFqn;
-
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "reaction")
     private List<ActionEntity> actions = new ArrayList<>();
 
@@ -59,7 +50,6 @@ class ReactionEntity {
     @Builder
     private ReactionEntity(@NonNull String reactionId, String system, @NonNull String component,
                            String triggerId, String triggerType, String triggerFqn,
-                           String actionId, String actionType, String actionFqn,
                            @NonNull ZonedDateTime identifiedAt) {
         this.reactionId = reactionId;
         this.system = system;
@@ -68,9 +58,6 @@ class ReactionEntity {
         this.triggerId = triggerId;
         this.triggerType = triggerType;
         this.triggerFqn = triggerFqn;
-        this.actionId = actionId;
-        this.actionType = actionType;
-        this.actionFqn = actionFqn;
     }
 
     public void addAction(ActionEntity action) {
