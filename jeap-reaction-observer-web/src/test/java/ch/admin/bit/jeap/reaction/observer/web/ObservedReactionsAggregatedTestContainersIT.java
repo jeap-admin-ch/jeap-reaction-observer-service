@@ -2,7 +2,6 @@ package ch.admin.bit.jeap.reaction.observer.web;
 
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatistics;
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatisticsV2;
 import ch.admin.bit.jeap.reaction.observer.domain.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.aggregation.AggregationService;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
@@ -81,7 +80,7 @@ class ObservedReactionsAggregatedTestContainersIT extends IntegrationTestBase {
 
         aggregationService.aggregateData(getToday());
 
-        List<ObservedReactionsAggregatedStatisticsV2> statistics = observedReactionsAggregatedRepository.getStatistics("test1", LocalDate.now().minusDays(1L));
+        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics("test1", LocalDate.now().minusDays(1L));
         Assertions.assertFalse(statistics.isEmpty());
         statistics.forEach(entry -> {
             if(entry.component().equals("test1")) {

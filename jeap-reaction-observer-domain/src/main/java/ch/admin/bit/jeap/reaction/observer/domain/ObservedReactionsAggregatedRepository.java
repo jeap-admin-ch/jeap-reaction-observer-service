@@ -7,7 +7,7 @@ public interface ObservedReactionsAggregatedRepository {
 
     void aggregateObservedReactionsForDay(LocalDate date);
 
-    List<ObservedReactionsAggregatedStatisticsV2> getStatistics(String component, LocalDate fromDate);
+    List<ObservedReactionsAggregatedStatistics> getStatistics(String component, LocalDate fromDate);
 
     void deleteAggregatedDataOlderThan(LocalDate date);
 }
