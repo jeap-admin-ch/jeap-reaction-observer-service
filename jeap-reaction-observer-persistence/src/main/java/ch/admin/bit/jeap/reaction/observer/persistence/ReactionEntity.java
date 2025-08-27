@@ -26,6 +26,9 @@ class ReactionEntity {
     @Column(name = "reaction_id")
     private String reactionId;
 
+    @Column(name = "system")
+    private String system;
+
     @Column(name = "component")
     private String component;
 
@@ -54,11 +57,12 @@ class ReactionEntity {
     private ZonedDateTime identifiedAt;
 
     @Builder
-    private ReactionEntity(@NonNull String reactionId, @NonNull String component,
+    private ReactionEntity(@NonNull String reactionId, String system, @NonNull String component,
                            String triggerId, String triggerType, String triggerFqn,
                            String actionId, String actionType, String actionFqn,
                            @NonNull ZonedDateTime identifiedAt) {
         this.reactionId = reactionId;
+        this.system = system;
         this.component = component;
         this.identifiedAt = identifiedAt;
         this.triggerId = triggerId;

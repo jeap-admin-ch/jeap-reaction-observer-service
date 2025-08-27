@@ -34,7 +34,7 @@ class ReactionRepositoryImplTest {
     void save_noProps() {
         Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of());
         Observation action = new Observation("a1", "actionType", "actionFqn", Map.of());
-        var identifiedReaction = new Reaction("component0", "reaction0", trigger, List.of(action), ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0", "component0", "reaction0", trigger, List.of(action), ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 
@@ -51,7 +51,7 @@ class ReactionRepositoryImplTest {
         Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of());
         Observation action1 = new Observation("a1", "actionType", "actionFqn", Map.of());
         Observation action2 = new Observation("a2", "actionType", "actionFqn", Map.of());
-        var identifiedReaction = new Reaction("component0", "reaction1", trigger, List.of(action1, action2), ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0","component0", "reaction1", trigger, List.of(action1, action2), ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 
@@ -70,7 +70,7 @@ class ReactionRepositoryImplTest {
     void save_withProps() {
         Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of("key1", "value2"));
         Observation action = new Observation("a1", "actionType", "actionFqn", Map.of("key2", "value2"));
-        var identifiedReaction = new Reaction("component1", "reaction1", trigger, List.of(action), ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0","component1", "reaction1", trigger, List.of(action), ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 
@@ -86,7 +86,7 @@ class ReactionRepositoryImplTest {
     void save_actionOnly() {
         Observation trigger = null;
         Observation action = new Observation("a1", "actionOnlyType", "actionFqn", Map.of("key2", "value2"));
-        var identifiedReaction = new Reaction("component2", "reactionActionOnly", trigger, List.of(action), ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0","component2", "reactionActionOnly", trigger, List.of(action), ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 
@@ -102,7 +102,7 @@ class ReactionRepositoryImplTest {
     void save_triggerOnly() {
         Observation trigger = new Observation("t1", "triggerOnlyType", "triggerFqn", Map.of("key1", "value2"));
         List<Observation> actions = Collections.emptyList();
-        var identifiedReaction = new Reaction("component3", "reactionTriggerOnly", trigger, actions, ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0","component3", "reactionTriggerOnly", trigger, actions, ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 
@@ -118,7 +118,7 @@ class ReactionRepositoryImplTest {
     void save_isIdempotent() {
         Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of());
         Observation action = new Observation("a1", "actionType", "actionFqn", Map.of());
-        var identifiedReaction = new Reaction("component4", "reaction1", trigger, List.of(action), ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0","component4", "reaction1", trigger, List.of(action), ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
         reactionRepository.save(identifiedReaction);
@@ -135,7 +135,7 @@ class ReactionRepositoryImplTest {
     @Test
     void save_triggerId_isSaved() {
         Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of());
-        var identifiedReaction = new Reaction("component5", "reaction1", trigger, List.of(), ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0","component5", "reaction1", trigger, List.of(), ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 
@@ -147,7 +147,7 @@ class ReactionRepositoryImplTest {
     @Test
     void save_actionId_isSaved() {
         Observation action = new Observation("a1", "actionType", "actionFqn", Map.of());
-        var identifiedReaction = new Reaction("component0", "#action0", null, List.of(action), ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0","component0", "#action0", null, List.of(action), ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 
@@ -160,7 +160,7 @@ class ReactionRepositoryImplTest {
     void save_triggerAndActionIds_areSaved() {
         Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of());
         Observation action = new Observation("a1", "actionType", "actionFqn", Map.of());
-        var identifiedReaction = new Reaction("component0", "reaction3", trigger, List.of(action), ZonedDateTime.now());
+        var identifiedReaction = new Reaction("system0","component0", "reaction3", trigger, List.of(action), ZonedDateTime.now());
 
         reactionRepository.save(identifiedReaction);
 

@@ -37,9 +37,10 @@ class ObservedReactionRepositoryImplTest {
     void saveAll_noDuplicates() {
         // given: a reaction and an observation of the reaction
         String reactionId = "reactionId123";
+        String system = "systemABC";
         String component = "component123";
         String idempotenceId = "idempotence123";
-        Reaction reaction = new Reaction(component, reactionId,
+        Reaction reaction = new Reaction(system, component, reactionId,
                 new Observation("t1", "triggerType", "triggerFqn", Map.of()),
                 List.of(new Observation("a1", "actionType", "actionFqn", Map.of())),
                 ZonedDateTime.now());
@@ -66,8 +67,9 @@ class ObservedReactionRepositoryImplTest {
     void deleteByTimeframeStart() {
         // given: a reaction and several observations over different periods
         String reactionId = "reactionId456";
+        String system = "systemABC";
         String component = "component123";
-        Reaction reaction = new Reaction(component, reactionId,
+        Reaction reaction = new Reaction(system, component, reactionId,
                 new Observation("t1", "triggerType", "triggerFqn", Map.of()),
                 List.of(new Observation("a1", "actionType", "actionFqn", Map.of())),
                 ZonedDateTime.now());

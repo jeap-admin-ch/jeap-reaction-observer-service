@@ -31,6 +31,7 @@ class ReactionRepositoryImpl implements ReactionRepository {
             Observation trigger = reaction.trigger();
 
             var builder = ReactionEntity.builder()
+                    .system(reaction.system())
                     .component(reaction.component())
                     .reactionId(reaction.reactionId())
                     .identifiedAt(reaction.identifiedAt());
@@ -95,6 +96,7 @@ class ReactionRepositoryImpl implements ReactionRepository {
                                     loadProps(actionEntity.getId(), false)
                             )).collect(Collectors.toList());
                     return new Reaction(
+                            entity.getSystem(),
                             entity.getComponent(),
                             entity.getReactionId(),
                             observation(entity.getTriggerId(), entity.getTriggerType(), entity.getTriggerFqn(), loadProps(entity.getId(), true)),

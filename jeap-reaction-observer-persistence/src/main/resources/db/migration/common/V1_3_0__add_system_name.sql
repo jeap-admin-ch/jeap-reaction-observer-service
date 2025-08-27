@@ -1,0 +1,1 @@
+ALTER TABLE reaction ADD COLUMN system VARCHAR;
