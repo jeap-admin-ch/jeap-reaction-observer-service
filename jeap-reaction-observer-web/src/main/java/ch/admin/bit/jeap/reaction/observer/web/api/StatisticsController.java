@@ -33,11 +33,4 @@ public class StatisticsController {
         return ResponseEntity.ok(observedReactionsAggregatedRepository.getStatistics(component, now().minusDays(properties.getStatisticsPeriodInDays())));
     }
 
-    @PreAuthorize("hasAnyRole('reaction-observer-read')")
-    @Operation(summary = "Get statistics")
-    @GetMapping("/statisticsV2/{component}")
-    public ResponseEntity<List<ObservedReactionsAggregatedStatistics>> getStatisticsV2ForComponent(@PathVariable String component) {
-        return this.getStatisticsForComponent(component);
-    }
-
 }
