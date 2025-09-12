@@ -30,6 +30,9 @@ class ReactionRepositoryImplTest {
     @Autowired
     private JpaReactionRepository jpaReactionRepository;
 
+    @Autowired
+    private JpaInterfaceRepository jpaInterfaceRepository;
+
     @Test
     void save_noProps() {
         Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of());
@@ -170,4 +173,50 @@ class ReactionRepositoryImplTest {
         assertThat(entity.get().getTriggerId()).isEqualTo("t1");
     }
 
+    @Test
+    void save_reusesExistingInterface() {
+        Observation trigger1 = new Observation("t1", "sharedType", "sharedFqn", Map.of());
+        Observation action1 = new Observation("a1", "sharedType", "sharedFqn", Map.of());
+        Reaction reaction1 = new Reaction("system0", "componentX", "reactionX1", trigger1, List.of(action1), ZonedDateTime.now());
+
+        Observation trigger2 = new Observation("t2", "sharedType", "sharedFqn", Map.of());
+        Observation action2 = new Observation("a2", "sharedType", "sharedFqn", Map.of());
+        Reaction reaction2 = new Reaction("system0", "componentX", "reactionX2", trigger2, List.of(action2), ZonedDateTime.now());
+
+        reactionRepository.save(reaction1);
+        reactionRepository.save(reaction2);
+
+        List<InterfaceEntity> interfaces = jpaInterfaceRepository.findAll();
+        assertThat(interfaces)
+                .hasSize(1)
+                .first()
+                .satisfies(i -> {
+                    assertThat(i.getType()).isEqualTo("sharedType");
+                    assertThat(i.getFqn()).isEqualTo("sharedFqn");
+                });
+    }
+
+    @Test
+    void save_createsInterfaceEntity() {
+        Observation trigger = new Observation("t1", "newType", "newFqn", Map.of());
+        Observation action = new Observation("a1", "newType", "newFqn", Map.of());
+        Reaction reaction = new Reaction("system0", "componentY", "reactionY", trigger, List.of(action), ZonedDateTime.now());
+
+        reactionRepository.save(reaction);
+
+        Optional<InterfaceEntity> interfaceEntity = jpaInterfaceRepository.findByTypeAndFqn("newType", "newFqn");
+        assertThat(interfaceEntity).isPresent();
+    }
+
+    @Test
+    void save_doesNotDuplicateInterface() {
+        Observation trigger = new Observation("t1", "dupType", "dupFqn", Map.of());
+        Observation action = new Observation("a1", "dupType", "dupFqn", Map.of());
+        Reaction reaction = new Reaction("system0", "componentD", "reactionD", trigger, List.of(action), ZonedDateTime.now());
+
+        reactionRepository.save(reaction);
+        reactionRepository.save(reaction); // idempotent
+        List<InterfaceEntity> interfaces = jpaInterfaceRepository.findAll();
+        assertThat(interfaces).hasSize(1);
+    }
 }

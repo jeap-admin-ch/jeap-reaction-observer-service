@@ -3,6 +3,8 @@ package ch.admin.bit.jeap.reaction.observer.persistence;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.Objects;
+
 import static lombok.AccessLevel.PROTECTED;
 
 @NoArgsConstructor(access = PROTECTED) // for JPA
@@ -18,7 +20,6 @@ public class ActionEntity {
     @Column(name = "id")
     private Long id;
 
-    @EqualsAndHashCode.Exclude
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reaction_id")
@@ -28,17 +29,27 @@ public class ActionEntity {
     @Column(name = "action_id")
     private String actionId;
 
-    @Column(name = "action_type")
-    private String actionType;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "interface_id")
+    private InterfaceEntity actionInterface;
 
-    @Column(name = "action_fqn")
-    private String actionFqn;
 
     @Builder
-    public ActionEntity(ReactionEntity reaction, String actionId, String actionType, String actionFqn) {
+    public ActionEntity(ReactionEntity reaction, String actionId, InterfaceEntity actionInterface) {
         this.reaction = reaction;
         this.actionId = actionId;
-        this.actionType = actionType;
-        this.actionFqn = actionFqn;
+        this.actionInterface = actionInterface;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        ActionEntity that = (ActionEntity) o;
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 }

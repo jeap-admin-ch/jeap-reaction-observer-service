@@ -23,8 +23,8 @@ class PersistenceAutoConfiguration {
     }
 
     @Bean
-    ReactionRepositoryImpl identifiedReactionRepository(JpaReactionRepository jpaReactionRepository, JpaObservationPropertiesRepository propertiesRepository) {
-        return new ReactionRepositoryImpl(jpaReactionRepository, propertiesRepository);
+    ReactionRepositoryImpl identifiedReactionRepository(JpaReactionRepository jpaReactionRepository, JpaObservationPropertiesRepository propertiesRepository, JpaInterfaceRepository jpaInterfaceRepository) {
+        return new ReactionRepositoryImpl(jpaReactionRepository, propertiesRepository, jpaInterfaceRepository);
     }
 
     @Bean

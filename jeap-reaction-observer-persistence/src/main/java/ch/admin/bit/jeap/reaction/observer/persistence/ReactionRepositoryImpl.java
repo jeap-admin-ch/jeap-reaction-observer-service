@@ -1,10 +1,11 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
+import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Observation;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
-import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ class ReactionRepositoryImpl implements ReactionRepository {
 
     private final JpaReactionRepository jpaReactionRepository;
     private final JpaObservationPropertiesRepository jpaObservationPropertiesRepository;
+    private final JpaInterfaceRepository jpaInterfaceRepository;
 
     @Transactional
     @Override
@@ -35,35 +37,37 @@ class ReactionRepositoryImpl implements ReactionRepository {
                     .component(reaction.component())
                     .reactionId(reaction.reactionId())
                     .identifiedAt(reaction.identifiedAt());
-            if (trigger != null) {
-                builder.triggerId(reaction.trigger().id());
-                builder.triggerType(trigger.type());
-                builder.triggerFqn(trigger.fqn());
+
+            if (trigger != null && trigger.id() != null && trigger.type() != null && trigger.fqn() != null) {
+                builder.triggerId(trigger.id());
+                builder.triggerInterface(resolveInterface(trigger.type(), trigger.fqn()));
             }
 
             ReactionEntity reactionEntity = builder.build();
+
             for (Observation action : reaction.actions()) {
                 ActionEntity actionEntity = ActionEntity.builder()
                         .reaction(reactionEntity)
                         .actionId(action.id())
-                        .actionType(action.type())
-                        .actionFqn(action.fqn())
+                        .actionInterface(resolveInterface(action.type(), action.fqn()))
                         .build();
                 reactionEntity.addAction(actionEntity);
             }
 
             Long reactionId = jpaReactionRepository.save(reactionEntity).getId();
             saveProps(reactionId, trigger, true);
+
             for (ActionEntity actionEntity : reactionEntity.getActions()) {
-                reaction.actions()
-                        .stream()
-                        .filter(action -> action.id().equals(actionEntity.getActionId())).findFirst()
+                reaction.actions().stream()
+                        .filter(action -> action.id().equals(actionEntity.getActionId()))
+                        .findFirst()
                         .ifPresent(action -> saveProps(actionEntity.getId(), action, false));
             }
         } catch (DuplicateKeyException ex) {
             log.debug("Identified reaction already exists, ignoring", ex);
         }
     }
+
 
     private void saveProps(Long reactionId, Observation observation, boolean isTrigger) {
         if (observation == null || observation.props() == null || observation.props().isEmpty()) {
@@ -91,19 +95,32 @@ class ReactionRepositoryImpl implements ReactionRepository {
                     List<Observation> actions = entity.getActions().stream().map(
                             actionEntity -> new Observation(
                                     actionEntity.getActionId(),
-                                    actionEntity.getActionType(),
-                                    actionEntity.getActionFqn(),
+                                    actionEntity.getActionInterface().getType(),
+                                    actionEntity.getActionInterface().getFqn(),
                                     loadProps(actionEntity.getId(), false)
                             )).collect(Collectors.toList());
+
+                    Observation trigger = null;
+                    if (entity.getTriggerInterface() != null) {
+                        trigger = new Observation(
+                                entity.getTriggerId(),
+                                entity.getTriggerInterface().getType(),
+                                entity.getTriggerInterface().getFqn(),
+                                loadProps(entity.getId(), true)
+                        );
+                    }
+
                     return new Reaction(
                             entity.getSystem(),
                             entity.getComponent(),
                             entity.getReactionId(),
-                            observation(entity.getTriggerId(), entity.getTriggerType(), entity.getTriggerFqn(), loadProps(entity.getId(), true)),
+                            trigger,
                             actions,
-                            entity.getIdentifiedAt());
+                            entity.getIdentifiedAt()
+                    );
                 });
     }
+
 
     private Map<String, String> loadProps(Long reactionId, boolean isTrigger) {
         if (isTrigger) {
@@ -133,5 +150,18 @@ class ReactionRepositoryImpl implements ReactionRepository {
             return parts[1];
         }
         return null;
+    }
+
+    private InterfaceEntity resolveInterface(String type, String fqn) {
+        return jpaInterfaceRepository.findByTypeAndFqn(type, fqn)
+        .orElseGet(() -> {
+            try {
+                return jpaInterfaceRepository.save(new InterfaceEntity(type, fqn));
+            } catch (DataIntegrityViolationException e) {
+                // Another tx inserted the same (type,fqn) in parallel — fetch and return it
+                return jpaInterfaceRepository.findByTypeAndFqn(type, fqn)
+                        .orElseThrow(() -> e);
+            }
+        });
     }
 }

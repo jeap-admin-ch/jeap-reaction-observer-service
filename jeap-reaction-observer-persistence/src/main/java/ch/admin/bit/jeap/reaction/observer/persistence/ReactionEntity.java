@@ -35,11 +35,9 @@ class ReactionEntity {
     @Column(name = "trigger_id")
     private String triggerId;
 
-    @Column(name = "trigger_type")
-    private String triggerType;
-
-    @Column(name = "trigger_fqn")
-    private String triggerFqn;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "interface_id")
+    private InterfaceEntity triggerInterface;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "reaction")
     private List<ActionEntity> actions = new ArrayList<>();
@@ -49,15 +47,14 @@ class ReactionEntity {
 
     @Builder
     private ReactionEntity(@NonNull String reactionId, String system, @NonNull String component,
-                           String triggerId, String triggerType, String triggerFqn,
+                           String triggerId, InterfaceEntity triggerInterface,
                            @NonNull ZonedDateTime identifiedAt) {
         this.reactionId = reactionId;
         this.system = system;
         this.component = component;
         this.identifiedAt = identifiedAt;
         this.triggerId = triggerId;
-        this.triggerType = triggerType;
-        this.triggerFqn = triggerFqn;
+        this.triggerInterface = triggerInterface;
     }
 
     public void addAction(ActionEntity action) {

@@ -1,8 +1,8 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
-import ch.admin.bit.jeap.reaction.observer.domain.models.Action;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatistics;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Action;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.dao.DataAccessException;
@@ -32,14 +32,15 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
                 """, date);
     }
 
+
     @Override
     public List<ObservedReactionsAggregatedStatistics> getStatistics(String component, LocalDate fromDate) {
         String sql = """
                 WITH base_stats AS (
                     SELECT
                         ora.component,
-                        r.trigger_type,
-                        r.trigger_fqn,
+                        i_trigger.type AS trigger_type,
+                        i_trigger.fqn AS trigger_fqn,
                         ora.reaction_fk,
                         SUM(ora.count) AS count,
                         CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ora.count) AS FLOAT) AS median,
@@ -50,27 +51,29 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
                         END AS percentage
                     FROM observed_reactions_aggregated ora
                     INNER JOIN reaction r ON r.id = ora.reaction_fk
+                    LEFT JOIN interface i_trigger ON r.interface_id = i_trigger.id
                     WHERE ora.component = ? AND ora.date >= ?
-                    GROUP BY ora.component, ora.reaction_fk, r.trigger_id, r.trigger_type, r.trigger_fqn
+                    GROUP BY ora.component, ora.reaction_fk, r.trigger_id, i_trigger.type, i_trigger.fqn
                 )
                 SELECT 
                     bs.component,
                     bs.trigger_type,
                     bs.trigger_fqn,
-                    act.action_type,
-                    act.action_fqn,
+                    i_action.type AS action_type,
+                    i_action.fqn AS action_fqn,
                     bs.count,
                     bs.median,
                     bs.percentage,
                     bs.reaction_fk,
-                    act.id as action_id,
+                    act.id AS action_id,
                     STRING_AGG(opt.property_key || '=' || opt.property_value, ',') AS trigger_properties,
                     STRING_AGG(prop.property_key || '=' || prop.property_value, ',') AS action_properties
                 FROM base_stats bs
                 LEFT JOIN observation_property opt ON bs.reaction_fk = opt.reaction_trigger_fk
                 LEFT JOIN action act ON bs.reaction_fk = act.reaction_id
-                LEFT JOIN observation_property prop on prop.action_fk=act.id
-                GROUP BY bs.component, bs.trigger_type, bs.trigger_fqn, act.action_type, act.action_fqn, bs.count, bs.median, bs.percentage, bs.reaction_fk, act.id
+                LEFT JOIN interface i_action ON act.interface_id = i_action.id
+                LEFT JOIN observation_property prop ON prop.action_fk = act.id
+                GROUP BY bs.component, bs.trigger_type, bs.trigger_fqn, i_action.type, i_action.fqn, bs.count, bs.median, bs.percentage, bs.reaction_fk, act.id
                 ORDER BY bs.reaction_fk DESC
                 """;
 
