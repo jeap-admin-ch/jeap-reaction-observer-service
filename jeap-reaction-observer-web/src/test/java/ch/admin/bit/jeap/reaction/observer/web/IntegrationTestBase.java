@@ -2,6 +2,7 @@ package ch.admin.bit.jeap.reaction.observer.web;
 
 import ch.admin.bit.jeap.messaging.annotations.JeapMessageConsumerContract;
 import ch.admin.bit.jeap.messaging.kafka.test.KafkaIntegrationTestBase;
+import ch.admin.bit.jeap.reaction.observer.domain.ReactionGraphRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Duration;
 
@@ -21,6 +23,8 @@ import java.time.Duration;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @SpringBootTest
 abstract class IntegrationTestBase extends KafkaIntegrationTestBase {
+
+
 
     @Autowired
     ReactionRepository reactionRepository;

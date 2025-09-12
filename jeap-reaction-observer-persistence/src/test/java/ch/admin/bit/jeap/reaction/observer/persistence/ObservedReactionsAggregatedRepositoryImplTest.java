@@ -11,7 +11,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
 
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -22,8 +21,7 @@ import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.g
 import static java.util.Collections.*;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -563,4 +561,33 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         entityManager.flush();
     }
 
+    @Test
+    void getMedianPerReaction_returnsCorrectMedian() {
+        Reaction reaction = new Reaction("system1", "component1", "rMedian",
+                new Observation("t1", "triggerType", "triggerFqn", Map.of()),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of())),
+                getStartOfDay());
+        reactionRepository.save(reaction);
+
+        save(new ObservedReaction("component1", "rMedian", new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 7));
+        save(new ObservedReaction("component1", "rMedian", new Timeframe(getStartOfDay().minusDays(1), getStartOfDay().minusDays(1).plusHours(1)), 5));
+        save(new ObservedReaction("component1", "rMedian", new Timeframe(getStartOfDay().minusDays(2), getStartOfDay().minusDays(2).plusHours(1)), 3));
+
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday().minusDays(0));
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday().minusDays(1));
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday().minusDays(2));
+
+        Map<Long, Integer> medians = observedReactionsAggregatedRepository.getMedianPerReaction(getToday().minusDays(3));
+
+        // Assert
+        assertEquals(1, medians.size(), "Expected one entry in the medians map");
+        Integer median = medians.values().iterator().next();
+        assertEquals(5, median); // Median from [3, 5, 7]
+    }
+
+    @Test
+    void getMedianPerReaction_returnsEmptyMapWhenNoData() {
+        Map<Long, Integer> medians = observedReactionsAggregatedRepository.getMedianPerReaction(getToday().minusDays(1));
+        assertTrue(medians.isEmpty(), "Expected empty map when no data is present");
+    }
 }

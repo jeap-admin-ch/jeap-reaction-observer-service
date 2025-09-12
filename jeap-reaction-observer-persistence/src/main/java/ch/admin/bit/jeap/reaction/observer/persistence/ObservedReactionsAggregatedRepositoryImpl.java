@@ -147,4 +147,22 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
         this.jdbcTemplate.update("DELETE FROM observed_reactions_aggregated WHERE date < ?", date);
     }
 
+    @Override
+    public Map<Long, Integer> getMedianPerReaction(LocalDate fromDate) {
+        String sql = """
+        SELECT reaction_fk,
+               CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY count) AS INTEGER) AS median
+        FROM observed_reactions_aggregated
+        WHERE date >= ?
+        GROUP BY reaction_fk
+        """;
+
+        return jdbcTemplate.query(sql, rs -> {
+            Map<Long, Integer> result = new HashMap<>();
+            while (rs.next()) {
+                result.put(rs.getLong("reaction_fk"), rs.getInt("median"));
+            }
+            return result;
+        }, fromDate);
+    }
 }

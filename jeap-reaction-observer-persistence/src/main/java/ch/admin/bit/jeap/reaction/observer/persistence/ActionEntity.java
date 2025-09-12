@@ -29,7 +29,7 @@ public class ActionEntity {
     @Column(name = "action_id")
     private String actionId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "interface_id")
     private InterfaceEntity actionInterface;
 

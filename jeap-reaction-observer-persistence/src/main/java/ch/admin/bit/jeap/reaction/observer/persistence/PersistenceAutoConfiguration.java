@@ -36,4 +36,9 @@ class PersistenceAutoConfiguration {
     ObservedReactionsAggregatedRepositoryImpl observedReactionsAggregatedRepository(JdbcTemplate jdbcTemplate) {
         return new ObservedReactionsAggregatedRepositoryImpl(jdbcTemplate);
     }
+
+    @Bean
+    ReactionGraphRepositoryImpl reactionGraphRepository(JpaReactionRepository jpaReactionRepository) {
+        return new ReactionGraphRepositoryImpl(jpaReactionRepository);
+    }
 }

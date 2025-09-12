@@ -1,9 +1,13 @@
 package ch.admin.bit.jeap.reaction.observer.web.service;
 
+import ch.admin.bit.jeap.reaction.observer.domain.GraphHolder;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
+import ch.admin.bit.jeap.reaction.observer.domain.ReactionGraphBuilderService;
 import ch.admin.bit.jeap.reaction.observer.domain.aggregation.AggregationService;
+import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
 import io.micrometer.core.annotation.Timed;
+import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.core.LockAssert;
@@ -15,6 +19,7 @@ import java.time.LocalDate;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getStartOfDay;
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
+import static java.time.LocalDate.now;
 
 @Slf4j
 @AllArgsConstructor
@@ -24,6 +29,28 @@ public class ScheduledTasksService {
     private final AggregationService aggregationService;
     private final ObservedReactionRepository observedReactionRepository;
     private final ReactionObserverProperties properties;
+    private final ReactionGraphBuilderService graphBuilder;
+    private final GraphHolder graphHolder;
+
+    @PostConstruct
+    public void init() {
+        log.info("Initial graph refresh on startup (no lock)");
+        refreshReactionGraphInternal();
+    }
+
+    @SchedulerLock(name = "reaction-graph-refresh-task", lockAtLeastFor = "5s", lockAtMostFor = "2h")
+    @Scheduled(cron = "${jeap.reaction.observer.service.graph-refresh-cron-expression}")
+    public void scheduledRefreshReactionGraph() {
+        log.info("Starting scheduled reaction graph refresh");
+        LockAssert.assertLocked();
+        refreshReactionGraphInternal();
+        log.info("Finished scheduled reaction graph refresh");
+    }
+
+    private void refreshReactionGraphInternal() {
+        Graph graph = graphBuilder.buildGraph(LocalDate.now().minusDays(properties.getStatisticsPeriodInDays()));
+        graphHolder.setGraph(graph);
+    }
 
     @Timed("reaction_observer_service_aggregate_data")
     @SchedulerLock(name = "data-aggregation-task", lockAtLeastFor = "5s", lockAtMostFor = "2h")

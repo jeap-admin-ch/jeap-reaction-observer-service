@@ -13,6 +13,10 @@ import static lombok.AccessLevel.PROTECTED;
 @NoArgsConstructor(access = PROTECTED) // for JPA
 @ToString
 @Getter
+@NamedEntityGraph(
+        name = "Reaction.withActions",
+        attributeNodes = @NamedAttributeNode("actions")
+)
 @Entity
 @Table(name = "reaction")
 class ReactionEntity {
@@ -35,7 +39,7 @@ class ReactionEntity {
     @Column(name = "trigger_id")
     private String triggerId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "interface_id")
     private InterfaceEntity triggerInterface;
 

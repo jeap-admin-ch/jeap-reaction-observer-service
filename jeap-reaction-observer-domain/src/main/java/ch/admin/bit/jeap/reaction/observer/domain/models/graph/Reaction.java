@@ -1,5 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.domain.models.graph;
 
+import lombok.Builder;
+
 import java.util.Set;
 
 /**
@@ -7,11 +9,11 @@ import java.util.Set;
  * Identified by a reaction ID and associated component.
  * Reactions are triggered by messages over a TriggerEdge.
  */
+@Builder
 public record Reaction(
         long id,
         String component,
-        Trigger trigger,
-        Set<Action> actions
+        String system
 ) implements Node {
     @Override
     public long getId() {
