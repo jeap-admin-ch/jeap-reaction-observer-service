@@ -34,6 +34,7 @@ Apache License Version 2.0
  * ch.admin.bit.jeap:jeap-spring-boot-roles-anywhere-starter - [ch.admin.bit.jeap:jeap-spring-boot-roles-anywhere-starter](https://github.com/jeap-admin-ch/jeap-spring-boot-roles-anywhere-starter/tree/main/jeap-spring-boot-roles-anywhere-starter)
  * ch.admin.bit.jeap:jeap-spring-boot-security-client-starter - [ch.admin.bit.jeap:jeap-spring-boot-security-client-starter](https://github.com/jeap-admin-ch/jeap-spring-boot-starters/tree/main/jeap-spring-boot-security-client-starter)
  * ch.admin.bit.jeap:jeap-spring-boot-security-starter - [ch.admin.bit.jeap:jeap-spring-boot-security-starter](https://github.com/jeap-admin-ch/jeap-spring-boot-starters/tree/main/jeap-spring-boot-security-starter)
+ * ch.admin.bit.jeap:jeap-spring-boot-security-starter-test - [ch.admin.bit.jeap:jeap-spring-boot-security-starter-test](https://github.com/jeap-admin-ch/jeap-spring-boot-starters/tree/main/jeap-spring-boot-security-starter-test)
  * ch.admin.bit.jeap:jeap-spring-boot-swagger - [ch.admin.bit.jeap:jeap-spring-boot-swagger](https://github.com/jeap-admin-ch/jeap-spring-boot-starters/tree/main/jeap-spring-boot-swagger)
  * ch.admin.bit.jeap:jeap-spring-boot-swagger-starter - [ch.admin.bit.jeap:jeap-spring-boot-swagger-starter](https://github.com/jeap-admin-ch/jeap-spring-boot-starters/tree/main/jeap-spring-boot-swagger-starter)
  * reaction-identified-event - [ch.admin.bit.jeap.messagetype.jeap:reaction-identified-event](https://github.com/jeap-admin-ch/jeap-message-type-registry/tree/main)

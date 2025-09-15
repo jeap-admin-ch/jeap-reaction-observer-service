@@ -16,7 +16,6 @@ public class ReactionGraphBuilderService {
     private final ReactionGraphRepository graphRepository;
     private final ObservedReactionsAggregatedRepository observedReactionsAggregatedRepository;
 
-
     public Graph buildGraph(LocalDate fromDate) {
         Graph graph = graphRepository.buildFullGraph();
         if (graph == null) {

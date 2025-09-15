@@ -2,8 +2,6 @@ package ch.admin.bit.jeap.reaction.observer.domain.models.graph;
 
 import lombok.Builder;
 
-import java.util.Set;
-
 /**
  * This node representing a reaction in the graph.
  * Identified by a reaction ID and associated component.

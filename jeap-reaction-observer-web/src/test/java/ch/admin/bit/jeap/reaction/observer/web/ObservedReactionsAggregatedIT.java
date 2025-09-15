@@ -1,23 +1,20 @@
 package ch.admin.bit.jeap.reaction.observer.web;
 
-import ch.admin.bit.jeap.reaction.observer.domain.*;
+import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
+import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatistics;
 import ch.admin.bit.jeap.reaction.observer.domain.aggregation.AggregationService;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
 import ch.admin.bit.jeap.reaction.observer.service.test.ReactionIdentifiedV2EventBuilder;
-import ch.admin.bit.jeap.reaction.observer.service.test.ReactionsObservedEventBuilder;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestObservation;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestReaction;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
 import static org.awaitility.Awaitility.await;
@@ -66,18 +63,5 @@ class ObservedReactionsAggregatedIT extends IntegrationTestBase {
                 assertEquals(10, entry.count());
             }
         });
-    }
-
-    private static ReactionsObservedEvent createReactionsObservedEvent(TestReaction testReaction) {
-        Instant now = Instant.now();
-        return new ReactionsObservedEventBuilder("test1", "system")
-                .serviceInstanceIdentifier(UUID.randomUUID())
-                .countByReactionId(Map.of(testReaction.id(), 10))
-                .timeframe(now.minusSeconds(300), now)
-                .build();
-    }
-
-    private Integer observedReactionIsPersisted(String idempotenceId) {
-        return jdbcTemplate.queryForObject("select count(*) from observed_reaction where idempotence_id=$1", Integer.class, idempotenceId);
     }
 }

@@ -7,7 +7,8 @@ import java.util.List;
  * Nodes can be messages or reactions, and edges define their relationships.
  * Used for modeling event-driven flows and process interactions.
  */
-public record Graph(
-        List<Node> nodes,
-        List<Edge> edges
-) {}
+public record GraphDto(
+        List<NodeDto> nodes,
+        List<EdgeDto> edges
+) {
+}

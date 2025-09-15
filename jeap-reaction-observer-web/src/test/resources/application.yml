@@ -1,13 +1,11 @@
 spring:
+  flyway:
+    enabled: true
+    clean-disabled: false
   application:
     name: test
   main:
     banner-mode: off
-  datasource:
-    url: "jdbc:h2:mem:integrationtest;MODE=PostgreSQL"
-    username: sa
-    password: password
-    driverClassName: org.h2.Driver
   jpa:
     properties:
       hibernate:

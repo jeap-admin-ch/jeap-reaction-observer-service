@@ -2,17 +2,13 @@ package ch.admin.bit.jeap.reaction.observer.web;
 
 
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.stereotype.Component;
 
 @Component
+@Getter
+@Setter
 public class GraphHolder {
     private Graph graph;
-
-    public Graph getGraph() {
-        return graph;
-    }
-
-    public void setGraph(Graph graph) {
-        this.graph = graph;
-    }
 }

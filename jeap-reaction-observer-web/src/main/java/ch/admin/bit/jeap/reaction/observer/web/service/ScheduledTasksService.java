@@ -48,7 +48,7 @@ public class ScheduledTasksService {
         log.info("Finished scheduled reaction graph refresh");
     }
 
-    private void refreshReactionGraphInternal() {
+    public void refreshReactionGraphInternal() {
         Graph graph = graphBuilder.buildGraph(LocalDate.now().minusDays(properties.getStatisticsPeriodInDays()));
         graphHolder.setGraph(graph);
     }
