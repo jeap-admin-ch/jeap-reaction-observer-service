@@ -1,0 +1,75 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "nodeType": "MESSAGE",
+        "id": 2,
+        "messageType": "Command2",
+        "variant": null
+      },
+      {
+        "nodeType": "MESSAGE",
+        "id": 3,
+        "messageType": "Event1",
+        "variant": null
+      },
+      {
+        "nodeType": "REACTION",
+        "id": 1,
+        "component": "service1"
+      },
+      {
+        "nodeType": "REACTION",
+        "id": 2,
+        "component": "service2"
+      },
+      {
+        "nodeType": "MESSAGE",
+        "id": 1,
+        "messageType": "Command1",
+        "variant": "Variant1"
+      },
+      {
+        "nodeType": "MESSAGE",
+        "id": 4,
+        "messageType": "Command3",
+        "variant": null
+      }
+    ],
+    "edges": [
+      {
+        "edgeType": "TRIGGER",
+        "sourceId": 1,
+        "sourceNodeType": "MESSAGE",
+        "targetReactionId": 1,
+        "median": 5
+      },
+      {
+        "edgeType": "ACTION",
+        "sourceReactionId": 1,
+        "targetId": 2,
+        "targetNodeType": "MESSAGE"
+      },
+      {
+        "edgeType": "ACTION",
+        "sourceReactionId": 1,
+        "targetId": 3,
+        "targetNodeType": "MESSAGE"
+      },
+      {
+        "edgeType": "TRIGGER",
+        "sourceId": 3,
+        "sourceNodeType": "MESSAGE",
+        "targetReactionId": 2,
+        "median": 7
+      },
+      {
+        "edgeType": "ACTION",
+        "sourceReactionId": 2,
+        "targetId": 4,
+        "targetNodeType": "MESSAGE"
+      }
+    ]
+  },
+  "fingerprint": "d2a3e71875d3419799fd68958990ee058d589becb764607a286d65896ce74de3"
+}

@@ -1,10 +1,12 @@
 package ch.admin.bit.jeap.reaction.observer.web.api;
 
+import ch.admin.bit.jeap.reaction.observer.domain.GraphExtractor;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.*;
 import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.*;
+import ch.admin.bit.jeap.reaction.observer.web.service.GraphDtoMapper;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphFingerprintCalculator;
 import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
 import ch.admin.bit.jeap.security.test.resource.JeapAuthenticationTestTokenBuilder;
@@ -37,6 +39,9 @@ class GraphControllerTest {
 
     @MockitoBean
     private GraphFingerprintCalculator fingerprintCalculator;
+
+    @MockitoBean
+    private GraphExtractor graphExtractor;
 
     @Test
     void testGetAllReactionsGraph() throws Exception {
@@ -89,5 +94,67 @@ class GraphControllerTest {
                 .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
                 .andExpect(jsonPath("$.graph.edges[0].edgeType").value("TRIGGER"))
                 .andExpect(jsonPath("$.fingerprint").value(expectedFingerprint));
+    }
+
+    @Test
+    void testGetSystemRelatedGraph() throws Exception {
+        String systemName = "TestSystem";
+
+        Message message = Message.builder()
+                .id(1L)
+                .messageType("TestType")
+                .variant("v1")
+                .semantic(SemanticType.EVENT)
+                .build();
+
+        Reaction reaction = Reaction.builder()
+                .id(2L)
+                .component("TestComponent")
+                .system(systemName)
+                .build();
+
+        Trigger trigger = Trigger.builder()
+                .source(message)
+                .target(reaction)
+                .median(5)
+                .build();
+
+        Graph fullGraph = new Graph(List.of(message, reaction), List.of(trigger));
+
+        when(graphHolder.getGraph()).thenReturn(fullGraph);
+        when(graphExtractor.getSystemRelatedGraph(fullGraph, systemName)).thenReturn(fullGraph);
+        when(fingerprintCalculator.calculate(GraphDtoMapper.map(fullGraph))).thenReturn("abc123fingerprint");
+
+        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
+                .withUserRoles("reaction-observer-read")
+                .build();
+
+        mockMvc.perform(get("/api/graphs/systems/{systemName}", systemName)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(authentication(authentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
+                .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
+                .andExpect(jsonPath("$.graph.edges[0].edgeType").value("TRIGGER"))
+                .andExpect(jsonPath("$.fingerprint").value("abc123fingerprint"));
+    }
+
+    @Test
+    void testGetSystemRelatedGraph_notFound() throws Exception {
+        String systemName = "UnknownSystem";
+
+        Graph fullGraph = new Graph(List.of(), List.of());
+
+        when(graphHolder.getGraph()).thenReturn(fullGraph);
+        when(graphExtractor.getSystemRelatedGraph(fullGraph, systemName)).thenReturn(null);
+
+        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
+                .withUserRoles("reaction-observer-read")
+                .build();
+
+        mockMvc.perform(get("/api/graphs/systems/{systemName}", systemName)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(authentication(authentication)))
+                .andExpect(status().isNotFound());
     }
 }

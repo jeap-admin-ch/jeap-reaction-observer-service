@@ -14,8 +14,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
 import static org.junit.Assert.assertEquals;
@@ -25,7 +27,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-public class AllReactionsGraphIT extends IntegrationTestBase {
+public class ReactionGraphIT extends IntegrationTestBase {
 
     @Autowired
     AggregationService aggregationService;
@@ -48,8 +50,7 @@ public class AllReactionsGraphIT extends IntegrationTestBase {
      * │     └─→ service3 (2) ─→ command4
      * └─→ command2
      */
-    @Test
-    void identified_and_observed_reaction_is_persisted() throws Exception {
+    void givenInitialReactionsGraph() {
         // given: initial observations
         TestObservation command1 = TestObservation.ofEvent("Command1/Variant1");
         TestObservation command2 = TestObservation.ofEvent("Command2");
@@ -83,8 +84,13 @@ public class AllReactionsGraphIT extends IntegrationTestBase {
         assertNotNull(graph);
         assertFalse(graph.nodes().isEmpty());
         assertFalse(graph.edges().isEmpty());
+    }
 
-        // and: REST call returns expected graph
+    @Test
+    void test_all_reactions_graph() throws Exception {
+        givenInitialReactionsGraph();
+
+        // when: all reactions graph is called
         JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
                 .withUserRoles("reaction-observer-read")
                 .build();
@@ -95,21 +101,71 @@ public class AllReactionsGraphIT extends IntegrationTestBase {
                 .andReturn();
 
         String responseBody = result.getResponse().getContentAsString();
-        GraphWithFingerprintDto response = objectMapper.readValue(responseBody, GraphWithFingerprintDto.class);
+        GraphWithFingerprintDto actualGraph = objectMapper.readValue(responseBody, GraphWithFingerprintDto.class);
 
         // and: expected graph is loaded from resource
         String expectedJson = new String(
                 Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("all_reactions_graph.json")).readAllBytes(),
                 StandardCharsets.UTF_8
         );
-        GraphWithFingerprintDto expected = objectMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
+        GraphWithFingerprintDto expectedGraph = objectMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
 
         // then: fingerprint matches
-        assertEquals(expected.fingerprint(), response.fingerprint());
+        assertEquals(expectedGraph.fingerprint(), actualGraph.fingerprint());
 
         // and: graph structure matches
-        JsonNode expectedGraph = objectMapper.readTree(expectedJson).get("graph");
-        JsonNode actualGraph = objectMapper.readTree(responseBody).get("graph");
-        assertEquals(expectedGraph, actualGraph);
+        assertGraphStructureEquals(expectedGraph, actualGraph);
+    }
+
+    @Test
+    void test_system_related_graph() throws Exception {
+        givenInitialReactionsGraph();
+
+        // when: all system related graph is called
+        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
+                .withUserRoles("reaction-observer-read")
+                .build();
+
+        var result = mvc.perform(get("/api/graphs/systems/system1")
+                        .with(authentication(authentication)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String responseBody = result.getResponse().getContentAsString();
+        GraphWithFingerprintDto actualGraph = objectMapper.readValue(responseBody, GraphWithFingerprintDto.class);
+
+        // and: expected graph is loaded from resource
+        String expectedJson = new String(
+                Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("system_related_graph.json")).readAllBytes(),
+                StandardCharsets.UTF_8
+        );
+        GraphWithFingerprintDto expectedGraph = objectMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
+
+        // then: fingerprint matches
+        assertEquals(expectedGraph.fingerprint(), actualGraph.fingerprint());
+
+        // and: graph structure matches
+        assertGraphStructureEquals(expectedGraph, actualGraph);
+    }
+
+    void assertGraphStructureEquals(GraphWithFingerprintDto expected, GraphWithFingerprintDto actual) {
+        JsonNode expectedGraph = objectMapper.valueToTree(expected.graph());
+        JsonNode actualGraph = objectMapper.valueToTree(actual.graph());
+
+        Set<JsonNode> expectedNodes = new HashSet<>();
+        expectedGraph.get("nodes").forEach(expectedNodes::add);
+
+        Set<JsonNode> actualNodes = new HashSet<>();
+        actualGraph.get("nodes").forEach(actualNodes::add);
+
+        assertEquals(expectedNodes, actualNodes);
+
+        Set<JsonNode> expectedEdges = new HashSet<>();
+        expectedGraph.get("edges").forEach(expectedEdges::add);
+
+        Set<JsonNode> actualEdges = new HashSet<>();
+        actualGraph.get("edges").forEach(actualEdges::add);
+
+        assertEquals(expectedEdges, actualEdges);
     }
 }
