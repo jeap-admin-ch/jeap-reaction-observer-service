@@ -6,6 +6,8 @@ import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.*;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphFingerprintCalculator;
+import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
+import ch.admin.bit.jeap.security.test.resource.JeapAuthenticationTestTokenBuilder;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -18,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -75,9 +77,12 @@ class GraphControllerTest {
         when(fingerprintCalculator.calculate(graphDto)).thenReturn(expectedFingerprint);
 
         // Act & Assert
+        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
+                .withUserRoles("reaction-observer-read")
+                .build();
         mockMvc.perform(get("/api/graphs")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic("read", "secret"))
+                        .with(authentication(authentication))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))

@@ -1,15 +1,17 @@
 package ch.admin.bit.jeap.reaction.observer.web.service;
 
-import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphDto;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.*;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
+import java.util.Comparator;
 
 @Component
 @RequiredArgsConstructor
@@ -20,27 +22,10 @@ public class GraphFingerprintCalculator {
     public String calculate(GraphDto dto) {
         try {
             String json = objectMapper.writeValueAsString(dto);
-            return sha256Hex(json);
+            String canonicalJson = new JsonCanonicalizer(json).getEncodedString();
+            return DigestUtils.sha256Hex(canonicalJson);
         } catch (Exception e) {
             throw new RuntimeException("Fingerprint calculation failed", e);
         }
-    }
-
-    private String sha256Hex(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
-        }
-    }
-
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder hexString = new StringBuilder(2 * bytes.length);
-        for (byte b : bytes) {
-            hexString.append(String.format("%02x", b));
-        }
-        return hexString.toString();
     }
 }
