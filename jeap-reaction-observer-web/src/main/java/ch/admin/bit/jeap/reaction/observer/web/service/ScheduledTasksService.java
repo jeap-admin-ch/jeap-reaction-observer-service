@@ -1,6 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.web.service;
 
-import ch.admin.bit.jeap.reaction.observer.domain.GraphHolder;
+import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionGraphBuilderService;
 import ch.admin.bit.jeap.reaction.observer.domain.aggregation.AggregationService;
@@ -38,7 +38,8 @@ public class ScheduledTasksService {
         refreshReactionGraphInternal();
     }
 
-    @SchedulerLock(name = "reaction-graph-refresh-task", lockAtLeastFor = "5s", lockAtMostFor = "2h")
+    @SchedulerLock(name = "reaction-graph-refresh-task", lockAtLeastFor = "5s", lockAtMostFor = "30m")
+    @Timed("reaction_observer_service_reaction_graph_refresh")
     @Scheduled(cron = "${jeap.reaction.observer.service.graph-refresh-cron-expression}")
     public void scheduledRefreshReactionGraph() {
         log.info("Starting scheduled reaction graph refresh");

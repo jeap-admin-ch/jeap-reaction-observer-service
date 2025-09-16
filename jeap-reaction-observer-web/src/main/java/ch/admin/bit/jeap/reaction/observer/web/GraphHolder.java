@@ -1,4 +1,4 @@
-package ch.admin.bit.jeap.reaction.observer.domain;
+package ch.admin.bit.jeap.reaction.observer.web;
 
 
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;

@@ -1,13 +1,8 @@
 package ch.admin.bit.jeap.reaction.observer.web;
 
-import ch.admin.bit.jeap.reaction.observer.domain.GraphHolder;
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatistics;
-import ch.admin.bit.jeap.reaction.observer.domain.ReactionGraphRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.aggregation.AggregationService;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
-import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Trigger;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
 import ch.admin.bit.jeap.reaction.observer.service.test.ReactionIdentifiedV2EventBuilder;
@@ -15,14 +10,8 @@ import ch.admin.bit.jeap.reaction.observer.service.test.ReactionsObservedEventBu
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestObservation;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestReaction;
 import ch.admin.bit.jeap.reaction.observer.web.service.ScheduledTasksService;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
 import java.util.List;
