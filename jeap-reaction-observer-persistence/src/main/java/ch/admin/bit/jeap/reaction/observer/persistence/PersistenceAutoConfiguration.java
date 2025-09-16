@@ -41,4 +41,9 @@ class PersistenceAutoConfiguration {
     ReactionGraphRepositoryImpl reactionGraphRepository(JpaReactionRepository jpaReactionRepository) {
         return new ReactionGraphRepositoryImpl(jpaReactionRepository);
     }
+
+    @Bean
+    SystemRepositoryImpl systemRepository(JdbcTemplate jdbcTemplate) {
+        return new SystemRepositoryImpl(jdbcTemplate);
+    }
 }
