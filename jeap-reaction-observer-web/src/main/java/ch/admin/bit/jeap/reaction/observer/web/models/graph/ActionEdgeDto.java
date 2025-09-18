@@ -1,7 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.web.models.graph;
 
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Action;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record ActionEdgeDto(
         long sourceReactionId,
@@ -15,5 +14,9 @@ public record ActionEdgeDto(
                 //Currently it can only be a MessageNode
                 NodeDtoType.MESSAGE
         );
+    }
+    @Override
+    public String getCanonicalId() {
+        return EdgeDtoType.ACTION + "-" + sourceReactionId + "-" + targetId;
     }
 }

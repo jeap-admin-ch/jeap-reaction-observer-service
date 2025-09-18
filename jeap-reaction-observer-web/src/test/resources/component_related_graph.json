@@ -1,0 +1,39 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "nodeType": "REACTION",
+        "id": 2,
+        "component": "service2"
+      },
+      {
+        "nodeType": "MESSAGE",
+        "id": 4,
+        "messageType": "Command3",
+        "variant": null
+      },
+      {
+        "nodeType": "MESSAGE",
+        "id": 3,
+        "messageType": "Event1",
+        "variant": null
+      }
+    ],
+    "edges": [
+      {
+        "edgeType": "TRIGGER",
+        "sourceId": 3,
+        "sourceNodeType": "MESSAGE",
+        "targetReactionId": 2,
+        "median": 7
+      },
+      {
+        "edgeType": "ACTION",
+        "sourceReactionId": 2,
+        "targetId": 4,
+        "targetNodeType": "MESSAGE"
+      }
+    ]
+  },
+  "fingerprint": "9f69874d8ae620bf6819f27a9b6fa3668a84295c08b4c43c265736bcc8ca9ace"
+}

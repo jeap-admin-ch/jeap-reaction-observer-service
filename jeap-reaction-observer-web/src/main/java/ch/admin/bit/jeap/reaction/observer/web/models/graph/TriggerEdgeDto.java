@@ -18,4 +18,9 @@ public record TriggerEdgeDto(
                 trigger.median()
         );
     }
+
+    @Override
+    public String getCanonicalId() {
+        return EdgeDtoType.TRIGGER + "-" + sourceId + "-" + targetReactionId;
+    }
 }

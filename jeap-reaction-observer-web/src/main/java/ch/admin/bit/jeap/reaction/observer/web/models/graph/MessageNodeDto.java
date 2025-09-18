@@ -20,4 +20,9 @@ public record MessageNodeDto(
     public long getId() {
         return id;
     }
+
+    @Override
+    public String getCanonicalId() {
+        return NodeDtoType.MESSAGE + "-" + id;
+    }
 }

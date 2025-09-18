@@ -1,0 +1,67 @@
+{
+  "Command1/Variant2": {
+    "graph": {
+      "nodes": [
+        {
+          "nodeType": "MESSAGE",
+          "id": 2,
+          "messageType": "Command1",
+          "variant": "Variant2"
+        },
+        {
+          "nodeType": "REACTION",
+          "id": 4,
+          "component": "service4"
+        },
+        {
+          "nodeType": "REACTION",
+          "id": 1,
+          "component": "service1"
+        }
+      ],
+      "edges": [
+        {
+          "edgeType": "TRIGGER",
+          "sourceId": 2,
+          "sourceNodeType": "MESSAGE",
+          "targetReactionId": 4,
+          "median": 0
+        },
+        {
+          "edgeType": "ACTION",
+          "sourceReactionId": 1,
+          "targetId": 2,
+          "targetNodeType": "MESSAGE"
+        }
+      ]
+    },
+    "fingerprint": "0b1d835bee2849241b9a30dc83fb7ef7813cb4251ccfa80746aecf2079a08ecb"
+  },
+  "Command1/Variant1": {
+    "graph": {
+      "nodes": [
+        {
+          "nodeType": "MESSAGE",
+          "id": 1,
+          "messageType": "Command1",
+          "variant": "Variant1"
+        },
+        {
+          "nodeType": "REACTION",
+          "id": 1,
+          "component": "service1"
+        }
+      ],
+      "edges": [
+        {
+          "edgeType": "TRIGGER",
+          "sourceId": 1,
+          "sourceNodeType": "MESSAGE",
+          "targetReactionId": 1,
+          "median": 5
+        }
+      ]
+    },
+    "fingerprint": "b135ec0efb96fc73482e352e799543470fc54cc3b3c1ba6bf264e4d32a74c50a"
+  }
+}

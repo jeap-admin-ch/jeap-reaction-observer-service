@@ -1,5 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.web.models.graph;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -10,4 +11,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 })
 public interface NodeDto {
     long getId();
+    @JsonIgnore
+    String getCanonicalId();
 }

@@ -1,5 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.web.models.graph;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -9,4 +10,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = ActionEdgeDto.class, name = "ACTION")
 })
 public interface EdgeDto {
+    @JsonIgnore
+    String getCanonicalId();
 }

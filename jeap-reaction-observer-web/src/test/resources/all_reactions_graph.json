@@ -17,6 +17,11 @@
         "component": "service3"
       },
       {
+        "nodeType": "REACTION",
+        "id": 4,
+        "component": "service4"
+      },
+      {
         "nodeType": "MESSAGE",
         "id": 1,
         "messageType": "Command1",
@@ -25,8 +30,8 @@
       {
         "nodeType": "MESSAGE",
         "id": 2,
-        "messageType": "Command2",
-        "variant": null
+        "messageType": "Command1",
+        "variant": "Variant2"
       },
       {
         "nodeType": "MESSAGE",
@@ -44,6 +49,12 @@
         "nodeType": "MESSAGE",
         "id": 5,
         "messageType": "Command4",
+        "variant": null
+      },
+      {
+        "nodeType": "MESSAGE",
+        "id": 6,
+        "messageType": "Command2",
         "variant": null
       }
     ],
@@ -92,8 +103,21 @@
         "sourceReactionId": 3,
         "targetId": 5,
         "targetNodeType": "MESSAGE"
+      },
+      {
+        "edgeType": "TRIGGER",
+        "sourceId": 2,
+        "sourceNodeType": "MESSAGE",
+        "targetReactionId": 4,
+        "median": 0
+      },
+      {
+        "edgeType": "ACTION",
+        "sourceReactionId": 4,
+        "targetId": 6,
+        "targetNodeType": "MESSAGE"
       }
     ]
   },
-  "fingerprint": "d2a3e71875d3419799fd68958990ee058d589becb764607a286d65896ce74de3"
+  "fingerprint": "ece24a601a91f9980bca8ff859341bb132abb88523f7dca5f6b54d25733c3bf9"
 }

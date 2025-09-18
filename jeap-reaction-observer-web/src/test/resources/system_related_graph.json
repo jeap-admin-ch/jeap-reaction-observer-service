@@ -3,14 +3,8 @@
     "nodes": [
       {
         "nodeType": "MESSAGE",
-        "id": 2,
-        "messageType": "Command2",
-        "variant": null
-      },
-      {
-        "nodeType": "MESSAGE",
-        "id": 3,
-        "messageType": "Event1",
+        "id": 4,
+        "messageType": "Command3",
         "variant": null
       },
       {
@@ -31,9 +25,15 @@
       },
       {
         "nodeType": "MESSAGE",
-        "id": 4,
-        "messageType": "Command3",
+        "id": 3,
+        "messageType": "Event1",
         "variant": null
+      },
+      {
+        "nodeType": "MESSAGE",
+        "id": 2,
+        "messageType": "Command1",
+        "variant": "Variant2"
       }
     ],
     "edges": [
@@ -71,5 +71,5 @@
       }
     ]
   },
-  "fingerprint": "d2a3e71875d3419799fd68958990ee058d589becb764607a286d65896ce74de3"
+  "fingerprint": "6392c5aff3442f0a3d23d82cfa9470f02f0caee8e6529a1a85ee0266eab0fa09"
 }

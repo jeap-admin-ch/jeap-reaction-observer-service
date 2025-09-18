@@ -146,7 +146,7 @@ class GraphControllerTest {
         Graph fullGraph = new Graph(List.of(), List.of());
 
         when(graphHolder.getGraph()).thenReturn(fullGraph);
-        when(graphExtractor.getSystemRelatedGraph(fullGraph, systemName)).thenReturn(null);
+        when(graphExtractor.getSystemRelatedGraph(fullGraph, systemName)).thenReturn(fullGraph);
 
         JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
                 .withUserRoles("reaction-observer-read")
@@ -156,5 +156,137 @@ class GraphControllerTest {
                         .accept(MediaType.APPLICATION_JSON)
                         .with(authentication(authentication)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testGetComponentRelatedGraph() throws Exception {
+        String componentName = "TestComponent";
+
+        Message message = Message.builder()
+                .id(1L)
+                .messageType("TestType")
+                .variant("v1")
+                .semantic(SemanticType.EVENT)
+                .build();
+
+        Reaction reaction = Reaction.builder()
+                .id(2L)
+                .component(componentName)
+                .system("TestSystem")
+                .build();
+
+        Trigger trigger = Trigger.builder()
+                .source(message)
+                .target(reaction)
+                .median(5)
+                .build();
+
+        Graph componentGraph = new Graph(List.of(message, reaction), List.of(trigger));
+
+        when(graphHolder.getGraph()).thenReturn(componentGraph);
+        when(graphExtractor.getComponentRelatedGraph(componentGraph, componentName)).thenReturn(componentGraph);
+        when(fingerprintCalculator.calculate(GraphDtoMapper.map(componentGraph))).thenReturn("component-fingerprint");
+
+        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
+                .withUserRoles("reaction-observer-read")
+                .build();
+
+        mockMvc.perform(get("/api/graphs/components/{componentName}", componentName)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(authentication(authentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
+                .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
+                .andExpect(jsonPath("$.graph.edges[0].edgeType").value("TRIGGER"))
+                .andExpect(jsonPath("$.fingerprint").value("component-fingerprint"));
+    }
+
+    @Test
+    void testGetComponentRelatedGraph_notFound() throws Exception {
+        String componentName = "UnknownComponent";
+
+        Graph emptyGraph = new Graph(List.of(), List.of());
+
+        when(graphHolder.getGraph()).thenReturn(emptyGraph);
+        when(graphExtractor.getComponentRelatedGraph(emptyGraph, componentName)).thenReturn(emptyGraph);
+
+        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
+                .withUserRoles("reaction-observer-read")
+                .build();
+
+        mockMvc.perform(get("/api/graphs/components/{componentName}", componentName)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(authentication(authentication)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testGetMessageTypeRelatedGraphs_withAndWithoutVariant() throws Exception {
+        String messageType = "TestType";
+
+        // Message with variant
+        Message messageWithVariant = Message.builder()
+                .id(1L)
+                .messageType(messageType)
+                .variant("v1")
+                .semantic(SemanticType.EVENT)
+                .build();
+
+        // Message without variant (null)
+        Message messageWithoutVariant = Message.builder()
+                .id(2L)
+                .messageType(messageType)
+                .variant(null)
+                .semantic(SemanticType.EVENT)
+                .build();
+
+        Reaction reaction = Reaction.builder()
+                .id(3L)
+                .component("ComponentX")
+                .system("SystemX")
+                .build();
+
+        Trigger trigger1 = Trigger.builder()
+                .source(messageWithVariant)
+                .target(reaction)
+                .median(5)
+                .build();
+
+        Trigger trigger2 = Trigger.builder()
+                .source(messageWithoutVariant)
+                .target(reaction)
+                .median(3)
+                .build();
+
+        Graph fullGraph = new Graph(
+                List.of(messageWithVariant, messageWithoutVariant, reaction),
+                List.of(trigger1, trigger2)
+        );
+
+        when(graphHolder.getGraph()).thenReturn(fullGraph);
+
+        // Mock subgraphs for both variants
+        Graph subgraphWithVariant = new Graph(List.of(messageWithVariant, reaction), List.of(trigger1));
+        Graph subgraphWithoutVariant = new Graph(List.of(messageWithoutVariant, reaction), List.of(trigger2));
+
+        when(graphExtractor.getMessageRelatedGraph(fullGraph, messageType, "v1")).thenReturn(subgraphWithVariant);
+        when(graphExtractor.getMessageRelatedGraph(fullGraph, messageType, null)).thenReturn(subgraphWithoutVariant);
+
+        GraphDto dtoWithVariant = GraphDtoMapper.map(subgraphWithVariant);
+        GraphDto dtoWithoutVariant = GraphDtoMapper.map(subgraphWithoutVariant);
+
+        when(fingerprintCalculator.calculate(dtoWithVariant)).thenReturn("fp-v1");
+        when(fingerprintCalculator.calculate(dtoWithoutVariant)).thenReturn("fp-null");
+
+        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
+                .withUserRoles("reaction-observer-read")
+                .build();
+
+        mockMvc.perform(get("/api/graphs/messages/{messageType}", messageType)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(authentication(authentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.['TestType/v1'].fingerprint").value("fp-v1"))
+                .andExpect(jsonPath("$.['TestType'].fingerprint").value("fp-null"));
     }
 }
