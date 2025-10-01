@@ -155,4 +155,29 @@ class GraphExtractorTest {
         assertTrue(result.edges().contains(trigger));
     }
 
+    @Test
+    void testGetSystemRelatedGraph_withNullSystemReaction() {
+        Reaction reactionWithNullSystem = Reaction.builder()
+                .id(300L)
+                .component("ComponentZ")
+                .system(null) // bewusst null
+                .build();
+
+        Trigger triggerToNullSystemReaction = Trigger.builder()
+                .source(message1)
+                .target(reactionWithNullSystem)
+                .median(1)
+                .build();
+
+        Graph graphWithNullSystem = new Graph(
+                List.of(message1, reactionWithNullSystem),
+                List.of(triggerToNullSystemReaction)
+        );
+
+        // Should return empty graph since no reaction matches the system name
+        Graph result = extractor.getSystemRelatedGraph(graphWithNullSystem, "SystemA");
+
+        assertTrue(result.nodes().isEmpty(), "Should return empty graph when system is null");
+        assertTrue(result.edges().isEmpty(), "Should return empty edges when system is null");
+    }
 }
