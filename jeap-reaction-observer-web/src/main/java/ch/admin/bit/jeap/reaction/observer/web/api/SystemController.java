@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api")
@@ -24,7 +25,9 @@ public class SystemController {
     @Operation(summary = "Get system names", description = "Get all system names for which reactions are observed.")
     @GetMapping("/systems/names")
     public ResponseEntity<List<String>> getSystemNames() {
-        return ResponseEntity.ok(systemRepository.getSystemNames());
+        List<String> systemNames = systemRepository.getSystemNames();
+        systemNames.removeIf(Objects::isNull);
+        return ResponseEntity.ok(systemNames);
     }
 
 }
