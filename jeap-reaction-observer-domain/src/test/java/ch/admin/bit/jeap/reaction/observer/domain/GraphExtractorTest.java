@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class GraphExtractorTest {
 
     private final GraphExtractor extractor = new GraphExtractor();
-
+    // [M1] --trigger1--> [R1] --action1--> [M2] --unrelatedTrigger--> [R2]
     private final Message message1 = Message.builder()
             .id(1L)
             .messageType("TypeA")
@@ -94,12 +94,32 @@ class GraphExtractorTest {
     void testGetMessageRelatedGraph() {
         Graph result = extractor.getMessageRelatedGraph(fullGraph, "TypeA", "v1");
 
-        assertEquals(2, result.nodes().size(), "Should contain message1 and reaction1");
+        assertEquals(3, result.nodes().size(), "Should contain message1 , message2 and reaction1");
         assertTrue(result.nodes().contains(message1));
+        assertTrue(result.nodes().contains(message2));
         assertTrue(result.nodes().contains(reaction1));
 
-        assertEquals(1, result.edges().size());
+        assertEquals(2, result.edges().size());
         assertTrue(result.edges().contains(trigger1));
+        assertTrue(result.edges().contains(action1));
+    }
+
+    @Test
+    void testGetMessageRelatedGraph_followUpFromMessage2() {
+        Graph result = extractor.getMessageRelatedGraph(fullGraph, "TypeB", "v1");
+
+        // Expected: message2, reaction1, message1, reaction2
+        assertEquals(4, result.nodes().size(), "Should contain message2, reaction1, message1, and reaction2");
+        assertTrue(result.nodes().contains(message2));
+        assertTrue(result.nodes().contains(reaction1));
+        assertTrue(result.nodes().contains(message1));
+
+        assertTrue(result.nodes().contains(reaction2));
+
+        assertEquals(3, result.edges().size(), "Should contain action1, trigger1, and unrelatedTrigger");
+        assertTrue(result.edges().contains(action1));
+        assertTrue(result.edges().contains(trigger1));
+        assertTrue(result.edges().contains(unrelatedTrigger));
     }
 
     @Test

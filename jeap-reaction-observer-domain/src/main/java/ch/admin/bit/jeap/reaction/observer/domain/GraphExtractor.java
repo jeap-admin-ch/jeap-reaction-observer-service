@@ -24,11 +24,11 @@ public class GraphExtractor {
     }
 
     public Graph getMessageRelatedGraph(Graph graph, String messageType, String variant) {
-        // Find the Message node with the given type and (possibly null) variant
+        // Find the message node matching the given type and variant
         Optional<Message> messageOpt = graph.nodes().stream()
-                .filter(node -> node instanceof Message message
-                        && message.messageType().equals(messageType)
-                        && Objects.equals(message.variant(), variant))
+                .filter(node -> node instanceof Message message &&
+                        message.messageType().equals(messageType) &&
+                        Objects.equals(message.variant(), variant))
                 .map(node -> (Message) node)
                 .findFirst();
 
@@ -59,17 +59,54 @@ public class GraphExtractor {
                 )
                 .collect(Collectors.toSet());
 
-        // Combine the message and related reactions into the final node set
+        // Collect adjacent messages connected to those reactions
+        Set<Node> adjacentMessages = getAdjacentMessagesForReactions(graph, relatedReactions);
+
+        // Combine all relevant nodes
         Set<Node> relevantNodes = new HashSet<>();
         relevantNodes.add(message);
         relevantNodes.addAll(relatedReactions);
+        relevantNodes.addAll(adjacentMessages);
 
-        // Combine all relevant edges
-        List<Edge> relevantEdges = new ArrayList<>();
-        relevantEdges.addAll(outgoingTriggers);
-        relevantEdges.addAll(incomingActions);
+        // Collect all edges between relevant nodes
+        List<Edge> relevantEdges = graph.edges().stream()
+                .filter(edge -> {
+                    if (edge instanceof Trigger trigger) {
+                        return relevantNodes.contains(trigger.source()) && relevantNodes.contains(trigger.target());
+                    } else if (edge instanceof Action action) {
+                        return relevantNodes.contains(action.source()) && relevantNodes.contains(action.target());
+                    }
+                    return false;
+                })
+                .toList();
 
         return new Graph(List.copyOf(relevantNodes), relevantEdges);
+    }
+
+    /**
+     * Finds all messages that are connected to the given reactions.
+     * This includes:
+     * - Messages that triggered the reaction (via Trigger.source)
+     * - Messages that were produced by the reaction (via Action.target)
+     */
+    private Set<Node> getAdjacentMessagesForReactions(Graph graph, Set<Node> reactions) {
+        return reactions.stream()
+                .flatMap(reactionNode -> {
+                    Reaction reaction = (Reaction) reactionNode;
+
+                    // Find messages that triggered this reaction
+                    Stream<Node> triggerSources = graph.edges().stream()
+                            .filter(edge -> edge instanceof Trigger trigger && trigger.target().equals(reaction))
+                            .map(edge -> ((Trigger) edge).source());
+
+                    // Find messages that were produced by this reaction
+                    Stream<Node> actionTargets = graph.edges().stream()
+                            .filter(edge -> edge instanceof Action action && action.source().equals(reaction))
+                            .map(edge -> ((Action) edge).target());
+
+                    return Stream.concat(triggerSources, actionTargets);
+                })
+                .collect(Collectors.toSet());
     }
 
     public Graph getFilteredGraph(Graph graph, Predicate<Reaction> reactionFilter) {
