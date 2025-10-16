@@ -15,7 +15,7 @@ public class GraphExtractor {
 
     public Graph getSystemRelatedGraph(Graph graph, String systemName) {
         return getFilteredGraph(graph, reaction ->
-                Objects.equals(reaction.system(), systemName)
+                reaction.system() != null && reaction.system().equalsIgnoreCase(systemName)
         );
     }
 

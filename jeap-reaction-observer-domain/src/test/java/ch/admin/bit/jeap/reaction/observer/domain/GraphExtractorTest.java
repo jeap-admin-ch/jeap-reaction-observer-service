@@ -61,7 +61,7 @@ class GraphExtractorTest {
 
     @Test
     void testGetSystemRelatedGraph() {
-        Graph result = extractor.getSystemRelatedGraph(fullGraph, "SystemA");
+        Graph result = extractor.getSystemRelatedGraph(fullGraph, "SYSTEMA");
 
         assertEquals(3, result.nodes().size(), "Should contain 1 reaction and 2 messages");
         assertTrue(result.nodes().contains(reaction1));
