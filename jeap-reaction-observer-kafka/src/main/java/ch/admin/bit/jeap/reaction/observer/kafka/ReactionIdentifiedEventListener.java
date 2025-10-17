@@ -65,7 +65,7 @@ class ReactionIdentifiedEventListener {
 
     private static Reaction createReaction(ReactionIdentifiedEvent event, String reactionId, Observation trigger, List<Observation> actions) {
         return new Reaction(
-                event.getPublisher().getSystem(),
+                event.getPublisher().getSystem().toLowerCase(),
                 event.getPublisher().getService(),
                 reactionId,
                 toDomainObservation(trigger),
