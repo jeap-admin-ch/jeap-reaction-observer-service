@@ -1,7 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.web;
 
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
-import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedStatistics;
 import ch.admin.bit.jeap.reaction.observer.domain.aggregation.AggregationService;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
@@ -15,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
 import static org.awaitility.Awaitility.await;
@@ -56,12 +56,7 @@ class ObservedReactionsAggregatedIT extends IntegrationTestBase {
 
         aggregationService.aggregateData(getToday());
 
-        List<ObservedReactionsAggregatedStatistics> statistics = observedReactionsAggregatedRepository.getStatistics("test1", LocalDate.now().minusDays(1L));
-        Assertions.assertFalse(statistics.isEmpty());
-        statistics.forEach(entry -> {
-            if (entry.component().equals("test1")) {
-                assertEquals(10, entry.count());
-            }
-        });
+        Map<Long, Integer> medianPerReaction = observedReactionsAggregatedRepository.getMedianPerReaction(LocalDate.now().minusDays(1L));
+        Assertions.assertFalse(medianPerReaction.isEmpty());
     }
 }
