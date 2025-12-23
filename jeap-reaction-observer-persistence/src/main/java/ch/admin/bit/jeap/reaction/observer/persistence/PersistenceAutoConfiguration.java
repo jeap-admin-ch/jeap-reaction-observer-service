@@ -1,5 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
+import ch.admin.bit.jeap.reaction.observer.domain.ComponentRepository;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -45,5 +46,10 @@ class PersistenceAutoConfiguration {
     @Bean
     SystemRepositoryImpl systemRepository(JdbcTemplate jdbcTemplate) {
         return new SystemRepositoryImpl(jdbcTemplate);
+    }
+
+    @Bean
+    ComponentRepositoryImpl componentRepository(JdbcTemplate jdbcTemplate) {
+        return new ComponentRepositoryImpl(jdbcTemplate);
     }
 }
