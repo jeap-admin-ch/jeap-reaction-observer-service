@@ -167,7 +167,7 @@ Apache License Version 2.0
  * Apache Commons Lang - [org.apache.commons:commons-lang3](https://commons.apache.org/proper/commons-lang/)
  * Apache HttpClient - [org.apache.httpcomponents:httpclient](http://hc.apache.org/httpcomponents-client)
  * Apache HttpCore - [org.apache.httpcomponents:httpcore](http://hc.apache.org/httpcomponents-core-ga)
- * Apache HttpClient - [org.apache.httpcomponents.client5:httpclient5](https://hc.apache.org/httpcomponents-client-5.5.x/5.5.1/httpclient5/)
+ * Apache HttpClient - [org.apache.httpcomponents.client5:httpclient5](https://hc.apache.org/httpcomponents-client-5.5.x/5.5.2/httpclient5/)
  * Apache HttpComponents Core HTTP/1.1 - [org.apache.httpcomponents.core5:httpcore5](https://hc.apache.org/httpcomponents-core-5.3.x/5.3.6/httpcore5/)
  * Apache HttpComponents Core HTTP/2 - [org.apache.httpcomponents.core5:httpcore5-h2](https://hc.apache.org/httpcomponents-core-5.3.x/5.3.6/httpcore5-h2/)
  * Apache Kafka - [org.apache.kafka:kafka-clients](https://kafka.apache.org)
