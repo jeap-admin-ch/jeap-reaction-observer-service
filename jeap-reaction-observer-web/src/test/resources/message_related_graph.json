@@ -4,7 +4,7 @@
       "nodes": [
         {
           "nodeType": "MESSAGE",
-          "id": 6,
+          "id": 51,
           "messageType": "Command2",
           "variant": null
         },
@@ -20,7 +20,7 @@
         },
         {
           "nodeType": "MESSAGE",
-          "id": 2,
+          "id": 11,
           "messageType": "Command1",
           "variant": "Variant2"
         },
@@ -32,7 +32,7 @@
         },
         {
           "nodeType": "MESSAGE",
-          "id": 3,
+          "id": 21,
           "messageType": "Event1",
           "variant": null
         }
@@ -48,18 +48,18 @@
         {
           "edgeType": "ACTION",
           "sourceReactionId": 1,
-          "targetId": 2,
+          "targetId": 11,
           "targetNodeType": "MESSAGE"
         },
         {
           "edgeType": "ACTION",
           "sourceReactionId": 1,
-          "targetId": 3,
+          "targetId": 21,
           "targetNodeType": "MESSAGE"
         },
         {
           "edgeType": "TRIGGER",
-          "sourceId": 2,
+          "sourceId": 11,
           "sourceNodeType": "MESSAGE",
           "targetReactionId": 4,
           "median": 0
@@ -67,12 +67,12 @@
         {
           "edgeType": "ACTION",
           "sourceReactionId": 4,
-          "targetId": 6,
+          "targetId": 51,
           "targetNodeType": "MESSAGE"
         }
       ]
     },
-    "fingerprint": "25a60ff80ded5e237337860c469ab91662ab90b6a4e5ccc064d2f1b515d28e60"
+    "fingerprint": "55241185e8965551c9761b4851f81abfa708b4e1dc50861b5ca2e8fc387ecdac"
   },
   "Command1/Variant1": {
     "graph": {
@@ -84,7 +84,7 @@
         },
         {
           "nodeType": "MESSAGE",
-          "id": 2,
+          "id": 11,
           "messageType": "Command1",
           "variant": "Variant2"
         },
@@ -96,7 +96,7 @@
         },
         {
           "nodeType": "MESSAGE",
-          "id": 3,
+          "id": 21,
           "messageType": "Event1",
           "variant": null
         }
@@ -112,17 +112,17 @@
         {
           "edgeType": "ACTION",
           "sourceReactionId": 1,
-          "targetId": 2,
+          "targetId": 11,
           "targetNodeType": "MESSAGE"
         },
         {
           "edgeType": "ACTION",
           "sourceReactionId": 1,
-          "targetId": 3,
+          "targetId": 21,
           "targetNodeType": "MESSAGE"
         }
       ]
     },
-    "fingerprint": "2c56739d4dd80fd4d7c383d275b8c0b2037c5cc06df39eb441406030cecaddff"
+    "fingerprint": "22ba06ca28548486d304fc52f412cdec82452ccacad1976cd355ff7150aa9e8c"
   }
 }

@@ -29,31 +29,31 @@
       },
       {
         "nodeType": "MESSAGE",
-        "id": 2,
+        "id": 11,
         "messageType": "Command1",
         "variant": "Variant2"
       },
       {
         "nodeType": "MESSAGE",
-        "id": 3,
+        "id": 21,
         "messageType": "Event1",
         "variant": null
       },
       {
         "nodeType": "MESSAGE",
-        "id": 4,
+        "id": 31,
         "messageType": "Command3",
         "variant": null
       },
       {
         "nodeType": "MESSAGE",
-        "id": 5,
+        "id": 41,
         "messageType": "Command4",
         "variant": null
       },
       {
         "nodeType": "MESSAGE",
-        "id": 6,
+        "id": 51,
         "messageType": "Command2",
         "variant": null
       }
@@ -69,18 +69,18 @@
       {
         "edgeType": "ACTION",
         "sourceReactionId": 1,
-        "targetId": 2,
+        "targetId": 11,
         "targetNodeType": "MESSAGE"
       },
       {
         "edgeType": "ACTION",
         "sourceReactionId": 1,
-        "targetId": 3,
+        "targetId": 21,
         "targetNodeType": "MESSAGE"
       },
       {
         "edgeType": "TRIGGER",
-        "sourceId": 3,
+        "sourceId": 21,
         "sourceNodeType": "MESSAGE",
         "targetReactionId": 2,
         "median": 7
@@ -88,12 +88,12 @@
       {
         "edgeType": "ACTION",
         "sourceReactionId": 2,
-        "targetId": 4,
+        "targetId": 31,
         "targetNodeType": "MESSAGE"
       },
       {
         "edgeType": "TRIGGER",
-        "sourceId": 3,
+        "sourceId": 21,
         "sourceNodeType": "MESSAGE",
         "targetReactionId": 3,
         "median": 200
@@ -101,12 +101,12 @@
       {
         "edgeType": "ACTION",
         "sourceReactionId": 3,
-        "targetId": 5,
+        "targetId": 41,
         "targetNodeType": "MESSAGE"
       },
       {
         "edgeType": "TRIGGER",
-        "sourceId": 2,
+        "sourceId": 11,
         "sourceNodeType": "MESSAGE",
         "targetReactionId": 4,
         "median": 0
@@ -114,10 +114,10 @@
       {
         "edgeType": "ACTION",
         "sourceReactionId": 4,
-        "targetId": 6,
+        "targetId": 51,
         "targetNodeType": "MESSAGE"
       }
     ]
   },
-  "fingerprint": "ece24a601a91f9980bca8ff859341bb132abb88523f7dca5f6b54d25733c3bf9"
+  "fingerprint": "68a76c1ce88a5eb5a962481c30a646a7ce4bb9398399edf03425f2c31584a960"
 }

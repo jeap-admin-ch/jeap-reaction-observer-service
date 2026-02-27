@@ -5,7 +5,6 @@ import ch.admin.bit.jeap.reaction.observer.domain.models.Observation;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -132,36 +131,13 @@ class ReactionRepositoryImpl implements ReactionRepository {
         }
     }
 
-    private Observation observation(String id, String type, String fqn, Map<String, String> props) {
-        if (type == null) {
-            return null;
-        }
-        return new Observation(id, type, fqn, props);
-    }
-
-    private String getTriggerId(String reactionId) {
-        String triggerIdFragment = reactionId.split("#")[0];
-        return triggerIdFragment.isBlank() ? null : triggerIdFragment;
-    }
-
-    private String getActionId(String reactionId) {
-        String[] parts = reactionId.split("#");
-        if (parts.length > 1) {
-            return parts[1];
-        }
-        return null;
-    }
-
     private InterfaceEntity resolveInterface(String type, String fqn) {
         return jpaInterfaceRepository.findByTypeAndFqn(type, fqn)
-        .orElseGet(() -> {
-            try {
-                return jpaInterfaceRepository.save(new InterfaceEntity(type, fqn));
-            } catch (DataIntegrityViolationException e) {
-                // Another tx inserted the same (type,fqn) in parallel — fetch and return it
-                return jpaInterfaceRepository.findByTypeAndFqn(type, fqn)
-                        .orElseThrow(() -> e);
-            }
-        });
+                .orElseGet(() -> {
+                    jpaInterfaceRepository.insertIfNotExists(type, fqn);
+                    return jpaInterfaceRepository.findByTypeAndFqn(type, fqn)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Interface not found after insert: type=%s, fqn=%s".formatted(type, fqn)));
+                });
     }
 }

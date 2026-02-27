@@ -210,7 +210,7 @@ public class ReactionGraphIT extends IntegrationTestBase {
                 StandardCharsets.UTF_8
         );
 
-        Map<String, GraphWithFingerprintDto>  expectedGraphs = objectMapper.readValue(expectedJson,
+        Map<String, GraphWithFingerprintDto> expectedGraphs = objectMapper.readValue(expectedJson,
                 objectMapper.getTypeFactory().constructMapType(
                         java.util.Map.class,
                         String.class,

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.time.ZonedDateTime;
 import java.util.Collections;
@@ -17,6 +18,11 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -31,6 +37,9 @@ class ReactionRepositoryImplTest {
     private JpaReactionRepository jpaReactionRepository;
 
     @Autowired
+    private JpaObservationPropertiesRepository jpaObservationPropertiesRepository;
+
+    @MockitoSpyBean
     private JpaInterfaceRepository jpaInterfaceRepository;
 
     @Test
@@ -218,5 +227,76 @@ class ReactionRepositoryImplTest {
         reactionRepository.save(reaction); // idempotent
         List<InterfaceEntity> interfaces = jpaInterfaceRepository.findAll();
         assertThat(interfaces).hasSize(1);
+    }
+
+    @Test
+    void save_triggerWithNullFields_skipsInterfaceResolution() {
+        // trigger has null type and fqn — the guard condition
+        // "trigger.type() != null && trigger.fqn() != null" must prevent interface resolution
+        Observation triggerWithNullType = new Observation("t1", null, null, Map.of());
+        Reaction reaction = new Reaction("system0", "componentNull", "reactionNullTrigger",
+                triggerWithNullType, List.of(), ZonedDateTime.now());
+
+        reactionRepository.save(reaction);
+
+        // no interface must have been looked up or inserted
+        verify(jpaInterfaceRepository, never()).findByTypeAndFqn(anyString(), anyString());
+        verify(jpaInterfaceRepository, never()).insertIfNotExists(anyString(), anyString());
+
+        // reaction is saved but has no triggerInterface
+        Optional<ReactionEntity> entity = jpaReactionRepository.findByComponentAndReactionId("componentNull", "reactionNullTrigger");
+        assertThat(entity).isPresent();
+        assertThat(entity.get().getTriggerInterface()).isNull();
+    }
+
+    @Test
+    void save_nullObservation_skipsProps() {
+        // trigger is null → saveProps(reactionId, null, true) must be a no-op
+        Observation action = new Observation("a1", "actionType", "actionFqn", Map.of());
+        Reaction reaction = new Reaction("system0", "componentNullObs", "reactionNullObs",
+                null, List.of(action), ZonedDateTime.now());
+
+        // must not throw
+        reactionRepository.save(reaction);
+
+        Optional<ReactionEntity> entity = jpaReactionRepository.findByComponentAndReactionId("componentNullObs", "reactionNullObs");
+        assertThat(entity).isPresent();
+        assertThat(entity.get().getTriggerInterface()).isNull();
+    }
+
+    @Test
+    void save_emptyProps_skipsProps() {
+        // both trigger and action have empty props → saveProps must be a no-op (no ObservationProperty rows)
+        Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of());
+        Observation action = new Observation("a1", "actionType", "actionFqn", Map.of());
+        Reaction reaction = new Reaction("system0", "componentEmptyProps", "reactionEmptyProps",
+                trigger, List.of(action), ZonedDateTime.now());
+
+        reactionRepository.save(reaction);
+
+        Optional<ReactionEntity> entity = jpaReactionRepository.findByComponentAndReactionId("componentEmptyProps", "reactionEmptyProps");
+        assertThat(entity).isPresent();
+        // no props must have been stored
+        assertThat(entity.get().getId()).isNotNull();
+        long propCount = jpaObservationPropertiesRepository
+                .findByReactionTriggerFk(entity.get().getId()).count();
+        assertThat(propCount).isZero();
+    }
+
+    @Test
+    void resolveInterface_throwsIllegalStateException_whenInterfaceNotFoundAfterInsert() {
+        // Simulate insertIfNotExists succeeding silently but findByTypeAndFqn returning empty
+        // (e.g. a bug or race condition where the row disappeared after insert)
+        doNothing().when(jpaInterfaceRepository).insertIfNotExists(anyString(), anyString());
+
+        Observation trigger = new Observation("t1", "ghostType", "ghostFqn", Map.of());
+        Reaction reaction = new Reaction("system0", "componentGhost", "reactionGhost",
+                trigger, List.of(), ZonedDateTime.now());
+
+        assertThatThrownBy(() -> reactionRepository.save(reaction))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Interface not found after insert")
+                .hasMessageContaining("ghostType")
+                .hasMessageContaining("ghostFqn");
     }
 }

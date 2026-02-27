@@ -1,7 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.web.models.graph;
 
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Trigger;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record TriggerEdgeDto(
         long sourceId,
