@@ -5,7 +5,6 @@ import ch.admin.bit.jeap.reaction.observer.domain.models.Observation;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
@@ -158,7 +157,7 @@ class ReactionRepositoryImpl implements ReactionRepository {
         .orElseGet(() -> {
             try {
                 return jpaInterfaceRepository.save(new InterfaceEntity(type, fqn));
-            } catch (DataIntegrityViolationException | ConstraintViolationException e) {
+            } catch (DataIntegrityViolationException e) {
                 // Another tx inserted the same (type,fqn) in parallel — fetch and return it
                 return jpaInterfaceRepository.findByTypeAndFqn(type, fqn)
                         .orElseThrow(() -> e);
