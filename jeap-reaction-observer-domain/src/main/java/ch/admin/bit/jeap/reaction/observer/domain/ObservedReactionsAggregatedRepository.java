@@ -10,4 +10,6 @@ public interface ObservedReactionsAggregatedRepository {
     void deleteAggregatedDataOlderThan(LocalDate date);
 
     Map<Long, Integer> getMedianPerReaction(LocalDate fromDate);
+
+    Map<String, LocalDate> getLastObservedReactionDatePerComponent();
 }

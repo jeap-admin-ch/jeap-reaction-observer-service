@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Slf4j
 class ObservedReactionsAggregatedRepositoryImplTest {
 
-    private static Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
+    private static final Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
 
     @Autowired
     private JpaReactionRepository jpaReactionRepository;
@@ -59,10 +59,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         String system = "system1";
         ZonedDateTime startOfDay = getStartOfDay();
         Map<String, String> triggerProps = Map.of("triggerKey1", "triggerValue1", "triggerKey2", "triggerValue2");
-        Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
         Reaction reaction = new Reaction(system, component, reactionId,
                 new Observation("t1", "triggerType", "triggerFqn", triggerProps),
-                List.of(new Observation("a1", "actionType", "actionFqn", actionProps)),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2"))),
                 startOfDay);
         reactionRepository.save(reaction);
 
@@ -84,10 +83,9 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         String system = "system1";
         ZonedDateTime startOfDay = getStartOfDay();
         Map<String, String> triggerProps = Map.of("triggerKey1", "triggerValue1", "triggerKey2", "triggerValue2");
-        Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
         Reaction reaction = new Reaction(system, component, reactionId,
                 new Observation("t1", "triggerType", "triggerFqn", triggerProps),
-                List.of(new Observation("a1", "actionType", "actionFqn", actionProps),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2")),
                         new Observation("a2", "actionType1", "actionFqn1", emptyMap())),
                 startOfDay);
         reactionRepository.save(reaction);
@@ -147,11 +145,10 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         String system = "system1";
         ZonedDateTime startOfDay = getStartOfDay();
         Map<String, String> triggerProps = Map.of("triggerKey1", "triggerValue1", "triggerKey2", "triggerValue2");
-        Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
         Map<String, String> actionProps1 = Map.of("actionKey3", "actionValue3");
         Reaction reaction = new Reaction(system, component, reactionId,
                 new Observation("t1", "triggerType", "triggerFqn", triggerProps),
-                List.of(new Observation("a1", "actionType", "actionFqn", actionProps),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2")),
                         new Observation("a2", "actionType1", "actionFqn1", actionProps1)),
                 startOfDay);
         reactionRepository.save(reaction);
@@ -375,5 +372,41 @@ class ObservedReactionsAggregatedRepositoryImplTest {
     void getMedianPerReaction_returnsEmptyMapWhenNoData() {
         Map<Long, Integer> medians = observedReactionsAggregatedRepository.getMedianPerReaction(getToday().minusDays(1));
         assertTrue(medians.isEmpty(), "Expected empty map when no data is present");
+    }
+
+    @Test
+    void getLastObservedReactionDatePerComponent() {
+        String reactionId = "triggerId1#actionId1";
+        String reactionId2 = "triggerId1#actionId2";
+        String component2 = "component2";
+        String component3 = "component3";
+        String system = "system1";
+        ZonedDateTime startOfDay = getStartOfDay();
+        ZonedDateTime yesterday = startOfDay.minusDays(1);
+        ZonedDateTime theDayBefore = yesterday.minusDays(1);
+        Reaction reaction1 = new Reaction(system, component2, reactionId,
+                new Observation("t1", "triggerType", "triggerFqn", Map.of()),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of())),
+                startOfDay);
+        reactionRepository.save(reaction1);
+        Reaction reaction2 = new Reaction(system, component3, reactionId2,
+                new Observation("t1", "triggerType", "triggerFqn", Map.of()),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of())),
+                startOfDay);
+        reactionRepository.save(reaction2);
+
+        save(new ObservedReaction(component2, reactionId, new Timeframe(theDayBefore, theDayBefore.plusHours(1)), 3));
+        save(new ObservedReaction(component2, reactionId, new Timeframe(yesterday.plusHours(1), yesterday.plusHours(2)), 5));
+        save(new ObservedReaction(component2, reactionId, new Timeframe(startOfDay.plusHours(10), startOfDay.plusHours(11)), 7));
+        save(new ObservedReaction(component3, reactionId2, new Timeframe(theDayBefore, theDayBefore.plusHours(1)), 7));
+
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(theDayBefore.toLocalDate());
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(yesterday.toLocalDate());
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
+
+        Map<String, LocalDate> aggregatedData = observedReactionsAggregatedRepository.getLastObservedReactionDatePerComponent();
+        assertEquals(2, aggregatedData.size());
+        assertEquals(LocalDate.now(), aggregatedData.get(component2));
+        assertEquals(LocalDate.now().minusDays(2), aggregatedData.get(component3));
     }
 }

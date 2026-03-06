@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ObservedReactionsAggregatedIT extends IntegrationTestBase {
 
@@ -58,5 +58,39 @@ class ObservedReactionsAggregatedIT extends IntegrationTestBase {
 
         Map<Long, Integer> medianPerReaction = observedReactionsAggregatedRepository.getMedianPerReaction(LocalDate.now().minusDays(1L));
         Assertions.assertFalse(medianPerReaction.isEmpty());
+    }
+
+    @Test
+    void getLastObservedReactionDatePerComponent() {
+        // given: an identified reaction
+        TestReaction testReaction = new TestReaction(
+                TestObservation.ofEvent("MyEvent"), List.of(TestObservation.ofCommand("MyCommand")), "reaction");
+
+        // when: the identified reaction is notified to the reaction observer service
+        ReactionIdentifiedEvent identifiedEvent = ReactionIdentifiedV2EventBuilder.buildEvent("system", "test1", testReaction);
+        sendSync("reaction-identified", identifiedEvent);
+
+        // then: the identified reaction is stored in the repository
+        Reaction expectedReaction = testReaction.createExpectedReaction(identifiedEvent);
+        await()
+                .until(() -> reactionRepository.findByComponentAndReactionId(expectedReaction.component(), expectedReaction.reactionId()).isPresent());
+
+        // given: a reaction is observed
+        ReactionsObservedEvent observedEvent = createReactionsObservedEvent(testReaction);
+
+        // when: the observed reactions are notified to the reaction observer service
+        sendSync("reactions-observed", observedEvent);
+
+        // then: the reaction observation is persisted
+        String idempotenceId = observedEvent.getIdentity().getIdempotenceId();
+        await()
+                .until(() -> observedReactionIsPersisted(idempotenceId) == 1);
+
+        aggregationService.aggregateData(getToday());
+
+        Map<String, LocalDate> aggregatedData = observedReactionsAggregatedRepository.getLastObservedReactionDatePerComponent();
+
+        assertThat(aggregatedData).hasSize(1);
+
     }
 }

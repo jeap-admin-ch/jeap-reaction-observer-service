@@ -4,10 +4,10 @@ import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRep
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @AllArgsConstructor
@@ -51,5 +51,16 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
             }
             return result;
         }, fromDate);
+    }
+
+    @Override
+    public Map<String, LocalDate> getLastObservedReactionDatePerComponent() {
+        return jdbcTemplate.query("SELECT component, MAX(date) AS max_date FROM observed_reactions_aggregated WHERE count > 0 GROUP BY component ORDER BY component", rs -> {
+            Map<String, LocalDate> result = new LinkedHashMap<>();
+            while (rs.next()) {
+                result.put(rs.getString("component"), rs.getDate("max_date").toLocalDate());
+            }
+            return result;
+        });
     }
 }
