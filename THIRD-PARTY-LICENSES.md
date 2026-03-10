@@ -201,7 +201,7 @@ Apache License Version 2.0
  * Hibernate Commons Annotations - [org.hibernate.common:hibernate-commons-annotations](http://hibernate.org)
  * Hibernate Validator Engine - [org.hibernate.validator:hibernate-validator](https://hibernate.org/validator)
  * Javassist - [org.javassist:javassist](http://www.javassist.org/)
- * JBoss Logging 3 - [org.jboss.logging:jboss-logging](http://www.jboss.org)
+ * JBoss Logging 3 - [org.jboss.logging:jboss-logging](https://www.jboss.org)
  * IntelliJ IDEA Annotations - [org.jetbrains:annotations](http://www.jetbrains.org)
  * JetBrains Java Annotations - [org.jetbrains:annotations](https://github.com/JetBrains/java-annotations)
  * Kotlin Reflect - [org.jetbrains.kotlin:kotlin-reflect](https://kotlinlang.org/)
@@ -363,6 +363,8 @@ Eclipse Distribution License - v 1.0
 Eclipse Public License v2.0
 -------------------------------
 
+ * Logback Classic Module - [ch.qos.logback:logback-classic](http://logback.qos.ch/logback-classic)
+ * Logback Core Module - [ch.qos.logback:logback-core](http://logback.qos.ch/logback-core)
  * Jakarta Annotations API - [jakarta.annotation:jakarta.annotation-api](https://projects.eclipse.org/projects/ee4j.ca)
  * Jakarta Persistence API - [jakarta.persistence:jakarta.persistence-api](https://github.com/eclipse-ee4j/jpa-api)
  * jakarta.transaction API - [jakarta.transaction:jakarta.transaction-api](https://projects.eclipse.org/projects/ee4j.jta)
@@ -378,8 +380,6 @@ Eclipse Public License v2.0
 Eclipse Public License, Version 1.0
 -------------------------------
 
- * Logback Classic Module - [ch.qos.logback:logback-classic](http://logback.qos.ch/logback-classic)
- * Logback Core Module - [ch.qos.logback:logback-core](http://logback.qos.ch/logback-core)
  * H2 Database Engine - [com.h2database:h2](https://h2database.com)
  * JUnit - [junit:junit](http://junit.org)
 
