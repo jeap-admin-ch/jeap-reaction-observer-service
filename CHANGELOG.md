@@ -10,6 +10,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Add new StatisticsController to retrieve the last observation date
+- Update parent from 30.19.0 to 30.20.0
 
 ## [2.17.0] - 2026-03-05
 
