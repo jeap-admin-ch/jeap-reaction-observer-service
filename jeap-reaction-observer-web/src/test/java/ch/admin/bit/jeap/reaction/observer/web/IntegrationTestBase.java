@@ -54,7 +54,7 @@ abstract class IntegrationTestBase extends KafkaIntegrationTestBase {
     Flyway flyway;
 
     @Container
-    private static final PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:16.2")
+    private static final PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:17-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
             .withPassword("test");
