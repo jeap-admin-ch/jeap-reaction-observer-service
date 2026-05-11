@@ -1,9 +1,8 @@
 package ch.admin.bit.jeap.reaction.observer.web.service;
 
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.apache.commons.codec.digest.DigestUtils;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 
@@ -11,8 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GraphFingerprintCalculatorTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final GraphFingerprintCalculator calculator = new GraphFingerprintCalculator(objectMapper);
+    private final JsonMapper jsonMapper = new JsonMapper();
+    private final GraphFingerprintCalculator calculator = new GraphFingerprintCalculator(jsonMapper);
 
     @Test
     void shouldCalculateValidFingerprintForGraphDto() {
@@ -20,8 +19,9 @@ class GraphFingerprintCalculatorTest {
 
         String fingerprint = calculator.calculate(graphDto);
 
-        assertThat(fingerprint).isNotNull();
-        assertThat(fingerprint).hasSize(64); // SHA-256 hex string length
+        assertThat(fingerprint)
+                .isNotNull()
+                .hasSize(64); // SHA-256 hex string length
     }
 
     @Test
@@ -92,8 +92,9 @@ class GraphFingerprintCalculatorTest {
 
         String fingerprint = calculator.calculate(emptyGraph);
 
-        assertThat(fingerprint).isNotNull();
-        assertThat(fingerprint).hasSize(64);
+        assertThat(fingerprint)
+                .isNotNull()
+                .hasSize(64);
     }
 
     private GraphDto createSampleGraph() {

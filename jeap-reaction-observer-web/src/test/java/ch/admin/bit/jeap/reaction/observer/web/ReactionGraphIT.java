@@ -8,10 +8,10 @@ import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphWithFingerprint
 import ch.admin.bit.jeap.reaction.observer.web.service.ScheduledTasksService;
 import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
 import ch.admin.bit.jeap.security.test.resource.JeapAuthenticationTestTokenBuilder;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -24,7 +24,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-public class ReactionGraphIT extends IntegrationTestBase {
+class ReactionGraphIT extends IntegrationTestBase {
 
     @Autowired
     AggregationService aggregationService;
@@ -36,7 +36,7 @@ public class ReactionGraphIT extends IntegrationTestBase {
     GraphHolder graphHolder;
 
     @Autowired
-    ObjectMapper objectMapper;
+    JsonMapper jsonMapper;
 
     /**
      * Command1/Variant1
@@ -104,14 +104,14 @@ public class ReactionGraphIT extends IntegrationTestBase {
                 .andReturn();
 
         String responseBody = result.getResponse().getContentAsString();
-        GraphWithFingerprintDto actualGraph = objectMapper.readValue(responseBody, GraphWithFingerprintDto.class);
+        GraphWithFingerprintDto actualGraph = jsonMapper.readValue(responseBody, GraphWithFingerprintDto.class);
 
         // and: expected graph is loaded from resource
         String expectedJson = new String(
                 Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("all_reactions_graph.json")).readAllBytes(),
                 StandardCharsets.UTF_8
         );
-        GraphWithFingerprintDto expectedGraph = objectMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
+        GraphWithFingerprintDto expectedGraph = jsonMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
 
         // then: fingerprint matches
         assertEquals(expectedGraph.fingerprint(), actualGraph.fingerprint(), "Fingerprint mismatch");
@@ -135,14 +135,14 @@ public class ReactionGraphIT extends IntegrationTestBase {
                 .andReturn();
 
         String responseBody = result.getResponse().getContentAsString();
-        GraphWithFingerprintDto actualGraph = objectMapper.readValue(responseBody, GraphWithFingerprintDto.class);
+        GraphWithFingerprintDto actualGraph = jsonMapper.readValue(responseBody, GraphWithFingerprintDto.class);
 
         // and: expected graph is loaded from resource
         String expectedJson = new String(
                 Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("system_related_graph.json")).readAllBytes(),
                 StandardCharsets.UTF_8
         );
-        GraphWithFingerprintDto expectedGraph = objectMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
+        GraphWithFingerprintDto expectedGraph = jsonMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
 
         // then: fingerprint matches
         assertEquals(expectedGraph.fingerprint(), actualGraph.fingerprint(), "Fingerprint mismatch");
@@ -166,14 +166,14 @@ public class ReactionGraphIT extends IntegrationTestBase {
                 .andReturn();
 
         String responseBody = result.getResponse().getContentAsString();
-        GraphWithFingerprintDto actualGraph = objectMapper.readValue(responseBody, GraphWithFingerprintDto.class);
+        GraphWithFingerprintDto actualGraph = jsonMapper.readValue(responseBody, GraphWithFingerprintDto.class);
 
         // and: expected graph is loaded from resource
         String expectedJson = new String(
                 Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("component_related_graph.json")).readAllBytes(),
                 StandardCharsets.UTF_8
         );
-        GraphWithFingerprintDto expectedGraph = objectMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
+        GraphWithFingerprintDto expectedGraph = jsonMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
 
         // then: fingerprint matches
         assertEquals(expectedGraph.fingerprint(), actualGraph.fingerprint(), "Fingerprint mismatch");
@@ -197,8 +197,8 @@ public class ReactionGraphIT extends IntegrationTestBase {
                 .andReturn();
 
         String responseBody = result.getResponse().getContentAsString();
-        Map<String, GraphWithFingerprintDto> actualGraphs = objectMapper.readValue(responseBody,
-                objectMapper.getTypeFactory().constructMapType(
+        Map<String, GraphWithFingerprintDto> actualGraphs = jsonMapper.readValue(responseBody,
+                jsonMapper.getTypeFactory().constructMapType(
                         java.util.Map.class,
                         String.class,
                         GraphWithFingerprintDto.class
@@ -210,8 +210,8 @@ public class ReactionGraphIT extends IntegrationTestBase {
                 StandardCharsets.UTF_8
         );
 
-        Map<String, GraphWithFingerprintDto> expectedGraphs = objectMapper.readValue(expectedJson,
-                objectMapper.getTypeFactory().constructMapType(
+        Map<String, GraphWithFingerprintDto> expectedGraphs = jsonMapper.readValue(expectedJson,
+                jsonMapper.getTypeFactory().constructMapType(
                         java.util.Map.class,
                         String.class,
                         GraphWithFingerprintDto.class
@@ -231,8 +231,8 @@ public class ReactionGraphIT extends IntegrationTestBase {
     }
 
     void assertGraphStructureEquals(GraphWithFingerprintDto expected, GraphWithFingerprintDto actual) {
-        JsonNode expectedGraph = objectMapper.valueToTree(expected.graph());
-        JsonNode actualGraph = objectMapper.valueToTree(actual.graph());
+        JsonNode expectedGraph = jsonMapper.valueToTree(expected.graph());
+        JsonNode actualGraph = jsonMapper.valueToTree(actual.graph());
 
         Set<JsonNode> expectedNodes = new HashSet<>();
         expectedGraph.get("nodes").forEach(expectedNodes::add);

@@ -6,8 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.test.context.ContextConfiguration;
 
 import java.time.ZonedDateTime;
@@ -161,15 +161,16 @@ class ReactionGraphRepositoryImplTest {
                 .filter(n -> n instanceof Message)
                 .map(n -> (Message) n)
                 .toList();
-        assertThat(messages).hasSize(3);
-        assertThat(messages).anyMatch(m -> m.getId() == triggerInterface.getId());
-        assertThat(messages).anyMatch(m -> m.getId() == actionInterface1.getId());
-        assertThat(messages).anyMatch(m -> m.getId() == actionInterface2.getId());
+        assertThat(messages)
+                .hasSize(3)
+                .anyMatch(m -> m.getId() == triggerInterface.getId())
+                .anyMatch(m -> m.getId() == actionInterface1.getId())
+                .anyMatch(m -> m.getId() == actionInterface2.getId());
 
         // Edges
         assertThat(graph.edges()).hasSize(3);
-        assertThat(graph.edges()).filteredOn(e -> e instanceof Trigger).hasSize(1);
-        assertThat(graph.edges()).filteredOn(e -> e instanceof Action).hasSize(2);
+        assertThat(graph.edges()).filteredOn(Trigger.class::isInstance).hasSize(1);
+        assertThat(graph.edges()).filteredOn(Action.class::isInstance).hasSize(2);
     }
 
 }

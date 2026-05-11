@@ -3,11 +3,11 @@ package ch.admin.bit.jeap.reaction.observer.web.service;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.EdgeDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.NodeDto;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Comparator;
 
@@ -15,7 +15,7 @@ import java.util.Comparator;
 @RequiredArgsConstructor
 public class GraphFingerprintCalculator {
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     public String calculate(GraphDto dto) {
         try {
@@ -32,7 +32,7 @@ public class GraphFingerprintCalculator {
             var sortedDto = new GraphDto(sortedNodes, sortedEdges);
 
             // Serialize and canonicalize
-            String json = objectMapper.writeValueAsString(sortedDto);
+            String json = jsonMapper.writeValueAsString(sortedDto);
             String canonicalJson = new JsonCanonicalizer(json).getEncodedString();
 
             // Return SHA-256 fingerprint

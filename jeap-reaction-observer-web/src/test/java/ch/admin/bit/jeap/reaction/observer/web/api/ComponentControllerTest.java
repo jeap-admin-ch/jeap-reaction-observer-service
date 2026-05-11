@@ -7,10 +7,11 @@ import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
 import ch.admin.bit.jeap.security.test.resource.JeapAuthenticationTestTokenBuilder;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
@@ -25,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ComponentController.class)
 @AutoConfigureMockMvc
 @Import({WebSecurityConfig.class, ReactionObserverProperties.class})
+@EnableWebSecurity
 class ComponentControllerTest {
 
     @Autowired
