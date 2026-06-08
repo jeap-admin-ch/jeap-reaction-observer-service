@@ -27,6 +27,7 @@ Apache License Version 2.0
  * ch.admin.bit.jeap:jeap-reaction-observer-kafka - [ch.admin.bit.jeap:jeap-reaction-observer-kafka](https://github.com/jeap-admin-ch/jeap-reaction-observer-service/tree/main/jeap-reaction-observer-kafka)
  * ch.admin.bit.jeap:jeap-reaction-observer-persistence - [ch.admin.bit.jeap:jeap-reaction-observer-persistence](https://github.com/jeap-admin-ch/jeap-reaction-observer-service/tree/main/jeap-reaction-observer-persistence)
  * ch.admin.bit.jeap:jeap-reaction-observer-service-test - [ch.admin.bit.jeap:jeap-reaction-observer-service-test](https://github.com/jeap-admin-ch/jeap-reaction-observer-service/tree/main/jeap-reaction-observer-service-test)
+ * ch.admin.bit.jeap:jeap-reaction-observer-web - [ch.admin.bit.jeap:jeap-reaction-observer-web](https://github.com/jeap-admin-ch/jeap-reaction-observer-service/tree/main/jeap-reaction-observer-web)
  * ch.admin.bit.jeap:jeap-spring-boot-application-starter - [ch.admin.bit.jeap:jeap-spring-boot-application-starter](https://github.com/jeap-admin-ch/jeap-spring-boot-starters/tree/main/jeap-spring-boot-application-starter)
  * ch.admin.bit.jeap:jeap-spring-boot-logging-starter - [ch.admin.bit.jeap:jeap-spring-boot-logging-starter](https://github.com/jeap-admin-ch/jeap-spring-boot-starters/tree/main/jeap-spring-boot-logging-starter)
  * ch.admin.bit.jeap:jeap-spring-boot-monitoring-starter - [ch.admin.bit.jeap:jeap-spring-boot-monitoring-starter](https://github.com/jeap-admin-ch/jeap-spring-boot-starters/tree/main/jeap-spring-boot-monitoring-starter)
