@@ -15,6 +15,7 @@ public class ReactionGraphBuilderService {
 
     private final ReactionGraphRepository graphRepository;
     private final ObservedReactionsAggregatedRepository observedReactionsAggregatedRepository;
+    private final GraphExtractor graphExtractor;
 
     public Graph buildGraph(LocalDate fromDate) {
         Graph graph = graphRepository.buildFullGraph();
@@ -23,10 +24,17 @@ public class ReactionGraphBuilderService {
             return new Graph(List.of(), List.of());
         }
 
+        // Only present reactions that have actually been observed within the statistics period (JEAP-6459).
+        // Reactions are never deleted; they are merely hidden while not observed and reappear as soon as
+        // they are observed again.
+        Set<Long> recentlyObservedReactionIds = observedReactionsAggregatedRepository.findReactionFksObservedSince(fromDate);
+        Graph recentGraph = graphExtractor.getFilteredGraph(graph,
+                reaction -> recentlyObservedReactionIds.contains(reaction.id()));
+
         Map<Long, Integer> medians = observedReactionsAggregatedRepository.getMedianPerReaction(fromDate);
 
         // Enrich Trigger edges with median values
-        List<Edge> enrichedEdges = graph.edges().stream()
+        List<Edge> enrichedEdges = recentGraph.edges().stream()
                 .map(edge -> {
                     if (edge instanceof Trigger trigger) {
                         Long reactionId = trigger.target().getId();
@@ -41,6 +49,6 @@ public class ReactionGraphBuilderService {
                 })
                 .toList();
 
-        return new Graph(graph.nodes(), enrichedEdges);
+        return new Graph(recentGraph.nodes(), enrichedEdges);
     }
 }

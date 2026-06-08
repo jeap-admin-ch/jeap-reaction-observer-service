@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getStartOfDay;
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
@@ -408,5 +409,48 @@ class ObservedReactionsAggregatedRepositoryImplTest {
         assertEquals(2, aggregatedData.size());
         assertEquals(LocalDate.now(), aggregatedData.get(component2));
         assertEquals(LocalDate.now().minusDays(2), aggregatedData.get(component3));
+    }
+
+    @Test
+    void findReactionFksObservedSince() {
+        String system = "system1";
+        String component = "component1";
+        ZonedDateTime startOfDay = getStartOfDay();
+        ZonedDateTime longAgo = startOfDay.minusDays(40);
+
+        // recentReaction: observed today
+        Reaction recentReaction = new Reaction(system, component, "recent",
+                new Observation("t1", "triggerType", "triggerFqn", Map.of()),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of())), startOfDay);
+        reactionRepository.save(recentReaction);
+        save(new ObservedReaction(component, "recent", new Timeframe(startOfDay, startOfDay.plusHours(1)), 5));
+
+        // zeroCountReaction: observed today but with a count of zero - must still be considered observed
+        Reaction zeroCountReaction = new Reaction(system, component, "zero",
+                new Observation("t1", "triggerType", "triggerFqn", Map.of()),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of())), startOfDay);
+        reactionRepository.save(zeroCountReaction);
+        save(new ObservedReaction(component, "zero", new Timeframe(startOfDay, startOfDay.plusHours(1)), 0));
+
+        // oldReaction: only observed 40 days ago, before the window
+        Reaction oldReaction = new Reaction(system, component, "old",
+                new Observation("t1", "triggerType", "triggerFqn", Map.of()),
+                List.of(new Observation("a1", "actionType", "actionFqn", Map.of())), longAgo);
+        reactionRepository.save(oldReaction);
+        save(new ObservedReaction(component, "old", new Timeframe(longAgo, longAgo.plusHours(1)), 9));
+
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(getToday());
+        observedReactionsAggregatedRepository.aggregateObservedReactionsForDay(longAgo.toLocalDate());
+
+        Long recentFk = jpaReactionRepository.findIdByComponentAndReactionId(component, "recent").orElseThrow();
+        Long zeroFk = jpaReactionRepository.findIdByComponentAndReactionId(component, "zero").orElseThrow();
+        Long oldFk = jpaReactionRepository.findIdByComponentAndReactionId(component, "old").orElseThrow();
+
+        Set<Long> observedSince = observedReactionsAggregatedRepository.findReactionFksObservedSince(getToday().minusDays(32));
+
+        assertTrue(observedSince.contains(recentFk), "recently observed reaction must be included");
+        assertTrue(observedSince.contains(zeroFk), "reaction observed with count 0 must still be included");
+        assertFalse(observedSince.contains(oldFk), "reaction observed only before the window must be excluded");
+        assertEquals(2, observedSince.size());
     }
 }

@@ -20,6 +20,7 @@ import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.g
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -228,6 +229,40 @@ class ReactionGraphIT extends IntegrationTestBase {
             assertEquals(expected.fingerprint(), actual.fingerprint(), "Fingerprint mismatch for variant: " + key);
             assertGraphStructureEquals(expected, actual);
         }
+    }
+
+    @Test
+    void test_reaction_only_shown_after_being_observed() {
+        // given: a reaction is identified but never observed
+        TestObservation lonelyTrigger = TestObservation.ofEvent("LonelyTrigger");
+        TestObservation lonelyAction = TestObservation.ofEvent("LonelyAction");
+        TestReaction lonelyReaction = new TestReaction(lonelyTrigger, List.of(lonelyAction), "lonelyReaction");
+        sendAndAwaitReactionPersistence(lonelyReaction, "lonelySystem", "lonelyService");
+
+        // when: data is aggregated and the graph refreshed
+        // (use the unlocked refresh so the second refresh below is not skipped by ShedLock's lockAtLeastFor)
+        aggregationService.aggregateData(getToday());
+        scheduledTasksService.refreshReactionGraphInternal();
+
+        // then: the unobserved reaction is not presented in the graph (JEAP-6459)
+        assertFalse(graphContainsComponent(graphHolder.getGraph(), "lonelyService"),
+                "a reaction that has not been observed must not be shown");
+
+        // when: the reaction is observed and data is re-aggregated
+        sendAndAwaitObservedEventForReaction(lonelyReaction, "lonelySystem", "lonelyService", 3);
+        aggregationService.aggregateData(getToday());
+        scheduledTasksService.refreshReactionGraphInternal();
+
+        // then: the reaction is presented again
+        assertTrue(graphContainsComponent(graphHolder.getGraph(), "lonelyService"),
+                "a reaction that has been observed must be shown again");
+    }
+
+    private boolean graphContainsComponent(Graph graph, String component) {
+        return graph.nodes().stream()
+                .filter(node -> node instanceof ch.admin.bit.jeap.reaction.observer.domain.models.graph.Reaction)
+                .map(node -> (ch.admin.bit.jeap.reaction.observer.domain.models.graph.Reaction) node)
+                .anyMatch(reaction -> component.equals(reaction.component()));
     }
 
     void assertGraphStructureEquals(GraphWithFingerprintDto expected, GraphWithFingerprintDto actual) {

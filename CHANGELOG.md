@@ -7,6 +7,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 > - Spring Boot 3 maintenance (bug fixes, patches, and regular updates) continues on branch `release/springboot3`.
 
+## [4.2.0] - 2026-06-08
+
+### Changed
+
+- The reaction graph now only presents reactions that have been observed within the statistics period.
+  Reactions that have not been observed recently are no longer shown in the graph, while reactions themselves are
+  never deleted and reappear in the graph as soon as they are observed again.
+
 ## [4.1.0] - 2026-06-04
 
 ### Changed

@@ -7,8 +7,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @AllArgsConstructor
 class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggregatedRepository {
@@ -51,6 +54,16 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
             }
             return result;
         }, fromDate);
+    }
+
+    @Override
+    public Set<Long> findReactionFksObservedSince(LocalDate fromDate) {
+        // Note: no "count > 0" filter on purpose - a reaction that was observed with a count of zero
+        // still counts as observed/present and must remain in the graph (see JEAP-6459).
+        List<Long> reactionFks = jdbcTemplate.queryForList(
+                "SELECT DISTINCT reaction_fk FROM observed_reactions_aggregated WHERE date >= ?",
+                Long.class, fromDate);
+        return new HashSet<>(reactionFks);
     }
 
     @Override
