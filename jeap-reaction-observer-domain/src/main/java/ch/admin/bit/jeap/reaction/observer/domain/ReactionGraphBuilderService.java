@@ -18,13 +18,14 @@ public class ReactionGraphBuilderService {
     private final GraphExtractor graphExtractor;
 
     public Graph buildGraph(LocalDate fromDate) {
+        // Build full graph to get stable IDs
         Graph graph = graphRepository.buildFullGraph();
         if (graph == null) {
             log.warn("No graph could be built from the repository. Returning empty graph.");
             return new Graph(List.of(), List.of());
         }
 
-        // Only present reactions that have actually been observed within the statistics period (JEAP-6459).
+        // Only present reactions that have actually been observed within the statistics period.
         // Reactions are never deleted; they are merely hidden while not observed and reappear as soon as
         // they are observed again.
         Set<Long> recentlyObservedReactionIds = observedReactionsAggregatedRepository.findReactionFksObservedSince(fromDate);

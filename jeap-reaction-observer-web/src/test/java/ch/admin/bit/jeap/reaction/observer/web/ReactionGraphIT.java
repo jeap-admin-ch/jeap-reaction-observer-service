@@ -244,7 +244,7 @@ class ReactionGraphIT extends IntegrationTestBase {
         aggregationService.aggregateData(getToday());
         scheduledTasksService.refreshReactionGraphInternal();
 
-        // then: the unobserved reaction is not presented in the graph (JEAP-6459)
+        // then: the unobserved reaction is not presented in the graph
         assertFalse(graphContainsComponent(graphHolder.getGraph(), "lonelyService"),
                 "a reaction that has not been observed must not be shown");
 

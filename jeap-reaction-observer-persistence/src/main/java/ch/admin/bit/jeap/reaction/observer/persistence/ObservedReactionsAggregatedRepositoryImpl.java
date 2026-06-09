@@ -59,7 +59,7 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
     @Override
     public Set<Long> findReactionFksObservedSince(LocalDate fromDate) {
         // Note: no "count > 0" filter on purpose - a reaction that was observed with a count of zero
-        // still counts as observed/present and must remain in the graph (see JEAP-6459).
+        // still counts as observed/present and must remain in the graph.
         List<Long> reactionFks = jdbcTemplate.queryForList(
                 "SELECT DISTINCT reaction_fk FROM observed_reactions_aggregated WHERE date >= ?",
                 Long.class, fromDate);

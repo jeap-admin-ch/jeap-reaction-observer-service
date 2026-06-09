@@ -17,7 +17,7 @@ public interface ObservedReactionsAggregatedRepository {
     /**
      * Returns the ids (reaction_fk) of all reactions that have been observed (i.e. have aggregated
      * observation data) on or after the given date. Reactions without recent observations are not
-     * returned and are therefore no longer presented in the reaction graph (see JEAP-6459).
+     * returned and are therefore no longer presented in the reaction graph.
      */
     Set<Long> findReactionFksObservedSince(LocalDate fromDate);
 }
