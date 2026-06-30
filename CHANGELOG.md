@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 > - Spring Boot 3 maintenance (bug fixes, patches, and regular updates) continues on branch `release/springboot3`.
 
+## [5.0.0] - 2026-06-30
+
+### Dependencies
+- **ch.admin.bit.jeap.messagetype.jeap:reaction-identified-event**: 1.0.0 → 2.0.0 (major)
+- **ch.admin.bit.jeap.messagetype.jeap:reaction-identified-event**: 1.0.0 → 2.0.0 (major)
+- **ch.admin.bit.jeap:jeap-spring-boot-parent**: 35.11.0 → 36.0.0 (major)
+
 ## [4.4.0] - 2026-06-23
 
 ### Changed
