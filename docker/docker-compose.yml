@@ -1,7 +1,7 @@
 ---
 services:
   postgresql-db-local:
-    image: postgres:17.7
+    image: postgres:18.4
     container_name: postgresql-db-local
     ports:
       - "5432:5432"
