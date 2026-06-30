@@ -40,8 +40,8 @@ together:
   `models` (persistence-facing: `Reaction`, `Observation`, `ObservedReaction`) and `models/graph` (the graph
   representation: `Node`/`Message`/`Reaction`, `Edge`/`Trigger`/`Action`, `Graph`).
 - **`jeap-reaction-observer-kafka`** — Event listeners (`ReactionIdentifiedEventListener`,
-  `ReactionsObservedEventListener`) that ingest the jEAP message types `reaction-identified-event` (v1 + v2, the v2
-  added as a classified artifact) and `reactions-observed-event`. This is the write path that records observations.
+  `ReactionsObservedEventListener`) that ingest the jEAP message types `reaction-identified-event` (v2)
+  and `reactions-observed-event`. This is the write path that records observations.
 - **`jeap-reaction-observer-persistence`** — JPA entities + repository *implementations* of the domain interfaces,
   Flyway migrations under `src/main/resources/db/migration/common`, and ShedLock JDBC table. PostgreSQL in prod, H2 in
   tests.

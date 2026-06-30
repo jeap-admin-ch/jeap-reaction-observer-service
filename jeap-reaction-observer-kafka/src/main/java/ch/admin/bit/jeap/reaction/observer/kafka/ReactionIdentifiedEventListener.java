@@ -1,8 +1,8 @@
 package ch.admin.bit.jeap.reaction.observer.kafka;
 
 import ch.admin.bit.jeap.messaging.avro.AvroMessage;
-import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
+import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ActionOnly;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.Observation;
 import ch.admin.bit.jeap.reaction.observer.event.identified.v2.ReactionIdentifiedEvent;
@@ -26,11 +26,6 @@ class ReactionIdentifiedEventListener {
 
     @KafkaListener(topics = "${jeap.reaction.observer.service.kafka.reaction-identified-topic}")
     public void onReactionIdentifiedEvent(AvroMessage event, Acknowledgment ack) {
-        if (event instanceof ch.admin.bit.jeap.reaction.observer.event.identified.ReactionIdentifiedEvent) {
-            log.trace("Received a v1 ReactionIdentifiedEvent, which is not supported by this listener anymore. Ignoring event: {}", event);
-            ack.acknowledge();
-            return;
-        }
         Reaction reaction = createReaction((ReactionIdentifiedEvent) event);
         log.debug("Identified reaction: {}", reaction);
         reactionRepository.save(reaction);
