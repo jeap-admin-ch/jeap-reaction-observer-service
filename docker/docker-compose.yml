@@ -11,7 +11,7 @@ services:
       - POSTGRES_DB=sample-db
 
   broker:
-    image: confluentinc/cp-kafka:8.3.0
+    image: confluentinc/cp-kafka:8.3.1
     hostname: broker
     container_name: broker
     ports:
@@ -39,13 +39,13 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
   broker_init:
-    image: confluentinc/cp-kafka:8.3.0
+    image: confluentinc/cp-kafka:8.3.1
     command: "kafka-configs --bootstrap-server broker:29092 --alter --add-config 'SCRAM-SHA-512=[password=user-secret]' --entity-type users --entity-name user"
     depends_on:
       - broker
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:8.3.0
+    image: confluentinc/cp-schema-registry:8.3.1
     hostname: schema-registry
     container_name: schema-registry
     depends_on:
