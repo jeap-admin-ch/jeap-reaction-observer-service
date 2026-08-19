@@ -9,7 +9,6 @@ Apache License Version 2.0
 -------------------------------
 
  * LZ4 Java Compression - [at.yawk.lz4:lz4-java](https://github.com/yawkat/lz4-java)
- * LZ4 Java Compression - [at.yawk.lz4:lz4-java](https://github.com/yawkat/lz4-java)
  * ch.admin.bit.jeap:jeap-crypto-core - [ch.admin.bit.jeap:jeap-crypto-core](https://github.com/jeap-admin-ch/jeap-crypto/tree/main/jeap-crypto-core)
  * ch.admin.bit.jeap:jeap-messaging-api - [ch.admin.bit.jeap:jeap-messaging-api](https://github.com/jeap-admin-ch/jeap-messaging/tree/main/jeap-messaging-api)
  * ch.admin.bit.jeap:jeap-messaging-avro - [ch.admin.bit.jeap:jeap-messaging-avro](https://github.com/jeap-admin-ch/jeap-messaging/tree/main/jeap-messaging-avro)
@@ -134,10 +133,10 @@ Apache License Version 2.0
  * Byte Buddy (without dependencies) - [net.bytebuddy:byte-buddy](https://bytebuddy.net/byte-buddy)
  * Byte Buddy agent - [net.bytebuddy:byte-buddy-agent](https://bytebuddy.net/byte-buddy-agent)
  * Java Native Access - [net.java.dev.jna:jna](https://github.com/java-native-access/jna)
- * net.javacrumbs.shedlock:shedlock-core - [net.javacrumbs.shedlock:shedlock-core](http://nexus.sonatype.org/oss-repository-hosting.html/shedlock-parent/shedlock-core)
- * net.javacrumbs.shedlock:shedlock-provider-jdbc-template - [net.javacrumbs.shedlock:shedlock-provider-jdbc-template](http://nexus.sonatype.org/oss-repository-hosting.html/shedlock-parent/providers/jdbc/shedlock-provider-jdbc-template)
- * net.javacrumbs.shedlock:shedlock-spring - [net.javacrumbs.shedlock:shedlock-spring](http://nexus.sonatype.org/oss-repository-hosting.html/shedlock-parent/spring/shedlock-spring)
- * net.javacrumbs.shedlock:shedlock-sql-support - [net.javacrumbs.shedlock:shedlock-sql-support](http://nexus.sonatype.org/oss-repository-hosting.html/shedlock-parent/providers/sql/shedlock-sql-support)
+ * net.javacrumbs.shedlock:shedlock-core - [net.javacrumbs.shedlock:shedlock-core](https://github.com/lukas-krecan/ShedLock/shedlock-core)
+ * net.javacrumbs.shedlock:shedlock-provider-jdbc-template - [net.javacrumbs.shedlock:shedlock-provider-jdbc-template](https://github.com/lukas-krecan/ShedLock/providers/jdbc/shedlock-provider-jdbc-template)
+ * net.javacrumbs.shedlock:shedlock-spring - [net.javacrumbs.shedlock:shedlock-spring](https://github.com/lukas-krecan/ShedLock/spring/shedlock-spring)
+ * net.javacrumbs.shedlock:shedlock-sql-support - [net.javacrumbs.shedlock:shedlock-sql-support](https://github.com/lukas-krecan/ShedLock/providers/sql/shedlock-sql-support)
  * Logstash Logback Encoder - [net.logstash.logback:logstash-logback-encoder](https://github.com/logfellow/logstash-logback-encoder)
  * ASM based accessors helper used by json-smart - [net.minidev:accessors-smart](https://urielch.github.io/)
  * JSON Small and Fast Parser - [net.minidev:json-smart](https://urielch.github.io/)
