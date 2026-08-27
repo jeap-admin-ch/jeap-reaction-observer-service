@@ -1,90 +1,84 @@
 # AGENTS.md
 
-This file provides guidance to coding agents when working with code in this repository.
+Guidance for AI coding agents working **in this repository**. For how to *use* the service, read [README.md](README.md)
+and the [docs/](docs/) folder instead.
 
-## What this is
+## Project
 
-`jeap-reaction-observer-service` is a jEAP library serving as the basis for a re-usable microservice (not a standalone
-deployable). It records and aggregates *triggers*, *actions*, and *reactions* derived from Kafka events and exposes the
-resulting reaction graph and statistics via a REST API. Concrete services depend on this library and provide their own
-`*-service-instance` deployment; the `jeap-reaction-observer-service-instance` module here is the in-repo packaging used
-for building/testing the full application.
+jEAP Reaction Observer Service is a multi-module Maven library for building a reusable microservice that consumes
+reaction events from services using the jEAP Reaction Observer client library, persists identified reactions and
+observed counts, aggregates recent observations into a graph-oriented read model, and exposes that model via a small
+REST API. Downstream projects can depend on `jeap-reaction-observer-service-instance` to package the service, while
+this repository contains the shared domain, Kafka ingestion, persistence, web/API, and test-support modules.
 
-Published to Maven Central. Versioned with Semantic Versioning; every change must be recorded in `CHANGELOG.md` (Keep a
-Changelog format). Spring Boot 4 lives on `master`.
+## Repository layout
+
+```text
+pom.xml                                                  # Parent POM (packaging=pom); declares the modules below
+jeap-reaction-observer-domain/                           # Domain services and graph model
+  src/main/java/ch/admin/bit/jeap/reaction/observer/domain/
+    aggregation/                                         # Daily aggregation and retention services
+    models/                                              # Identified/observed reaction model
+    models/graph/                                        # Graph nodes/edges served by the API
+    *.java                                               # Repository interfaces, GraphExtractor, graph builder
+jeap-reaction-observer-kafka/                            # Kafka listeners for identified/observed events
+  src/main/java/ch/admin/bit/jeap/reaction/observer/kafka/
+    ReactionIdentifiedEventListener.java                 # Persists reaction definitions from reaction-identified events
+    ReactionsObservedEventListener.java                  # Persists observed counts from reactions-observed events
+    ReactionObserverKafkaProperties.java                 # Topic configuration binding
+jeap-reaction-observer-persistence/                      # JPA entities, JDBC/JPA repository implementations, Flyway schema
+  src/main/resources/db/migration/common/                # Schema + evolution migrations, incl. ShedLock table
+jeap-reaction-observer-web/                              # Spring Boot application, REST API, scheduling, security
+  src/main/java/ch/admin/bit/jeap/reaction/observer/web/api/
+    GraphController.java                                 # Full graph and filtered subgraph endpoints
+    ComponentController.java                             # Known component names
+    SystemController.java                                # Known system names
+    StatisticsController.java                            # Last observation date per component
+    ManagementController.java                            # Manual aggregation trigger
+  src/main/resources/
+    reactionObserverDefaultProperties.properties         # Default service properties
+    application-localtest.yml                            # Local profile using Postgres + Kafka from docker-compose
+jeap-reaction-observer-service-test/                     # Shared Avro event builders and test models for consumers/tests
+jeap-reaction-observer-service-instance/                 # POM-only parent packaging the runnable service instance
+Docker/ and root files: docker/docker-compose.yml, Jenkinsfile, CHANGELOG.md, publiccode.yml, LICENSE
+```
 
 ## Build & test
 
 ```bash
-./mvnw clean install                 # full build + tests
-./mvnw test                          # all tests
-./mvnw -pl jeap-reaction-observer-web test          # one module
-./mvnw -pl jeap-reaction-observer-web test -Dtest=GraphControllerTest         # one test class
-./mvnw -pl jeap-reaction-observer-web test -Dtest=GraphControllerTest#methodName   # one test method
+./mvnw -pl jeap-reaction-observer-web -am install    # build the runnable service module and dependencies
+./mvnw verify                                        # full build incl. tests
+./mvnw -pl jeap-reaction-observer-web test           # web/API module tests
 ```
 
-Integration tests in `jeap-reaction-observer-web` use Testcontainers (PostgreSQL) and an embedded Kafka, so a running
-Docker daemon is required. Repository/persistence tests run against H2.
+- Parent: `ch.admin.bit.jeap:jeap-spring-boot-parent`.
+- Kafka listener tests use the jEAP Kafka integration test support with an embedded broker.
+- Persistence tests run Flyway migrations against H2.
+- Integration tests in `jeap-reaction-observer-web` use Testcontainers/PostgreSQL plus Kafka, so a running Docker daemon is required.
 
-`docker/docker-compose.yml` provides Kafka + Postgres for running the app locally (profile `localtest`, see
-`application-localtest.yml`).
+## jEAP conventions
 
-## Module architecture
+- Java packages live under `ch.admin.bit.jeap.reaction.observer...`.
+- The producer side is documented in the sibling `jeap-reaction-observer` library; this repository documents the consumer/aggregator side only.
+- `ReactionIdentifiedEventListener` stores reaction definitions, while `ReactionsObservedEventListener` stores counted observations keyed by the event idempotence id.
+- The graph served by the API is rebuilt from persisted reactions and filtered to reactions observed within the configured statistics window; trigger edges are enriched with median values computed from aggregated daily counts.
+- Security is HTTP Basic with in-memory read/write users from configuration; read endpoints require role `reaction-observer-read`, manual aggregation requires `reaction-observer-write`.
+- Database changes are Flyway migrations only — add new `V*__*.sql` files under `db/migration/common`, never edit applied migrations.
 
-The build is a Maven reactor. Dependencies flow **domain ← {kafka, persistence, web}**, with `web` wiring everything
-together:
+## Docs
 
-- **`jeap-reaction-observer-domain`** — Pure domain: models, repository *interfaces* (`ReactionGraphRepository`,
-  `ObservedReactionRepository`, `ObservedReactionsAggregatedRepository`, etc.), and domain services (
-  `ReactionGraphBuilderService`, `GraphExtractor`, `aggregation/AggregationService`). Note two distinct model packages:
-  `models` (persistence-facing: `Reaction`, `Observation`, `ObservedReaction`) and `models/graph` (the graph
-  representation: `Node`/`Message`/`Reaction`, `Edge`/`Trigger`/`Action`, `Graph`).
-- **`jeap-reaction-observer-kafka`** — Event listeners (`ReactionIdentifiedEventListener`,
-  `ReactionsObservedEventListener`) that ingest the jEAP message types `reaction-identified-event` (v2)
-  and `reactions-observed-event`. This is the write path that records observations.
-- **`jeap-reaction-observer-persistence`** — JPA entities + repository *implementations* of the domain interfaces,
-  Flyway migrations under `src/main/resources/db/migration/common`, and ShedLock JDBC table. PostgreSQL in prod, H2 in
-  tests.
-- **`jeap-reaction-observer-web`** — Spring Boot application (`ReactionObserverApplication`), REST controllers under
-  `api/`, DTOs under `models/graph`, security config, and `ScheduledTasksService`. Holds the assembled graph in memory
-  via `GraphHolder`.
-- **`jeap-reaction-observer-service-test`** — Shared test fixtures/builders (Avro message helpers) reused across
-  modules' tests.
-- **`jeap-reaction-observer-service-instance`** — `pom` packaging that bundles `web` into the runnable instance;
-  disables the license plugins inherited from the parent.
+When changing public behaviour, update the matching focused file under [docs/](docs/) (one topic per file) and
+the documentation index in the README.
 
-Each library module ships a Spring Boot `AutoConfiguration` (registered in
-`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`), so depending on a module is enough
-to activate it.
-
-## Key runtime flows
-
-- **Write path:** Kafka listeners persist observed reactions as they arrive.
-- **Aggregation & housekeeping:** `ScheduledTasksService` (cron-driven, coordinated across instances by ShedLock)
-  aggregates per-day reaction statistics, refreshes the in-memory graph, and runs housekeeping that deletes old
-  `ObservedReaction` rows and aggregated data older than `statisticsPeriodInDays`.
-- **Graph build:** `ReactionGraphBuilderService.buildGraph(fromDate)` builds the full graph from the repository and
-  enriches `Trigger` edges with median trigger→reaction durations computed over the statistics window. The result is
-  cached in `GraphHolder` and served by `GraphController`. `GraphExtractor` derives filtered subgraphs (by system,
-  component, or message type/variant) on read.
-- **Read path:** `GraphController` serves the full graph and subgraphs, each wrapped with a content fingerprint (
-  `GraphFingerprintCalculator`, canonical-JSON based) so clients (e.g. ArchRepo) can detect changes. Endpoints are
-  secured with `@PreAuthorize("hasAnyRole('reaction-observer-read')")`.
-
-## Conventions
-
-- Lombok is used throughout (`@AllArgsConstructor`, `@Slf4j`, builders); `target/delombok` output is generated, not
-  source.
-- Configurable behavior is exposed via `ReactionObserverProperties` / `ReactionObserverKafkaProperties` with defaults in
-  `reactionObserverDefaultProperties.properties`. Cron expressions and `statisticsPeriodInDays` are the main tuning
-  knobs.
-- Database schema changes are Flyway migrations only — add a new `V*__*.sql` under `db/migration/common`, never edit an
-  applied one.
+- Pages must be valid MDX (Docusaurus renders every `.md` as MDX) and any Mermaid diagrams must use correct Mermaid syntax — see the [writing principles](https://github.com/jeap-admin-ch/jeap/blob/master/docs/documenting-jeap.md#writing-principles). There is no standalone linter for this; validate by actually building the docs site locally against this checkout, using the [site repository](https://github.com/jeap-admin-ch/jeap-admin-ch.github.io)'s `preview.sh --local <path-to-this-repo> --no-autodiscover` (production build, catches MDX/Mermaid syntax errors and broken links) or `dev.sh` for a faster hot-reload check.
 
 ## Versioning
 
 - Semantic Versioning; all changes documented in [CHANGELOG.md](./CHANGELOG.md) (Keep a Changelog format).
 - `setPomVersions.sh` updates the version across all module POMs.
 - When working on a feature branch, increase the version to `x.y.z-SNAPSHOT` in the POMs.
-- When bumping the version, also  update the changelog, and updates version/date in `publiccode.yml`.
+- Always keep the -SNAPSHOT postfix in the POMs, CI will remove it when releasing a version. Do not use the SNAPSHOT postfix in other places (CHANGELOG, publiccode.yml etc.)
+- Keep changelog entries concise and to the point, follow existing patterns.
+- Keep commit messages short, use the JIRA ID from the branch name as a prefix, do not use conventional commits (for example: "JEAP-1234 Added feature X").
+- When bumping the version, also update the changelog, and update version/date in `publiccode.yml`.
 - When the version on a feature branch has not yet been bumped compared to master, ask the user if a major, minor or patch version bump should be performed, and update the version accordingly.
