@@ -3,10 +3,12 @@ package ch.admin.bit.jeap.reaction.observer.web;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * The graph an instance serves from, together with everything derived from it that a request would otherwise
@@ -60,11 +62,33 @@ public final class GraphSnapshot {
 
     /**
      * One index as it goes on the wire, and its entity tag over exactly those bytes.
+     * <p>
+     * {@code equals}, {@code hashCode} and {@code toString} are written out because a record holding an array
+     * would compare it by identity: two payloads of the same index would then be unequal, which is the
+     * opposite of what a reader expects. The tag is a hash of the bytes, so comparing both is comparing the
+     * content twice - deliberately, so that the pair cannot be equal while disagreeing.
      *
      * @param bytes the serialized index. Not copied: this object is created once per refresh and only ever
      *              written to a response
      */
     public record IndexPayload(byte[] bytes, String etag) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof IndexPayload(byte[] otherBytes, String otherEtag)
+                   && Objects.equals(etag, otherEtag)
+                   && Arrays.equals(bytes, otherBytes);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(etag, Arrays.hashCode(bytes));
+        }
+
+        @Override
+        public String toString() {
+            return "IndexPayload[etag=" + etag + ", bytes=" + (bytes == null ? 0 : bytes.length) + " bytes]";
+        }
     }
 
     @SuppressWarnings("java:S107") // Seven parts of one snapshot; the factory is the only caller

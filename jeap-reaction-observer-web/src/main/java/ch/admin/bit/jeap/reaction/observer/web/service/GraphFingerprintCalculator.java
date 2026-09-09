@@ -57,7 +57,7 @@ public class GraphFingerprintCalculator {
             // Return SHA-256 fingerprint
             return DigestUtils.sha256Hex(canonicalJson);
         } catch (Exception e) {
-            throw new RuntimeException("Fingerprint calculation failed", e);
+            throw new FingerprintCalculationException(e);
         }
     }
 }

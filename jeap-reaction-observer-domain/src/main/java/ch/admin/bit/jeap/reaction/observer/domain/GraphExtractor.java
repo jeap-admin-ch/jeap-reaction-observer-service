@@ -30,7 +30,7 @@ public class GraphExtractor {
                 .filter(node -> node instanceof Message message &&
                         message.messageType().equals(messageType) &&
                         Objects.equals(message.variant(), variant))
-                .map(node -> (Message) node)
+                .map(Message.class::cast)
                 .findFirst();
 
         if (messageOpt.isEmpty()) {
@@ -44,13 +44,13 @@ public class GraphExtractor {
         // Find all Trigger edges where the message is the source
         List<Trigger> outgoingTriggers = graph.edges().stream()
                 .filter(edge -> edge instanceof Trigger trigger && trigger.source().equals(message))
-                .map(edge -> (Trigger) edge)
+                .map(Trigger.class::cast)
                 .toList();
 
         // Find all Action edges where the message is the target
         List<Action> incomingActions = graph.edges().stream()
                 .filter(edge -> edge instanceof Action action && action.target().equals(message))
-                .map(edge -> (Action) edge)
+                .map(Action.class::cast)
                 .toList();
 
         // Collect all related Reaction nodes from both directions
@@ -161,16 +161,13 @@ public class GraphExtractor {
 
         Map<MessageKey, Graph> graphs = new LinkedHashMap<>();
         for (Node node : graph.nodes()) {
-            if (!(node instanceof Message message)) {
-                continue;
+            if (node instanceof Message message) {
+                MessageKey key = new MessageKey(message.messageType(), message.variant());
+                // computeIfAbsent, so that the first node of a key wins - as findFirst() does in
+                // getMessageRelatedGraph
+                graphs.computeIfAbsent(key, ignored -> messageRelatedGraph(message, triggersBySource,
+                        triggersByTarget, actionsByTarget, actionsBySource));
             }
-            MessageKey key = new MessageKey(message.messageType(), message.variant());
-            if (graphs.containsKey(key)) {
-                // The first node of a key wins, as findFirst() does in getMessageRelatedGraph
-                continue;
-            }
-            graphs.put(key, messageRelatedGraph(message, triggersBySource, triggersByTarget, actionsByTarget,
-                    actionsBySource));
         }
         return graphs;
     }
@@ -283,7 +280,7 @@ public class GraphExtractor {
         // Filter all Reaction nodes based on the given predicate
         List<Reaction> relevantReactions = graph.nodes().stream()
                 .filter(node -> node instanceof Reaction reaction && reactionFilter.test(reaction))
-                .map(node -> (Reaction) node)
+                .map(Reaction.class::cast)
                 .toList();
 
         if (relevantReactions.isEmpty()) {
