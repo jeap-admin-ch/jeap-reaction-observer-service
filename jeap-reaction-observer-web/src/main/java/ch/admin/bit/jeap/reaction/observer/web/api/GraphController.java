@@ -56,7 +56,7 @@ public class GraphController {
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs")
     public @Nullable ResponseEntity<GraphWithFingerprintDto> getAllReactionsGraph(WebRequest request) {
-        GraphSnapshot snapshot = graphHolder.getSnapshot();
+        GraphSnapshot snapshot = snapshot();
         String fingerprint = snapshot.graphFingerprint();
         if (etagSupport.isNotModified(request, etagSupport.entityTag(fingerprint))) {
             return null;
@@ -70,7 +70,7 @@ public class GraphController {
     @GetMapping("/graphs/systems/{systemName}")
     public @Nullable ResponseEntity<GraphWithFingerprintDto> getSystemRelatedGraph(
             @PathVariable String systemName, WebRequest request) {
-        GraphSnapshot snapshot = graphHolder.getSnapshot();
+        GraphSnapshot snapshot = snapshot();
         String fingerprint = snapshot.fingerprintOfSystem(systemName);
         if (etagSupport.isNotModified(request, etagSupport.entityTag(fingerprint))) {
             return null;
@@ -89,7 +89,7 @@ public class GraphController {
     @GetMapping("/graphs/components/{componentName}")
     public @Nullable ResponseEntity<GraphWithFingerprintDto> getComponentRelatedGraph(
             @PathVariable String componentName, WebRequest request) {
-        GraphSnapshot snapshot = graphHolder.getSnapshot();
+        GraphSnapshot snapshot = snapshot();
         String fingerprint = snapshot.fingerprintOfComponent(componentName);
         if (etagSupport.isNotModified(request, etagSupport.entityTag(fingerprint))) {
             return null;
@@ -108,7 +108,7 @@ public class GraphController {
     @GetMapping("/graphs/messages/{messageType}")
     public @Nullable ResponseEntity<Map<String, GraphWithFingerprintDto>> getMessageTypeRelatedGraphs(
             @PathVariable String messageType, WebRequest request) {
-        GraphSnapshot snapshot = graphHolder.getSnapshot();
+        GraphSnapshot snapshot = snapshot();
         // The tag of this resource covers every variant it answers with, which is what the snapshot combined
         // when it was built - and the same value the index lists
         String entityTag = etagSupport.entityTag(snapshot.fingerprintOfMessageType(messageType));
@@ -137,6 +137,11 @@ public class GraphController {
                 ));
 
         return etagSupport.ok(result, entityTag);
+    }
+
+    /** The graph and the fingerprints this instance answers from - see {@link GraphSnapshot#required}. */
+    private GraphSnapshot snapshot() {
+        return GraphSnapshot.required(graphHolder.getSnapshot());
     }
 
     /**

@@ -87,7 +87,10 @@ The schedules are implemented in `ScheduledTasksService` as follows:
 - aggregated-data housekeeping: deletes daily aggregates older than `statistics-period-in-days`
 - graph refresh: rebuilds the in-memory graph from reactions observed within the same statistics window
 
-All scheduled jobs use ShedLock, so only one service instance executes a given job at a time.
+The three jobs that write hold a ShedLock, so exactly one instance performs each of them. The graph
+refresh does **not**, and must not: the graph is held per JVM and rebuilding it writes nothing, so a
+lock would leave every instance but the one that won it serving the graph it built while starting - see
+[Architecture](architecture.md).
 
 ## Related
 

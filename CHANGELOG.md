@@ -18,6 +18,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `..._#write`). The simple roles `reaction-observer-read` / `reaction-observer-write` are no longer accepted
   from a token; they remain what the two HTTP Basic users hold. One credential, one role model.
 - HTTP Basic itself is unchanged - what is now required is that OAuth2 works **as well**.
+- The graph resources answer from `GraphHolder.getSnapshot()` rather than from `getGraph()`. A downstream test
+  that replaces the `GraphHolder` bean with a mock has to stub `getSnapshot()` - or, simpler, use the real bean
+  and hand it a graph with `setGraph(graph)`; see [Testing](docs/testing.md).
 - `application-localtest.yml` now points at a local jEAP OAuth mock server, so the documented local run keeps
   starting; the mock is only needed to obtain a token.
 

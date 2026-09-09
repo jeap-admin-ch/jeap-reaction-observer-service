@@ -1,6 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
+import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot;
 import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot.IndexPayload;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphIndexDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.MessageGraphIndexDto;
@@ -53,7 +54,7 @@ public class GraphIndexController {
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/systems", produces = MediaType.APPLICATION_JSON_VALUE)
     public @Nullable ResponseEntity<byte[]> getSystemGraphIndex(WebRequest request) {
-        return respond(request, graphHolder.getSnapshot().systemIndex());
+        return respond(request, snapshot().systemIndex());
     }
 
     @PreAuthorize("@reactionsApiAuthorization.canRead()")
@@ -66,7 +67,7 @@ public class GraphIndexController {
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/components", produces = MediaType.APPLICATION_JSON_VALUE)
     public @Nullable ResponseEntity<byte[]> getComponentGraphIndex(WebRequest request) {
-        return respond(request, graphHolder.getSnapshot().componentIndex());
+        return respond(request, snapshot().componentIndex());
     }
 
     @PreAuthorize("@reactionsApiAuthorization.canRead()")
@@ -78,7 +79,12 @@ public class GraphIndexController {
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/messages", produces = MediaType.APPLICATION_JSON_VALUE)
     public @Nullable ResponseEntity<byte[]> getMessageGraphIndex(WebRequest request) {
-        return respond(request, graphHolder.getSnapshot().messageIndex());
+        return respond(request, snapshot().messageIndex());
+    }
+
+    /** The indexes this instance answers from - see {@link GraphSnapshot#required}. */
+    private GraphSnapshot snapshot() {
+        return GraphSnapshot.required(graphHolder.getSnapshot());
     }
 
     /**

@@ -30,6 +30,24 @@ Notable verified behaviours from tests include:
 - aggregated statistics can be queried after persisting identified and observed reactions
 - graph endpoints return `404` for empty system/component subgraphs and variant-specific graphs for message types
 
+## Downstream tests that replace `GraphHolder`
+
+As of 11.0.0 the graph resources answer from `GraphHolder.getSnapshot()` - one immutable snapshot holding the
+graph, the fingerprint of every subgraph and the index payloads - instead of reading `getGraph()` per request.
+A downstream test that replaces the `GraphHolder` bean with a mock and stubs `getGraph()` only therefore finds
+no snapshot; the resource says so rather than failing with a `NullPointerException`.
+
+Two ways out, the second one preferable because it exercises what production does:
+
+```java
+// stub the snapshot
+when(graphHolder.getSnapshot()).thenReturn(graphSnapshotFactory.of(graph));
+
+// or use the real bean and hand it a graph
+@Autowired GraphHolder graphHolder;
+graphHolder.setGraph(graph);
+```
+
 ## Local runtime environment
 
 `docker/docker-compose.yml` provides:

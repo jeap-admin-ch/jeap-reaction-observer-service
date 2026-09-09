@@ -119,6 +119,27 @@ public final class GraphSnapshot {
                 componentIndex, messageIndex);
     }
 
+    /**
+     * The snapshot a resource answers from, or a message saying why there is none.
+     * <p>
+     * {@link GraphHolder} builds a snapshot before it serves a request and replaces it on every refresh, so in
+     * a running service there always is one. There is one situation in which there is not: a test has replaced
+     * the {@code GraphHolder} bean with a mock and stubbed {@code getGraph()} only - which was enough until
+     * 11.0.0, when the graph resources read the graph from the holder directly. That is worth a sentence
+     * rather than a {@link NullPointerException} inside a handler.
+     *
+     * @throws IllegalStateException if there is no snapshot
+     */
+    public static GraphSnapshot required(@Nullable GraphSnapshot snapshot) {
+        if (snapshot == null) {
+            throw new IllegalStateException("GraphHolder returned no snapshot. A running service always has "
+                                            + "one, so this is a test that replaced the GraphHolder bean with "
+                                            + "a mock: stub getSnapshot(), or - simpler - use the real bean "
+                                            + "and hand it a graph with setGraph(graph).");
+        }
+        return snapshot;
+    }
+
     /** What an instance serves before its first refresh, so that nothing has to handle a missing graph. */
     public static GraphSnapshot empty() {
         return new GraphSnapshot(new Graph(List.of(), List.of()), null, List.of(), List.of(), List.of(),
