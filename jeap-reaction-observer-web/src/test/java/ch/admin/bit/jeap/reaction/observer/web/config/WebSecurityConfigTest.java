@@ -1,9 +1,12 @@
 package ch.admin.bit.jeap.reaction.observer.web.config;
 
+import ch.admin.bit.jeap.security.resource.validation.JeapJwtDecoderFactory;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+import static org.mockito.Mockito.mock;
 
 class WebSecurityConfigTest {
 
@@ -26,5 +29,24 @@ class WebSecurityConfigTest {
     @Test
     void requireSystemName_withOne_isSatisfied() {
         assertThatCode(() -> WebSecurityConfig.requireSystemName("myplatform")).doesNotThrowAnyException();
+    }
+
+    /**
+     * And there is no fallback to HTTP Basic alone: an instance without an authorization server does not
+     * start, rather than serving an API a token-authenticating consumer cannot use.
+     */
+    @Test
+    void requireResourceServer_withoutOne_failsTheStartupAndSaysWhatToConfigure() {
+        assertThatIllegalStateException()
+                .isThrownBy(() -> WebSecurityConfig.requireResourceServer(null))
+                .withMessageContaining(WebSecurityConfig.ISSUER_PROPERTY)
+                .withMessageContaining(WebSecurityConfig.SYSTEM_NAME_PROPERTY);
+    }
+
+    @Test
+    void requireResourceServer_withOne_answersIt() {
+        JeapJwtDecoderFactory factory = mock(JeapJwtDecoderFactory.class);
+
+        assertThat(WebSecurityConfig.requireResourceServer(factory)).isSameAs(factory);
     }
 }

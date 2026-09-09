@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
@@ -24,6 +25,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.util.StringUtils;
 
 @Slf4j
@@ -45,6 +47,9 @@ public class WebSecurityConfig {
 
     /** What activates semantic authorization in the jEAP security starter, and the first part of the role. */
     static final String SYSTEM_NAME_PROPERTY = "jeap.security.oauth2.resourceserver.system-name";
+
+    /** What makes the jEAP security starter a resource server at all, and so is required as well. */
+    static final String ISSUER_PROPERTY = "jeap.security.oauth2.resourceserver.authorization-server.issuer";
 
     @Value("${" + SYSTEM_NAME_PROPERTY + ":}")
     private String systemName;
@@ -95,27 +100,21 @@ public class WebSecurityConfig {
     }
 
     /**
-     * Accepts bearer tokens as well - <b>only</b> when this instance is configured as a resource server.
+     * Accepts bearer tokens, which is <b>not optional</b>: an instance that configures no resource server
+     * does not start.
      * <p>
-     * {@link JeapJwtDecoderFactory} is a bean of the jEAP security starter exactly when an issuer is
-     * configured. Without one there is no decoder to validate a token with, so a request carrying a bearer
-     * token is authenticated by basic auth like any other - which is to say refused. <b>Configuring the
-     * resource server unconditionally, or excluding bearer requests from this chain so they fall elsewhere,
-     * would turn a bearer string into a way past the basic-auth users on an instance that has no OAuth at
-     * all.</b>
+     * There used to be a fallback here - no issuer configured meant the API served HTTP Basic alone. It is
+     * gone on purpose. A consumer that replicates from this service authenticates with a token, and an
+     * instance that quietly serves only passwords looks healthy while being unusable to it; the failure then
+     * surfaces as a {@code 401} in somebody else's import hours later, rather than as a refusal to start
+     * here. <b>Two mechanisms are what this API supports, so both are required to be configured.</b>
+     * <p>
+     * HTTP Basic keeps working exactly as before - what is required is that OAuth2 works <em>too</em>.
      */
     private void configureBearerTokens(HttpSecurity http,
                                        ObjectProvider<JeapJwtDecoderFactory> jwtDecoderFactory,
                                        ObjectProvider<AuthoritiesResolver> authoritiesResolver) throws Exception {
-        JeapJwtDecoderFactory decoderFactory = jwtDecoderFactory.getIfAvailable();
-        if (decoderFactory == null) {
-            log.info("No OAuth2 resource server is configured, the API accepts HTTP Basic only. Configure " +
-                     "'jeap.security.oauth2.resourceserver.authorization-server.issuer' and " +
-                     "'jeap.security.oauth2.resourceserver.system-name' to accept bearer tokens authorized " +
-                     "with the semantic role '<system-name>_@{}_#{}'.",
-                    ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.READ_OPERATION);
-            return;
-        }
+        JeapJwtDecoderFactory decoderFactory = requireResourceServer(jwtDecoderFactory.getIfAvailable());
         requireSystemName(systemName);
         JwtDecoder jwtDecoder = decoderFactory.createJwtDecoder();
         JeapAuthenticationConverter authenticationConverter = authoritiesResolver.getIfAvailable() == null
@@ -125,9 +124,62 @@ public class WebSecurityConfig {
                 .decoder(jwtDecoder)
                 .jwtAuthenticationConverter(authenticationConverter)));
         log.info("The API accepts HTTP Basic and bearer tokens authorized with the semantic role " +
-                 "'<system-name>_@{}_#{}' or '<system-name>_@{}_#{}'.",
-                ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.READ_OPERATION,
-                ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.WRITE_OPERATION);
+                 "'{}_@{}_#{}' or '{}_@{}_#{}'.",
+                systemName, ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.READ_OPERATION,
+                systemName, ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.WRITE_OPERATION);
+    }
+
+    /** What springdoc publishes, and what this service has never served to anyone. */
+    private static final String[] API_DOCUMENTATION_PATHS =
+            {"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"};
+
+    /**
+     * The OpenAPI document and the Swagger UI stay denied, as they were before the resource server became
+     * mandatory.
+     * <p>
+     * The jEAP security starter has two fallback chains at the very back and exactly one of them is active:
+     * {@code DefaultDenyAllWebSecurityConfiguration} ({@code denyAll}), while no resource server is
+     * configured, and {@code MvcSecurityConfiguration}'s ({@code anyRequest().fullyAuthenticated()}) once one
+     * is - the first is {@code @ConditionalOnMissingBean} of the second. Requiring an issuer therefore swaps
+     * one for the other, and these paths would go from unreachable to readable by anyone holding any token
+     * that issuer signed, whatever roles it carries.
+     * <p>
+     * <b>That is a change nobody asked for</b>, so it is undone here, for exactly the paths it would have
+     * affected. The actuator has its own chain from the jEAP monitoring starter, far ahead of this one and
+     * unaffected. An instance that wants to publish its OpenAPI document overrides this with a chain of its
+     * own - deliberately, which is the point.
+     * <p>
+     * It carries a matcher rather than {@code anyRequest()}: two any-request chains in one application are
+     * rejected as unreachable, and the starter's is the one that has to stay for {@code /error} and anything
+     * else neither chain names.
+     */
+    @Bean
+    @Order(Ordered.LOWEST_PRECEDENCE - 1)
+    SecurityFilterChain apiDocumentationDeniedFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .securityMatcher(API_DOCUMENTATION_PATHS)
+                .authorizeHttpRequests(requests -> requests.anyRequest().denyAll())
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.FORBIDDEN)))
+                .build();
+    }
+
+    /**
+     * The resource server itself, which every instance has to configure.
+     * <p>
+     * {@link JeapJwtDecoderFactory} is a bean of the jEAP security starter exactly when an issuer is
+     * configured, so its absence is the absence of an authorization server - and there would then be nothing
+     * to validate a token with.
+     */
+    static JeapJwtDecoderFactory requireResourceServer(JeapJwtDecoderFactory decoderFactory) {
+        if (decoderFactory == null) {
+            throw new IllegalStateException(
+                    "No authorization server is configured: set '" + ISSUER_PROPERTY + "' (and '"
+                    + SYSTEM_NAME_PROPERTY + "'). This API is authenticated with HTTP Basic and with bearer "
+                    + "tokens, and both are required: an instance that served passwords alone would look "
+                    + "healthy while being unusable to a consumer that authenticates with a token.");
+        }
+        return decoderFactory;
     }
 
     /**
@@ -142,11 +194,10 @@ public class WebSecurityConfig {
     static void requireSystemName(String systemName) {
         if (!StringUtils.hasText(systemName)) {
             throw new IllegalStateException(
-                    "'" + SYSTEM_NAME_PROPERTY + "' is not set, but an authorization server is configured. " +
-                    "The API authorizes a bearer token with the semantic role '<system-name>_@" +
-                    ReactionsApiAuthorization.RESOURCE + "_#" + ReactionsApiAuthorization.READ_OPERATION +
-                    "', which the jEAP security starter only evaluates when the system name is configured. " +
-                    "Configure it, or remove the authorization server to accept HTTP Basic only.");
+                    "'" + SYSTEM_NAME_PROPERTY + "' is not set. The API authorizes a bearer token with the " +
+                    "semantic role '<system-name>_@" + ReactionsApiAuthorization.RESOURCE + "_#" +
+                    ReactionsApiAuthorization.READ_OPERATION + "', which the jEAP security starter only " +
+                    "evaluates when the system name is configured. Configure it.");
         }
     }
 

@@ -13,6 +13,16 @@ spring:
         format_sql: true
 
 jeap:
+  security:
+    oauth2:
+      resourceserver:
+        # Required, as of 11.0.0: the API is authenticated with HTTP Basic and with bearer tokens, and an
+        # instance that configures no authorization server does not start. The JWKS is never fetched by the
+        # tests that do not send a token; the ones that do point it at a server of their own.
+        system-name: reactionobserver
+        authorization-server:
+          issuer: "http://localhost/auth"
+          jwk-set-uri: "http://localhost/auth/.well-known/jwks.json"
   reaction:
     observer:
       read-user:

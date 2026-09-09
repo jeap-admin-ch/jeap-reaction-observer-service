@@ -7,10 +7,15 @@ context path, which defaults to `/jeap-reaction-observer`.
 
 The API accepts **two ways of authenticating**, on the same paths:
 
-| Mechanism        | Credentials                                                                                     | Available                                             |
-|------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------|
-| HTTP Basic       | the two configured users, with the roles `reaction-observer-read` and `reaction-observer-write`  | always                                                |
-| OAuth2 (bearer)  | a token carrying the semantic role `<system-name>_@reactions_#read` or `..._#write`             | when the instance is configured as a resource server  |
+| Mechanism        | Credentials                                                                                     | Available |
+|------------------|-------------------------------------------------------------------------------------------------|-----------|
+| HTTP Basic       | the two configured users, with the roles `reaction-observer-read` and `reaction-observer-write`  | always    |
+| OAuth2 (bearer)  | a token carrying the semantic role `<system-name>_@reactions_#read` or `..._#write`             | always    |
+
+**Both are required to be configured.** An instance that configures no authorization server, or one without a
+system name, **does not start** - see [Configuration](configuration.md). There is no fallback to HTTP Basic
+alone: an instance serving only passwords would look healthy while being unusable to a consumer that
+authenticates with a token.
 
 **One mechanism, one rule.** A password is authorized by the in-memory user's role, a token by its semantic
 role - and by nothing else. A token carrying the simple role `reaction-observer-read` is refused, so that what
@@ -20,12 +25,10 @@ The semantic role has **no tenant part**: a tenant says which mandant may exerci
 division here - a system's subgraph carries the messages of other systems by construction, and a consumer that
 documents a landscape reads every system of it.
 
-A bearer token is accepted only when the instance configures an issuer
-(`jeap.security.oauth2.resourceserver.authorization-server.issuer`), because without one there is nothing to
-validate a token with. **An issuer without `jeap.security.oauth2.resourceserver.system-name` fails the
-startup**: that property is what makes the jEAP security starter evaluate semantic roles, and without it the
-API would accept tokens and authorize none of them. An instance that configures no issuer is unaffected and
-serves HTTP Basic exactly as before.
+Both properties are checked while the service starts, and either missing one stops it:
+`...authorization-server.issuer`, because without it there is nothing to validate a token with; and
+`...system-name`, because that is what makes the jEAP security starter evaluate semantic roles - without it
+the API would accept tokens and authorize none of them.
 
 `WebSecurityConfig` permits HTTP `GET` requests to `/api/**` at the filter-chain level and requires anything
 else to be authenticated; every controller method is authorized with
@@ -33,6 +36,13 @@ else to be authenticated; every controller method is authorized with
 meet - one bean with one branch per mechanism, because the starter's two-argument `hasRole(resource,
 operation)` only exists on the expression root it installs for a token and would not resolve at all on a
 basic-auth request. `ReactionsApiRoleCoverageTest` fails the build if a handler appears without it.
+
+**Everything outside `/api` stays as it was.** Making the resource server mandatory would otherwise have
+changed what governs the other paths - the jEAP security starter's deny-all fallback is replaced by its
+resource-server chain, which is `anyRequest().fullyAuthenticated()` - so the OpenAPI document and the Swagger
+UI (`/v3/api-docs`, `/swagger-ui/**`) are denied by a chain of this service's own. An instance that wants to
+publish them declares a chain for them deliberately. The actuator is untouched: it has its own chain from the
+jEAP monitoring starter.
 
 **No CSRF token is needed.** The API is stateless and authenticated per request, so its own filter chain
 disables CSRF protection - for both mechanisms. That is also why bearer tokens are handled by this chain

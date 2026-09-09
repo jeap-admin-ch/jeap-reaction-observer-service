@@ -18,6 +18,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import ch.admin.bit.jeap.security.resource.configuration.MvcSecurityConfiguration;
+import ch.admin.bit.jeap.security.resource.properties.ResourceServerProperties;
+import ch.admin.bit.jeap.security.resource.token.TokenConfiguration;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -40,6 +44,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(GraphController.class)
 @AutoConfigureMockMvc
 @Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class, EtagSupport.class})
+// The resource server is required as of 11.0.0, so a slice needs the starter's security configuration - the
+// same beans production has - together with the properties it reads and the issuer and system name that
+// src/test/resources/application.yml sets
+@ImportAutoConfiguration({ResourceServerProperties.class, TokenConfiguration.class,
+        MvcSecurityConfiguration.class})
 @EnableWebSecurity
 class GraphControllerTest {
 

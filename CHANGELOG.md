@@ -8,15 +8,24 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [11.0.0] - 2026-09-09
 
 ### Breaking changes
+- **Every instance must configure an authorization server and a system name**, or it does not start:
+  `jeap.security.oauth2.resourceserver.authorization-server.issuer` (with a `jwk-set-uri`, or an issuer the
+  starter can discover one from) and `jeap.security.oauth2.resourceserver.system-name`. There is no fallback
+  to HTTP Basic alone: an instance serving only passwords looks healthy while being unusable to a consumer
+  that authenticates with a token, and that failure would surface as a `401` in somebody else's import rather
+  than here.
 - A bearer token is authorized **only** by the semantic role `<system-name>_@reactions_#read` (and
   `..._#write`). The simple roles `reaction-observer-read` / `reaction-observer-write` are no longer accepted
   from a token; they remain what the two HTTP Basic users hold. One credential, one role model.
-- An instance that configures an authorization server
-  (`jeap.security.oauth2.resourceserver.authorization-server.issuer`) must now also configure
-  `jeap.security.oauth2.resourceserver.system-name`, or **it does not start**: without a system name the jEAP
-  security starter does not evaluate semantic roles, so the API would accept tokens and authorize none of
-  them.
-- HTTP Basic is unchanged, and an instance that configures no authorization server is unaffected.
+- HTTP Basic itself is unchanged - what is now required is that OAuth2 works **as well**.
+- `application-localtest.yml` now points at a local jEAP OAuth mock server, so the documented local run keeps
+  starting; the mock is only needed to obtain a token.
+
+### Security
+- The OpenAPI document and the Swagger UI (`/v3/api-docs`, `/swagger-ui/**`) are explicitly denied. Becoming
+  a resource server replaces the security starter's deny-all fallback with `anyRequest().fullyAuthenticated()`,
+  which would have made them readable by any token the configured issuer signed; they were unreachable before
+  and stay unreachable. An instance that wants to publish them declares a chain for them.
 
 ### Added
 - Indexes of the reaction graphs: `GET /api/graphs/systems`, `/api/graphs/components` and `/api/graphs/messages`

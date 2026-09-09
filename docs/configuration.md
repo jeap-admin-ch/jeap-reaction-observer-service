@@ -29,20 +29,22 @@ Method security then restricts the endpoints documented in [REST API](rest-api.m
 
 ## API security with OAuth2
 
-The API also accepts bearer tokens, authorized with a semantic role. It is **off unless configured**, and
-these are the two properties that turn it on - both belong to the jEAP security starter:
+The API also accepts bearer tokens, authorized with a semantic role, and **this is not optional**: both
+properties below are required, and the service refuses to start without them. They belong to the jEAP
+security starter:
 
-| Property                                                            | Required                | Default / example                      | Purpose                                                                                                   |
-|---------------------------------------------------------------------|-------------------------|----------------------------------------|-----------------------------------------------------------------------------------------------------------|
-| `jeap.security.oauth2.resourceserver.authorization-server.issuer`   | no                      | `https://keycloak.example.ch/realms/x` | The token issuer. **Configuring it is what makes the API accept bearer tokens at all**                    |
-| `jeap.security.oauth2.resourceserver.system-name`                   | **with an issuer, yes** | `myplatform`                           | Activates semantic authorization, and is the first part of the role name: `<system-name>_@reactions_#read` |
+| Property                                                            | Required | Default / example                      | Purpose                                                                                                   |
+|---------------------------------------------------------------------|----------|----------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `jeap.security.oauth2.resourceserver.authorization-server.issuer`   | **yes**  | `https://keycloak.example.ch/realms/x` | The token issuer - what makes the service a resource server. Give it a `jwk-set-uri` as well, or an issuer the starter can discover one from |
+| `jeap.security.oauth2.resourceserver.system-name`                   | **yes**  | `myplatform`                           | Activates semantic authorization, and is the first part of the role name: `<system-name>_@reactions_#read` |
 
-Without an issuer there is nothing to validate a token with, so a request carrying one is refused like any
-other unauthenticated request - HTTP Basic keeps working unchanged.
+**There is no fallback to HTTP Basic alone.** An instance that configures neither would serve passwords and
+refuse every token: healthy to look at, unusable to a consumer that authenticates with one, and the failure
+would surface as a `401` in that consumer's import rather than here. An instance that configures an issuer but
+no system name is worse still - it would accept tokens and authorize none of them, because semantic roles are
+only evaluated with a system name. So the two belong together, and both are checked while the service starts.
 
-**An issuer without a system name fails the startup.** Semantic roles are only evaluated when the system name
-is configured, so an instance configured that way would accept tokens and authorize none of them; the two
-belong together and are checked together.
+HTTP Basic is unchanged and stays supported; what is required is that OAuth2 works **as well**.
 
 The role carries **no tenant part**; see [REST API](rest-api.md) for why, and for the CSRF behaviour of the
 API.

@@ -30,9 +30,16 @@ The service requires:
 - a PostgreSQL-compatible database in production
 - Kafka plus Schema Registry through jEAP Messaging
 - credentials for two HTTP Basic users: one read user and one write user
+- **an OAuth2 authorization server and a system name** - `jeap.security.oauth2.resourceserver.authorization-server.issuer`
+  (with a `jwk-set-uri`) and `jeap.security.oauth2.resourceserver.system-name`. As of 11.0.0 the service does
+  not start without them: the API is authenticated both ways and both have to work. See
+  [Configuration](configuration.md#api-security-with-oauth2)
 
 For local development, `docker/docker-compose.yml` provides PostgreSQL, Kafka, and Schema Registry, and
-`application-localtest.yml` contains matching sample connection properties.
+`application-localtest.yml` contains matching sample connection properties - including an authorization server
+pointing at a local [jEAP OAuth mock server](https://jeap-admin-ch.github.io/docs/building-blocks/libraries/jeap-oauth-mock-server/getting-started)
+on port 8180. The mock only has to run when a request actually carries a bearer token; HTTP Basic works
+without it.
 
 ## 4. Configure the service
 

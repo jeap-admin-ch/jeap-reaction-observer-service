@@ -13,6 +13,18 @@ spring:
     banner-mode: off
 
 jeap:
+  security:
+    oauth2:
+      resourceserver:
+        # Required as of 11.0.0 - the service refuses to start without an authorization server and a system
+        # name. Locally this points at a jEAP OAuth mock server (`jeap-oauth-mock-server`, port 8180 by
+        # default); nothing fetches the JWKS until a request actually carries a bearer token, so the local
+        # run works with the mock stopped as long as only HTTP Basic is used.
+        system-name: jeap
+        authorization-server:
+          issuer: "http://localhost:8180"
+          jwk-set-uri: "http://localhost:8180/.well-known/jwks.json"
+
   reaction:
     observer:
       service:
