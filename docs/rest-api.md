@@ -37,13 +37,6 @@ meet - one bean with one branch per mechanism, because the starter's two-argumen
 operation)` only exists on the expression root it installs for a token and would not resolve at all on a
 basic-auth request. `ReactionsApiRoleCoverageTest` fails the build if a handler appears without it.
 
-**Everything outside `/api` stays as it was.** Making the resource server mandatory would otherwise have
-changed what governs the other paths - the jEAP security starter's deny-all fallback is replaced by its
-resource-server chain, which is `anyRequest().fullyAuthenticated()` - so the OpenAPI document and the Swagger
-UI (`/v3/api-docs`, `/swagger-ui/**`) are denied by a chain of this service's own. An instance that wants to
-publish them declares a chain for them deliberately. The actuator is untouched: it has its own chain from the
-jEAP monitoring starter.
-
 **No CSRF token is needed.** The API is stateless and authenticated per request, so its own filter chain
 disables CSRF protection - for both mechanisms. That is also why bearer tokens are handled by this chain
 rather than left to the starter's, which enables CSRF with a cookie repository.

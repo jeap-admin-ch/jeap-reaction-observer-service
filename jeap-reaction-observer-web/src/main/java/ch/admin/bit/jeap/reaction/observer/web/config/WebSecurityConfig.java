@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
@@ -25,7 +24,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.util.StringUtils;
 
 @Slf4j
@@ -127,41 +125,6 @@ public class WebSecurityConfig {
                  "'{}_@{}_#{}' or '{}_@{}_#{}'.",
                 systemName, ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.READ_OPERATION,
                 systemName, ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.WRITE_OPERATION);
-    }
-
-    /** What springdoc publishes, and what this service has never served to anyone. */
-    private static final String[] API_DOCUMENTATION_PATHS =
-            {"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"};
-
-    /**
-     * The OpenAPI document and the Swagger UI stay denied, as they were before the resource server became
-     * mandatory.
-     * <p>
-     * The jEAP security starter has two fallback chains at the very back and exactly one of them is active:
-     * {@code DefaultDenyAllWebSecurityConfiguration} ({@code denyAll}), while no resource server is
-     * configured, and {@code MvcSecurityConfiguration}'s ({@code anyRequest().fullyAuthenticated()}) once one
-     * is - the first is {@code @ConditionalOnMissingBean} of the second. Requiring an issuer therefore swaps
-     * one for the other, and these paths would go from unreachable to readable by anyone holding any token
-     * that issuer signed, whatever roles it carries.
-     * <p>
-     * <b>That is a change nobody asked for</b>, so it is undone here, for exactly the paths it would have
-     * affected. The actuator has its own chain from the jEAP monitoring starter, far ahead of this one and
-     * unaffected. An instance that wants to publish its OpenAPI document overrides this with a chain of its
-     * own - deliberately, which is the point.
-     * <p>
-     * It carries a matcher rather than {@code anyRequest()}: two any-request chains in one application are
-     * rejected as unreachable, and the starter's is the one that has to stay for {@code /error} and anything
-     * else neither chain names.
-     */
-    @Bean
-    @Order(Ordered.LOWEST_PRECEDENCE - 1)
-    SecurityFilterChain apiDocumentationDeniedFilterChain(HttpSecurity http) throws Exception {
-        return http
-                .securityMatcher(API_DOCUMENTATION_PATHS)
-                .authorizeHttpRequests(requests -> requests.anyRequest().denyAll())
-                .exceptionHandling(handling -> handling
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.FORBIDDEN)))
-                .build();
     }
 
     /**

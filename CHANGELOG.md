@@ -21,11 +21,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `application-localtest.yml` now points at a local jEAP OAuth mock server, so the documented local run keeps
   starting; the mock is only needed to obtain a token.
 
-### Security
-- The OpenAPI document and the Swagger UI (`/v3/api-docs`, `/swagger-ui/**`) are explicitly denied. Becoming
-  a resource server replaces the security starter's deny-all fallback with `anyRequest().fullyAuthenticated()`,
-  which would have made them readable by any token the configured issuer signed; they were unreachable before
-  and stay unreachable. An instance that wants to publish them declares a chain for them.
 
 ### Added
 - Indexes of the reaction graphs: `GET /api/graphs/systems`, `/api/graphs/components` and `/api/graphs/messages`
