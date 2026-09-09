@@ -38,12 +38,22 @@ public class ScheduledTasksService {
         refreshReactionGraphInternal();
     }
 
-    @SchedulerLock(name = "reaction-graph-refresh-task", lockAtLeastFor = "5s", lockAtMostFor = "30m")
+    /**
+     * Rebuilds the graph this instance serves from - <b>on every instance, deliberately without a lock</b>.
+     * <p>
+     * The graph is held in memory per JVM ({@link GraphHolder}), and this task writes nothing: it reads the
+     * reactions and the aggregated observations and replaces a field. A {@code @SchedulerLock} here would let
+     * exactly one instance refresh and leave every other one serving the graph it built while it started,
+     * which is a stale answer for as long as that instance lives - and, with entity tags derived from the
+     * graph, an index from one instance and content from another that disagree. {@code @PostConstruct} already
+     * refreshes unlocked on every instance for the same reason.
+     * <p>
+     * The locks stay on the three tasks below, which do write.
+     */
     @Timed("reaction_observer_service_reaction_graph_refresh")
     @Scheduled(cron = "${jeap.reaction.observer.service.graph-refresh-cron-expression}")
     public void scheduledRefreshReactionGraph() {
         log.info("Starting scheduled reaction graph refresh");
-        LockAssert.assertLocked();
         refreshReactionGraphInternal();
         log.info("Finished scheduled reaction graph refresh");
     }

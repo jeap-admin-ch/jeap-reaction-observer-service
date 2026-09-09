@@ -2,6 +2,7 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
+import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Import({WebSecurityConfig.class, ReactionObserverProperties.class})
+@Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class})
 @WebMvcTest(StatisticsController.class)
 @AutoConfigureMockMvc
 @EnableWebSecurity

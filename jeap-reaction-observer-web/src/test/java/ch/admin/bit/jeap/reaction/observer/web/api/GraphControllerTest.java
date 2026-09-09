@@ -3,7 +3,9 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 import ch.admin.bit.jeap.reaction.observer.domain.GraphExtractor;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.*;
 import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
+import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
+import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.*;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphDtoMapper;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -23,13 +26,16 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(GraphController.class)
 @AutoConfigureMockMvc
-@Import({WebSecurityConfig.class, ReactionObserverProperties.class})
+@Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class, EtagSupport.class})
 @EnableWebSecurity
 class GraphControllerTest {
 
@@ -290,5 +296,66 @@ class GraphControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.['TestType/v1'].fingerprint").value("fp-v1"))
                 .andExpect(jsonPath("$.['TestType'].fingerprint").value("fp-null"));
+    }
+
+    // --- Conditional requests ------------------------------------------------------------------------------
+
+    /**
+     * A graph carries the fingerprint as its entity tag, and a caller that already has it is told so.
+     * <p>
+     * <b>Answered from the snapshot</b>: the extractor is never asked, which is what makes a round of
+     * conditional requests cheap for the observer as well as for its consumer.
+     */
+    @Test
+    void aSystemGraph_askedWithItsEntityTag_isNotModifiedAndExtractsNothing() throws Exception {
+        String fingerprint = "the-stored-fingerprint";
+        when(graphHolder.getSnapshot()).thenReturn(new GraphSnapshot(
+                new Graph(List.of(), List.of()), "whole-graph",
+                List.of(new GraphSnapshot.SystemEntry("TestSystem", fingerprint)), List.of(), List.of()));
+
+        mockMvc.perform(get("/api/graphs/systems/TestSystem")
+                        .header(HttpHeaders.IF_NONE_MATCH, "\"sha256:" + fingerprint + "\"")
+                        .with(authentication(reader())))
+                .andExpect(status().isNotModified())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-cache"));
+
+        verifyNoInteractions(graphExtractor);
+    }
+
+    @Test
+    void aSystemGraph_askedWithAStaleEntityTag_isAnsweredWithItsCurrentTag() throws Exception {
+        Message message = Message.builder().id(1L).messageType("TestType").semantic(SemanticType.EVENT).build();
+        Reaction reaction = Reaction.builder().id(2L).component("TestComponent").system("TestSystem").build();
+        Graph graph = new Graph(List.of(message, reaction),
+                List.of(Trigger.builder().source(message).target(reaction).build()));
+        when(graphHolder.getGraph()).thenReturn(graph);
+        when(graphHolder.getSnapshot()).thenReturn(new GraphSnapshot(graph, "whole-graph",
+                List.of(new GraphSnapshot.SystemEntry("TestSystem", "moved-on")), List.of(), List.of()));
+        when(graphExtractor.getSystemRelatedGraph(graph, "TestSystem")).thenReturn(graph);
+        when(fingerprintCalculator.calculate(any())).thenReturn("moved-on");
+
+        mockMvc.perform(get("/api/graphs/systems/TestSystem")
+                        .header(HttpHeaders.IF_NONE_MATCH, "\"sha256:what-it-had-before\"")
+                        .with(authentication(reader())))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ETAG, "\"sha256:moved-on\""));
+    }
+
+    /** A name the graph does not have is a 404, tag or no tag - a consumer must be able to tell the two apart. */
+    @Test
+    void aSystemGraph_ofAnUnknownSystem_isNotFound() throws Exception {
+        Graph empty = new Graph(List.of(), List.of());
+        when(graphHolder.getGraph()).thenReturn(empty);
+        when(graphHolder.getSnapshot()).thenReturn(GraphSnapshot.empty());
+        when(graphExtractor.getSystemRelatedGraph(empty, "no-such-system")).thenReturn(empty);
+
+        mockMvc.perform(get("/api/graphs/systems/no-such-system").with(authentication(reader())))
+                .andExpect(status().isNotFound());
+    }
+
+    private static JeapAuthenticationToken reader() {
+        return JeapAuthenticationTestTokenBuilder.create()
+                .withUserRoles("reaction-observer-read")
+                .build();
     }
 }

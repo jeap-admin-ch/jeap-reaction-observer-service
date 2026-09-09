@@ -2,6 +2,7 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.domain.ComponentRepository;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
+import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
 import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
 import ch.admin.bit.jeap.security.test.resource.JeapAuthenticationTestTokenBuilder;
@@ -25,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ComponentController.class)
 @AutoConfigureMockMvc
-@Import({WebSecurityConfig.class, ReactionObserverProperties.class})
+@Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class})
 @EnableWebSecurity
 class ComponentControllerTest {
 

@@ -5,6 +5,7 @@ import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestObservation;
 import ch.admin.bit.jeap.reaction.observer.service.test.model.TestReaction;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphWithFingerprintDto;
+import ch.admin.bit.jeap.reaction.observer.web.service.GraphFingerprintCalculator;
 import ch.admin.bit.jeap.reaction.observer.web.service.ScheduledTasksService;
 import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
 import ch.admin.bit.jeap.security.test.resource.JeapAuthenticationTestTokenBuilder;
@@ -25,6 +26,25 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * The reaction graphs over the API, against the expected graphs in {@code src/test/resources}.
+ * <p>
+ * <b>The comparison ignores the database ids of the nodes</b>, and has to. The id sequences have
+ * {@code allocationSize = 10}, so Hibernate hands ids out of a block it caches in the session factory - a
+ * block that survives the {@code flyway.clean()} between two tests. The first test to insert gets 1..4, the
+ * next 5..8, and the fixtures can only carry one of those.
+ * <p>
+ * That the fixtures' ids used to match in every test was an accident of a bug: the graph refresh was
+ * {@code @SchedulerLock}ed with {@code lockAtLeastFor = 5s}, so the second and every later call in this class
+ * refreshed nothing and each test asserted against the graph the <em>first</em> test had built. The lock is
+ * gone - the refresh writes nothing, and an instance that does not rebuild its own copy serves a stale one
+ * for as long as it lives - so each test now really refreshes and really sees its own ids.
+ * <p>
+ * So a node is compared by what it <em>is</em> - a message type and variant, or a component - and an edge by
+ * the nodes it connects and the median it carries. The fingerprint is checked for what it promises: that it
+ * covers the graph that was answered. Its exact value over surrogate keys is pinned by
+ * {@code GraphSnapshotFactoryTest} and the controller tests instead.
+ */
 class ReactionGraphIT extends IntegrationTestBase {
 
     @Autowired
@@ -38,6 +58,9 @@ class ReactionGraphIT extends IntegrationTestBase {
 
     @Autowired
     JsonMapper jsonMapper;
+
+    @Autowired
+    GraphFingerprintCalculator fingerprintCalculator;
 
     /**
      * Command1/Variant1
@@ -114,8 +137,8 @@ class ReactionGraphIT extends IntegrationTestBase {
         );
         GraphWithFingerprintDto expectedGraph = jsonMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
 
-        // then: fingerprint matches
-        assertEquals(expectedGraph.fingerprint(), actualGraph.fingerprint(), "Fingerprint mismatch");
+        // then: the fingerprint covers the graph that was answered
+        assertFingerprintCoversTheGraph(actualGraph);
 
         // and: graph structure matches
         assertGraphStructureEquals(expectedGraph, actualGraph);
@@ -145,8 +168,8 @@ class ReactionGraphIT extends IntegrationTestBase {
         );
         GraphWithFingerprintDto expectedGraph = jsonMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
 
-        // then: fingerprint matches
-        assertEquals(expectedGraph.fingerprint(), actualGraph.fingerprint(), "Fingerprint mismatch");
+        // then: the fingerprint covers the graph that was answered
+        assertFingerprintCoversTheGraph(actualGraph);
 
         // and: graph structure matches
         assertGraphStructureEquals(expectedGraph, actualGraph);
@@ -176,8 +199,8 @@ class ReactionGraphIT extends IntegrationTestBase {
         );
         GraphWithFingerprintDto expectedGraph = jsonMapper.readValue(expectedJson, GraphWithFingerprintDto.class);
 
-        // then: fingerprint matches
-        assertEquals(expectedGraph.fingerprint(), actualGraph.fingerprint(), "Fingerprint mismatch");
+        // then: the fingerprint covers the graph that was answered
+        assertFingerprintCoversTheGraph(actualGraph);
 
         // and: graph structure matches
         assertGraphStructureEquals(expectedGraph, actualGraph);
@@ -226,7 +249,7 @@ class ReactionGraphIT extends IntegrationTestBase {
             GraphWithFingerprintDto expected = expectedGraphs.get(key);
             GraphWithFingerprintDto actual = actualGraphs.get(key);
 
-            assertEquals(expected.fingerprint(), actual.fingerprint(), "Fingerprint mismatch for variant: " + key);
+            assertFingerprintCoversTheGraph(actual);
             assertGraphStructureEquals(expected, actual);
         }
     }
@@ -266,23 +289,76 @@ class ReactionGraphIT extends IntegrationTestBase {
     }
 
     void assertGraphStructureEquals(GraphWithFingerprintDto expected, GraphWithFingerprintDto actual) {
-        JsonNode expectedGraph = jsonMapper.valueToTree(expected.graph());
-        JsonNode actualGraph = jsonMapper.valueToTree(actual.graph());
+        assertEquals(nodesByMeaning(expected), nodesByMeaning(actual), "Mismatch in graph nodes");
+        assertEquals(edgesByMeaning(expected), edgesByMeaning(actual), "Mismatch in graph edges");
+    }
 
-        Set<JsonNode> expectedNodes = new HashSet<>();
-        expectedGraph.get("nodes").forEach(expectedNodes::add);
+    /**
+     * That the fingerprint in the body is the one of the graph in the body - which is what a consumer compares
+     * an index entry and an {@code ETag} against.
+     */
+    void assertFingerprintCoversTheGraph(GraphWithFingerprintDto answered) {
+        assertEquals(fingerprintCalculator.calculate(answered.graph()), answered.fingerprint(),
+                "The fingerprint does not cover the graph it was answered with");
+    }
 
-        Set<JsonNode> actualNodes = new HashSet<>();
-        actualGraph.get("nodes").forEach(actualNodes::add);
+    /**
+     * Every node by what it is rather than by its database id: a message by its type and variant, a reaction
+     * by its component.
+     */
+    private Set<String> nodesByMeaning(GraphWithFingerprintDto graph) {
+        Set<String> nodes = new HashSet<>();
+        jsonMapper.valueToTree(graph.graph()).get("nodes").forEach(node -> nodes.add(meaningOf(node)));
+        return nodes;
+    }
 
-        assertEquals(expectedNodes, actualNodes, "Mismatch in graph nodes");
+    /**
+     * Every edge by the nodes it connects, named the same way, and the median it carries.
+     * <p>
+     * The two kinds of node are resolved separately: <b>an id is unique per node type, not across them</b>, so
+     * one map keyed by id alone would resolve a reaction to a message of the same number.
+     */
+    private Set<String> edgesByMeaning(GraphWithFingerprintDto graph) {
+        JsonNode tree = jsonMapper.valueToTree(graph.graph());
+        Map<Long, String> messages = new HashMap<>();
+        Map<Long, String> reactions = new HashMap<>();
+        tree.get("nodes").forEach(node -> {
+            if ("MESSAGE".equals(node.get("nodeType").asString())) {
+                messages.put(idOf(node), meaningOf(node));
+            } else {
+                reactions.put(idOf(node), meaningOf(node));
+            }
+        });
 
-        Set<JsonNode> expectedEdges = new HashSet<>();
-        expectedGraph.get("edges").forEach(expectedEdges::add);
+        Set<String> edges = new HashSet<>();
+        tree.get("edges").forEach(edge -> {
+            if ("TRIGGER".equals(edge.get("edgeType").asString())) {
+                edges.add("TRIGGER " + messages.get(edge.get("sourceId").asLong())
+                          + " -> " + reactions.get(edge.get("targetReactionId").asLong())
+                          + " median=" + edge.get("median"));
+            } else {
+                edges.add("ACTION " + reactions.get(edge.get("sourceReactionId").asLong())
+                          + " -> " + messages.get(edge.get("targetId").asLong()));
+            }
+        });
+        return edges;
+    }
 
-        Set<JsonNode> actualEdges = new HashSet<>();
-        actualGraph.get("edges").forEach(actualEdges::add);
+    private static String meaningOf(JsonNode node) {
+        String nodeType = node.get("nodeType").asString();
+        if ("MESSAGE".equals(nodeType)) {
+            JsonNode variant = node.get("variant");
+            return "MESSAGE " + node.get("messageType").asString()
+                   + (variant == null || variant.isNull() ? "" : "/" + variant.asString());
+        }
+        return "REACTION " + node.get("component").asString();
+    }
 
-        assertEquals(expectedEdges, actualEdges, "Mismatch in graph edges");
+    /**
+     * The id of a node, which is only used to resolve an edge's ends within the same answer - never compared
+     * across two of them.
+     */
+    private static long idOf(JsonNode node) {
+        return node.get("id").asLong();
     }
 }

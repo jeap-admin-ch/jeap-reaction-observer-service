@@ -22,7 +22,7 @@ public class ComponentController {
 
     private final ComponentRepository componentRepository;
 
-    @PreAuthorize("hasAnyRole('reaction-observer-read')")
+    @PreAuthorize("@reactionsApiAuthorization.canRead()")
     @Operation(summary = "Get component names", description = "Get all component names for which reactions are observed.")
     @GetMapping("/components/names")
     public ResponseEntity<List<String>> getComponentNames() {

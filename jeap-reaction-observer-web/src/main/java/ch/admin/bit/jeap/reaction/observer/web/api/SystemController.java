@@ -21,7 +21,7 @@ public class SystemController {
 
     private final SystemRepository systemRepository;
 
-    @PreAuthorize("hasAnyRole('reaction-observer-read')")
+    @PreAuthorize("@reactionsApiAuthorization.canRead()")
     @Operation(summary = "Get system names", description = "Get all system names for which reactions are observed.")
     @GetMapping("/systems/names")
     public ResponseEntity<List<String>> getSystemNames() {

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.4.0] - 2026-09-09
+
+### Added
+- Indexes of the reaction graphs: `GET /api/graphs/systems`, `/api/graphs/components` and `/api/graphs/messages`
+  list every graph that exists with the entity tag of its content, so a consumer learns in one call what it has
+  to fetch. The component index also names the system each component's reactions were published under.
+- Entity tags and conditional requests on every graph resource and index: `ETag` on the answer,
+  `If-None-Match` honoured with `304 Not Modified`. The tag of an index entry is the same string the graph
+  resource answers with.
+- OAuth2 authentication beside HTTP Basic, authorized with the semantic role `<system-name>_@reactions_#read`
+  and `..._#write` (no tenant part). It is inactive unless the instance configures
+  `jeap.security.oauth2.resourceserver.authorization-server.issuer`; HTTP Basic is unchanged and stays
+  supported.
+
+### Changed
+- The scheduled graph refresh no longer holds a ShedLock: the graph is held per JVM and rebuilding it writes
+  nothing, so a lock left every instance but one serving the graph it built at startup. Every instance now
+  refreshes its own, as the startup refresh always did.
+- A refresh builds a snapshot of the graph with the fingerprint of every subgraph, so an index and a `304` no
+  longer extract, serialize or hash anything per request.
+
 ## [10.3.0] - 2026-09-06
 
 ### Dependencies

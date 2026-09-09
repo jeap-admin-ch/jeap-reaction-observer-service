@@ -27,6 +27,24 @@ For local infrastructure examples see [Testing and local development](testing.md
 `WebSecurityConfig` creates in-memory users with roles `reaction-observer-read` and `reaction-observer-write`.
 Method security then restricts the endpoints documented in [REST API](rest-api.md).
 
+## API security with OAuth2
+
+The API also accepts bearer tokens, authorized with a semantic role. It is **off unless configured**, and
+these are the two properties that turn it on - both belong to the jEAP security starter:
+
+| Property                                                            | Required | Default / example                    | Purpose                                                                                                        |
+|---------------------------------------------------------------------|----------|--------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| `jeap.security.oauth2.resourceserver.authorization-server.issuer`   | no       | `https://keycloak.example.ch/realms/x` | The token issuer. **Configuring it is what makes the API accept bearer tokens at all**                        |
+| `jeap.security.oauth2.resourceserver.system-name`                   | no       | `myplatform`                         | Activates semantic authorization, and is the first part of the role name: `<system-name>_@reactions_#read`      |
+
+Without an issuer there is nothing to validate a token with, so a request carrying one is refused like any
+other unauthenticated request - HTTP Basic keeps working unchanged. Without a system name a token can still be
+accepted, but only with the *simple* role `reaction-observer-read` / `reaction-observer-write`, since the
+semantic role cannot be evaluated. Configure both.
+
+The role carries **no tenant part**; see [REST API](rest-api.md) for why, and for the CSRF behaviour of the
+API.
+
 ## Spring Boot defaults shipped by the web module
 
 The web module also ships these operational defaults in `reactionObserverDefaultProperties.properties`:

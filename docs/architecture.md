@@ -34,7 +34,7 @@ for example ArchRepo"]
 | `jeap-reaction-observer-domain` | Domain model, repository interfaces, graph filtering, graph building, aggregation service |
 | `jeap-reaction-observer-kafka` | Kafka listeners that transform incoming Avro events into domain objects |
 | `jeap-reaction-observer-persistence` | JPA entities, JDBC/JPA repository implementations, Flyway migrations |
-| `jeap-reaction-observer-web` | Spring Boot application, HTTP API, in-memory graph cache, scheduling, security, OpenAPI |
+| `jeap-reaction-observer-web` | Spring Boot application, HTTP API, in-memory graph snapshot, scheduling, security, OpenAPI |
 | `jeap-reaction-observer-service-test` | Shared event builders and test model objects for integration tests and consumers |
 | `jeap-reaction-observer-service-instance` | POM-only packaging module for downstream service instances |
 
@@ -79,12 +79,28 @@ interface table used to normalize trigger/action message definitions.
 
 ## Aggregation and graph building
 
-`ScheduledTasksService` coordinates recurring jobs with ShedLock:
+`ScheduledTasksService` coordinates recurring jobs. The three that **write** hold a ShedLock, so exactly one
+instance performs them:
 
 - aggregate yesterday's raw observations into `observed_reactions_aggregated`
 - delete raw `observed_reaction` rows whose timeframe starts before today
 - delete aggregated rows older than the configured statistics window
+
+The graph refresh does **not** hold one, and must not:
+
 - rebuild the in-memory graph on a schedule and once at startup
+
+The graph is held per JVM in `GraphHolder`, and rebuilding it writes nothing - it reads the reactions and the
+aggregated observations and replaces a field. A lock would therefore let one instance refresh and leave every
+other one serving the graph it built while it started, for as long as that instance lives. With more than one
+replica that is a stale answer, and - since the entity tags of the API are derived from the graph - an index
+from one replica and content from another that disagree. The startup refresh has always run unlocked on every
+instance for the same reason.
+
+A refresh also builds the **snapshot** the API answers from: the graph plus the fingerprint of every subgraph
+that can be asked for. That is what lets an index be a lookup rather than an extraction of every subgraph, and
+a conditional request be answered without extracting, serializing or hashing anything - see
+[REST API](rest-api.md).
 
 `ReactionGraphRepositoryImpl` builds the full graph from persisted reactions:
 

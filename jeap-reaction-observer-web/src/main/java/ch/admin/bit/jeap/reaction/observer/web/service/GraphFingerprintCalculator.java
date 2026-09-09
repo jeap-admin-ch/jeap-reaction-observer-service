@@ -10,12 +10,31 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Comparator;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class GraphFingerprintCalculator {
 
     private final JsonMapper jsonMapper;
+
+    /**
+     * One fingerprint over several of them, for a resource that answers more than one graph at once - the
+     * variants of a message type.
+     * <p>
+     * Over the keys as well as the fingerprints, and in a defined order, so that a variant appearing or
+     * disappearing moves the value even when no graph changed.
+     *
+     * @param fingerprintsByKey the fingerprint of each part, keyed by how the resource names it
+     */
+    public String combine(Map<String, String> fingerprintsByKey) {
+        String canonical = new TreeMap<>(fingerprintsByKey).entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining("\n"));
+        return DigestUtils.sha256Hex(canonical);
+    }
 
     public String calculate(GraphDto dto) {
         try {

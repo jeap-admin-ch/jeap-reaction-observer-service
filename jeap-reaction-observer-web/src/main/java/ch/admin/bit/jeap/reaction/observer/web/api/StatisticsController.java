@@ -21,7 +21,7 @@ public class StatisticsController {
 
     private final ObservedReactionsAggregatedRepository observedReactionsAggregatedRepository;
 
-    @PreAuthorize("hasAnyRole('reaction-observer-read')")
+    @PreAuthorize("@reactionsApiAuthorization.canRead()")
     @Operation(summary = "Get statistics")
     @GetMapping("/last-observation-date")
     public ResponseEntity<Map<String, LocalDate>> getLastObservedReactionDatePerComponent() {
