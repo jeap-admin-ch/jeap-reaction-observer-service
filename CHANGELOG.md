@@ -23,8 +23,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The scheduled graph refresh no longer holds a ShedLock: the graph is held per JVM and rebuilding it writes
   nothing, so a lock left every instance but one serving the graph it built at startup. Every instance now
   refreshes its own, as the startup refresh always did.
-- A refresh builds a snapshot of the graph with the fingerprint of every subgraph, so an index and a `304` no
-  longer extract, serialize or hash anything per request.
+- A refresh builds a snapshot of the graph with the fingerprint of every subgraph and the three index payloads
+  serialized and tagged, so an index and a `304` no longer extract, serialize or hash anything per request.
+  The snapshot is measured as `reaction_observer_service_graph_snapshot`.
 
 ## [10.3.0] - 2026-09-06
 

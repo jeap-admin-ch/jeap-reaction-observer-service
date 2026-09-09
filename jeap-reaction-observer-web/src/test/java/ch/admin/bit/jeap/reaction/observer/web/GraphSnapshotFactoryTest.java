@@ -7,6 +7,7 @@ import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Message;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.SemanticType;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Trigger;
+import ch.admin.bit.jeap.reaction.observer.web.api.EtagSupport;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphFingerprintCalculator;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -17,8 +18,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GraphSnapshotFactoryTest {
 
-    private final GraphSnapshotFactory factory =
-            new GraphSnapshotFactory(new GraphExtractor(), new GraphFingerprintCalculator(JsonMapper.builder().build()));
+    private static final String CONTEXT_PATH = "/jeap-reaction-observer";
+
+    private final GraphFingerprintCalculator calculator =
+            new GraphFingerprintCalculator(JsonMapper.builder().build());
+
+    private final GraphSnapshotFactory factory = new GraphSnapshotFactory(new GraphExtractor(), calculator,
+            new EtagSupport(JsonMapper.builder().build()), CONTEXT_PATH);
 
     @Test
     void of_indexesEverySystemComponentAndMessageTypeThatHasAReaction() {
@@ -61,8 +67,6 @@ class GraphSnapshotFactoryTest {
     void of_fingerprintsASystemAsTheResourceDoes() {
         Graph graph = aGraph();
         GraphSnapshot snapshot = factory.of(graph);
-        GraphFingerprintCalculator calculator = new GraphFingerprintCalculator(JsonMapper.builder().build());
-
         String asTheResourceWouldAnswer = calculator.calculate(ch.admin.bit.jeap.reaction.observer.web.service
                 .GraphDtoMapper.map(new GraphExtractor().getSystemRelatedGraph(graph, "orders")));
 
@@ -165,5 +169,58 @@ class GraphSnapshotFactoryTest {
         return new Graph(List.of(trigger, action, reaction),
                 List.of(Trigger.builder().source(trigger).target(reaction).median(5).build(),
                         Action.builder().source(reaction).target(action).build()));
+    }
+
+    // --- The index payloads, built once with the graph ----------------------------------------------------
+
+    /**
+     * The path an index publishes has to carry the context path the service runs under, or a consumer cannot
+     * use it as it stands - which is the whole point of publishing it.
+     */
+    @Test
+    void of_theIndexPaths_carryTheContextPath() {
+        GraphSnapshot snapshot = factory.of(aGraph());
+
+        assertThat(asText(snapshot.systemIndex()))
+                .contains("\"path\":\"" + CONTEXT_PATH + "/api/graphs/systems/orders\"");
+        assertThat(asText(snapshot.componentIndex()))
+                .contains("\"path\":\"" + CONTEXT_PATH + "/api/graphs/components/orders-intake\"");
+        assertThat(asText(snapshot.messageIndex()))
+                .contains("\"path\":\"" + CONTEXT_PATH
+                          + "/api/graphs/messages/OrdersPaymentAcceptedEvent\"");
+    }
+
+    @Test
+    void of_withoutAContextPath_theIndexPathsStartAtTheApi() {
+        GraphSnapshotFactory withoutContextPath = new GraphSnapshotFactory(new GraphExtractor(), calculator,
+                new EtagSupport(JsonMapper.builder().build()), "");
+
+        assertThat(asText(withoutContextPath.of(aGraph()).systemIndex()))
+                .contains("\"path\":\"/api/graphs/systems/orders\"");
+    }
+
+    @Test
+    void of_tagsEachIndexOverItsOwnBytes() {
+        GraphSnapshot snapshot = factory.of(aGraph());
+
+        assertThat(snapshot.systemIndex().etag()).startsWith("\"sha256:");
+        assertThat(snapshot.systemIndex().etag())
+                .describedAs("two indexes of different content have different tags")
+                .isNotEqualTo(snapshot.componentIndex().etag());
+    }
+
+    /** An index entry has to carry the tag its graph resource answers with, or comparing them is pointless. */
+    @Test
+    void of_theIndexEntryTag_isTheTagOfTheGraphResource() {
+        GraphSnapshot snapshot = factory.of(aGraph());
+
+        String fingerprintOfTheSystem = snapshot.fingerprintOfSystem("orders");
+
+        assertThat(asText(snapshot.systemIndex()))
+                .contains("\"etag\":\"\\\"sha256:" + fingerprintOfTheSystem + "\\\"\"");
+    }
+
+    private static String asText(GraphSnapshot.IndexPayload payload) {
+        return new String(payload.bytes(), java.nio.charset.StandardCharsets.UTF_8);
     }
 }

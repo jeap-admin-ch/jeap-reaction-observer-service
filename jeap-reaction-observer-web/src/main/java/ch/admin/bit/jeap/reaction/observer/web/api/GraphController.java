@@ -6,6 +6,7 @@ import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Message;
 import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
 import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot;
 import ch.admin.bit.jeap.reaction.observer.web.MessageGraphKey;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphWithFingerprintDto;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphDtoMapper;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphFingerprintCalculator;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +35,10 @@ import java.util.stream.Collectors;
  * ({@link GraphIndexController}) therefore knows before it asks whether the answer would be the same, and a
  * conditional request that matches is answered <b>without extracting or serializing the graph</b>: the tag
  * comes from the snapshot built when the graph was refreshed.
+ * <p>
+ * <b>Every handler reads the snapshot exactly once</b>, and answers the tag and the body from that one
+ * object. Reading it twice could straddle a refresh and tag one graph with another's fingerprint - which a
+ * consumer would store and then be answered {@code 304} for content it never received.
  */
 @RestController
 @RequestMapping("/api")
@@ -49,83 +55,68 @@ public class GraphController {
     @Operation(summary = "Get all reactions graph")
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs")
-    public ResponseEntity<GraphWithFingerprintDto> getAllReactionsGraph(WebRequest request) {
-        String knownTag = etagSupport.entityTag(snapshot().graphFingerprint());
-        if (etagSupport.isNotModified(request, knownTag)) {
+    public @Nullable ResponseEntity<GraphWithFingerprintDto> getAllReactionsGraph(WebRequest request) {
+        GraphSnapshot snapshot = graphHolder.getSnapshot();
+        String fingerprint = snapshot.graphFingerprint();
+        if (etagSupport.isNotModified(request, etagSupport.entityTag(fingerprint))) {
             return null;
         }
-        var domainGraph = graphHolder.getGraph();
-        var graphDto = GraphDtoMapper.map(domainGraph);
-        var fingerprint = fingerprintCalculator.calculate(graphDto);
-
-        return etagSupport.respond(request, new GraphWithFingerprintDto(graphDto, fingerprint),
-                etagSupport.entityTag(fingerprint));
+        return answer(GraphDtoMapper.map(snapshot.graph()), fingerprint);
     }
 
     @PreAuthorize("@reactionsApiAuthorization.canRead()")
     @Operation(summary = "Get graph for a system")
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs/systems/{systemName}")
-    public ResponseEntity<GraphWithFingerprintDto> getSystemRelatedGraph(@PathVariable String systemName,
-                                                                         WebRequest request) {
-        String knownTag = etagSupport.entityTag(snapshot().fingerprintOfSystem(systemName));
-        if (etagSupport.isNotModified(request, knownTag)) {
+    public @Nullable ResponseEntity<GraphWithFingerprintDto> getSystemRelatedGraph(
+            @PathVariable String systemName, WebRequest request) {
+        GraphSnapshot snapshot = graphHolder.getSnapshot();
+        String fingerprint = snapshot.fingerprintOfSystem(systemName);
+        if (etagSupport.isNotModified(request, etagSupport.entityTag(fingerprint))) {
             return null;
         }
 
-        var domainGraph = graphHolder.getGraph();
-        var systemGraph = graphExtractor.getSystemRelatedGraph(domainGraph, systemName);
-
+        Graph systemGraph = graphExtractor.getSystemRelatedGraph(snapshot.graph(), systemName);
         if (systemGraph.nodes().isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-
-        var systemGraphDto = GraphDtoMapper.map(systemGraph);
-        var fingerprint = fingerprintCalculator.calculate(systemGraphDto);
-
-        return etagSupport.respond(request, new GraphWithFingerprintDto(systemGraphDto, fingerprint),
-                etagSupport.entityTag(fingerprint));
+        return answer(GraphDtoMapper.map(systemGraph), fingerprint);
     }
 
     @PreAuthorize("@reactionsApiAuthorization.canRead()")
     @Operation(summary = "Get graph for a component")
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs/components/{componentName}")
-    public ResponseEntity<GraphWithFingerprintDto> getComponentRelatedGraph(@PathVariable String componentName,
-                                                                            WebRequest request) {
-        String knownTag =
-                etagSupport.entityTag(snapshot().fingerprintOfComponent(componentName));
-        if (etagSupport.isNotModified(request, knownTag)) {
+    public @Nullable ResponseEntity<GraphWithFingerprintDto> getComponentRelatedGraph(
+            @PathVariable String componentName, WebRequest request) {
+        GraphSnapshot snapshot = graphHolder.getSnapshot();
+        String fingerprint = snapshot.fingerprintOfComponent(componentName);
+        if (etagSupport.isNotModified(request, etagSupport.entityTag(fingerprint))) {
             return null;
         }
 
-        var domainGraph = graphHolder.getGraph();
-        var componentGraph = graphExtractor.getComponentRelatedGraph(domainGraph, componentName);
-
+        Graph componentGraph = graphExtractor.getComponentRelatedGraph(snapshot.graph(), componentName);
         if (componentGraph.nodes().isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-
-        var componentGraphDto = GraphDtoMapper.map(componentGraph);
-        var fingerprint = fingerprintCalculator.calculate(componentGraphDto);
-
-        return etagSupport.respond(request, new GraphWithFingerprintDto(componentGraphDto, fingerprint),
-                etagSupport.entityTag(fingerprint));
+        return answer(GraphDtoMapper.map(componentGraph), fingerprint);
     }
 
     @PreAuthorize("@reactionsApiAuthorization.canRead()")
     @Operation(summary = "Get variant graphs for a message type")
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs/messages/{messageType}")
-    public ResponseEntity<Map<String, GraphWithFingerprintDto>> getMessageTypeRelatedGraphs(
+    public @Nullable ResponseEntity<Map<String, GraphWithFingerprintDto>> getMessageTypeRelatedGraphs(
             @PathVariable String messageType, WebRequest request) {
-        String knownTag =
-                etagSupport.entityTag(snapshot().fingerprintOfMessageType(messageType));
-        if (etagSupport.isNotModified(request, knownTag)) {
+        GraphSnapshot snapshot = graphHolder.getSnapshot();
+        // The tag of this resource covers every variant it answers with, which is what the snapshot combined
+        // when it was built - and the same value the index lists
+        String entityTag = etagSupport.entityTag(snapshot.fingerprintOfMessageType(messageType));
+        if (etagSupport.isNotModified(request, entityTag)) {
             return null;
         }
 
-        Graph domainGraph = graphHolder.getGraph();
+        Graph domainGraph = snapshot.graph();
 
         // Collect all variants (including null) for the given message type
         var variants = domainGraph.nodes().stream()
@@ -134,29 +125,34 @@ public class GraphController {
                 .distinct()
                 .toList();
 
-        var result = variants.stream()
+        Map<String, GraphWithFingerprintDto> result = variants.stream()
                 .collect(Collectors.toMap(
                         variant -> MessageGraphKey.of(messageType, variant),
                         variant -> {
                             var subgraph = graphExtractor.getMessageRelatedGraph(domainGraph, messageType,
                                     variant);
                             var dto = GraphDtoMapper.map(subgraph);
-                            var fingerprint = fingerprintCalculator.calculate(dto);
-                            return new GraphWithFingerprintDto(dto, fingerprint);
+                            return new GraphWithFingerprintDto(dto, fingerprintCalculator.calculate(dto));
                         }
                 ));
 
-        // The tag of this resource covers every variant it answers with, so it is the snapshot's - which is
-        // the same value the index lists. Recomputing it from the result would duplicate that rule.
-        return etagSupport.respond(request, result, knownTag);
+        return etagSupport.ok(result, entityTag);
     }
 
     /**
-     * The snapshot to answer from, never null: a holder that has never been given a graph answers as an empty
-     * landscape would rather than failing the request.
+     * A graph and the fingerprint that covers it, tagged with that same fingerprint.
+     * <p>
+     * The fingerprint comes from the snapshot, which computed it when the graph was refreshed. It is
+     * recomputed here only if the snapshot has none for this resource - which cannot happen for a subgraph
+     * that was found, since both come from the same graph, and is cheap insurance against them ever drifting
+     * apart.
      */
-    private GraphSnapshot snapshot() {
-        GraphSnapshot snapshot = graphHolder.getSnapshot();
-        return snapshot == null ? GraphSnapshot.empty() : snapshot;
+    private ResponseEntity<GraphWithFingerprintDto> answer(GraphDto graph,
+                                                           @Nullable String fingerprintFromSnapshot) {
+        String fingerprint = fingerprintFromSnapshot != null
+                ? fingerprintFromSnapshot
+                : fingerprintCalculator.calculate(graph);
+        return etagSupport.ok(new GraphWithFingerprintDto(graph, fingerprint),
+                etagSupport.entityTag(fingerprint));
     }
 }

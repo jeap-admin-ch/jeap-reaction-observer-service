@@ -62,7 +62,7 @@ index answers it in one call: it lists what is **available** (rather than what c
 before it asks.
 
 The entity tag of an index entry is **the same string** the graph resource answers with, so the comparison
-needs no request:
+needs no request. The `path` carries the servlet context path, so it can be fetched as it stands:
 
 ```json
 {
@@ -71,7 +71,7 @@ needs no request:
       "name": "orders-intake",
       "system": "orders",
       "etag": "\"sha256:6b2f…\"",
-      "path": "/api/graphs/components/orders-intake"
+      "path": "/jeap-reaction-observer/api/graphs/components/orders-intake"
     }
   ]
 }
@@ -86,8 +86,13 @@ canonicalized graph, so it names the graph rather than the exact bytes; for an i
 bytes written. The tags of all variants of a message type are combined into one, because that resource
 answers all of them at once: a variant appearing or disappearing moves it.
 
-Both the tags and the indexes come from a snapshot built when the graph is refreshed, so neither an index nor
-a `304` extracts or serializes a graph.
+Both the tags and the indexes come from a snapshot built when the graph is refreshed: the index payloads are
+serialized and tagged there, once, so serving an index writes bytes that already exist and answering `304` -
+to an index or to a graph - writes none and extracts nothing. A graph resource that does answer with a body
+extracts its subgraph, but takes the fingerprint from the snapshot rather than computing it again.
+
+Every handler reads that snapshot **once** per request, so the tag and the body always describe the same
+graph even when a refresh lands in between.
 
 ## Graph shape
 

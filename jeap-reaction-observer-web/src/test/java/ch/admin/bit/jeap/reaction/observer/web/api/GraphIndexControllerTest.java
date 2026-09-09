@@ -47,6 +47,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnableWebSecurity
 class GraphIndexControllerTest {
 
+    private static final String CONTEXT_PATH = "/jeap-reaction-observer";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -63,7 +65,8 @@ class GraphIndexControllerTest {
         // fingerprint calculator belongs to the refresh rather than to a request
         GraphSnapshotFactory factory = new GraphSnapshotFactory(
                 new ch.admin.bit.jeap.reaction.observer.domain.GraphExtractor(),
-                new GraphFingerprintCalculator(JsonMapper.builder().build()));
+                new GraphFingerprintCalculator(JsonMapper.builder().build()),
+                new EtagSupport(JsonMapper.builder().build()), CONTEXT_PATH);
         when(graphHolder.getSnapshot()).thenReturn(factory.of(aGraph()));
     }
 
@@ -75,7 +78,7 @@ class GraphIndexControllerTest {
                 .andExpect(jsonPath("$.entries[0].name").value("orders"))
                 .andExpect(jsonPath("$.entries[0].system").doesNotExist())
                 .andExpect(jsonPath("$.entries[0].etag").value(org.hamcrest.Matchers.startsWith("\"sha256:")))
-                .andExpect(jsonPath("$.entries[0].path").value("/api/graphs/systems/orders"))
+                .andExpect(jsonPath("$.entries[0].path").value(CONTEXT_PATH + "/api/graphs/systems/orders"))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-cache"));
     }
 
@@ -85,7 +88,8 @@ class GraphIndexControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries[0].name").value("orders-intake"))
                 .andExpect(jsonPath("$.entries[0].system").value("orders"))
-                .andExpect(jsonPath("$.entries[0].path").value("/api/graphs/components/orders-intake"));
+                .andExpect(jsonPath("$.entries[0].path")
+                        .value(CONTEXT_PATH + "/api/graphs/components/orders-intake"));
     }
 
     @Test
@@ -96,7 +100,7 @@ class GraphIndexControllerTest {
                 .andExpect(jsonPath("$.entries[0].variants.length()").value(1))
                 .andExpect(jsonPath("$.entries[0].variants[0]").value("OrdersPaymentAcceptedEvent"))
                 .andExpect(jsonPath("$.entries[0].path")
-                        .value("/api/graphs/messages/OrdersPaymentAcceptedEvent"));
+                        .value(CONTEXT_PATH + "/api/graphs/messages/OrdersPaymentAcceptedEvent"));
     }
 
     /** The whole point: a consumer that already has the index is told so, and gets no payload. */

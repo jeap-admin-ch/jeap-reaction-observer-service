@@ -12,9 +12,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -73,7 +76,11 @@ public class WebSecurityConfig {
                         // Anything else has to be authenticated; what it may then do is the method's business.
                         .anyRequest().authenticated());
 
-        http.authenticationManager(createApiAuthManager(http.getSharedObject(AuthenticationManagerBuilder.class)));
+        // The in-memory users as an ordinary provider of this chain, rather than an AuthenticationManager
+        // built here: a manager set on the chain is the one basic auth uses, and the JWT provider that
+        // oauth2ResourceServer adds below has to end up in the same manager. Registering both as providers
+        // is what makes that true by construction instead of by the order they happen to be added in.
+        http.authenticationProvider(inMemoryUsers());
 
         configureBearerTokens(http, jwtDecoderFactory, authoritiesResolver);
 
@@ -115,11 +122,20 @@ public class WebSecurityConfig {
                 ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.WRITE_OPERATION);
     }
 
-    private AuthenticationManager createApiAuthManager(AuthenticationManagerBuilder auth) throws Exception {
-        auth.inMemoryAuthentication()
-                .withUser(readUserUsername).password(readUserPassword).roles(ReactionsApiAuthorization.READ_ROLE).and()
-                .withUser(writeUserUsername).password(writeUserPassword).roles(ReactionsApiAuthorization.WRITE_ROLE);
-        return auth.build();
+    /**
+     * The two configured users, with the roles they have always had. The passwords carry their encoding as a
+     * prefix ({@code {noop}...}), which the delegating encoder of {@link DaoAuthenticationProvider} reads.
+     */
+    private AuthenticationProvider inMemoryUsers() {
+        UserDetails readUser = User.withUsername(readUserUsername)
+                .password(readUserPassword)
+                .roles(ReactionsApiAuthorization.READ_ROLE)
+                .build();
+        UserDetails writeUser = User.withUsername(writeUserUsername)
+                .password(writeUserPassword)
+                .roles(ReactionsApiAuthorization.WRITE_ROLE)
+                .build();
+        return new DaoAuthenticationProvider(new InMemoryUserDetailsManager(readUser, writeUser));
     }
 
 }

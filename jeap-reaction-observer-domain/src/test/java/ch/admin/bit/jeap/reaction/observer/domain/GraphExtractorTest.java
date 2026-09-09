@@ -5,7 +5,12 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.Map;
+
+import java.util.Set;
 
 class GraphExtractorTest {
 
@@ -199,5 +204,88 @@ class GraphExtractorTest {
 
         assertTrue(result.nodes().isEmpty(), "Should return empty graph when system is null");
         assertTrue(result.edges().isEmpty(), "Should return empty edges when system is null");
+    }
+
+    // --- The batched forms, which have to answer exactly what the per-name forms answer -------------------
+
+    /**
+     * The batched extraction exists to make fingerprinting every subgraph of a landscape affordable, and it is
+     * only worth having if it answers the same graphs. These four tests are that equivalence, over every graph
+     * this class builds.
+     */
+    @Test
+    void getSystemRelatedGraphs_answersWhatGetSystemRelatedGraphAnswers() {
+        Graph graph = fullGraph;
+
+        Map<String, Graph> batched = extractor.getSystemRelatedGraphs(graph);
+
+        assertThat(batched.keySet()).containsExactlyInAnyOrder("systema", "systemb");
+        batched.forEach((system, subgraph) -> assertSameGraph(
+                extractor.getSystemRelatedGraph(graph, system), subgraph, "system " + system));
+    }
+
+    @Test
+    void getComponentRelatedGraphs_answersWhatGetComponentRelatedGraphAnswers() {
+        Graph graph = fullGraph;
+
+        Map<String, Graph> batched = extractor.getComponentRelatedGraphs(graph);
+
+        assertThat(batched.keySet()).containsExactlyInAnyOrder("ComponentX", "ComponentY");
+        batched.forEach((component, subgraph) -> assertSameGraph(
+                extractor.getComponentRelatedGraph(graph, component), subgraph, "component " + component));
+    }
+
+    @Test
+    void getMessageRelatedGraphs_answersWhatGetMessageRelatedGraphAnswers() {
+        Graph graph = fullGraph;
+
+        Map<GraphExtractor.MessageKey, Graph> batched = extractor.getMessageRelatedGraphs(graph);
+
+        assertThat(batched).isNotEmpty();
+        batched.forEach((key, subgraph) -> assertSameGraph(
+                extractor.getMessageRelatedGraph(graph, key.messageType(), key.variant()), subgraph,
+                "message " + key));
+    }
+
+    @Test
+    void getSystemRelatedGraphs_keysAreLowerCased_becauseTheSingleFormIgnoresCase() {
+        Reaction upperCased = Reaction.builder().id(900L).component("Component9").system("SYSTEMA").build();
+        Graph graph = new Graph(List.of(message1, upperCased),
+                List.of(Trigger.builder().source(message1).target(upperCased).build()));
+
+        Map<String, Graph> batched = extractor.getSystemRelatedGraphs(graph);
+
+        assertThat(batched.keySet()).containsExactly("systema");
+        assertSameGraph(extractor.getSystemRelatedGraph(graph, "SystemA"), batched.get("systema"),
+                "a system spelled in upper case");
+    }
+
+    @Test
+    void getSystemRelatedGraphs_aReactionWithoutASystem_isInNoSubgraph() {
+        Reaction withoutSystem = Reaction.builder().id(901L).component("Component9").build();
+        Graph graph = new Graph(List.of(message1, withoutSystem),
+                List.of(Trigger.builder().source(message1).target(withoutSystem).build()));
+
+        assertThat(extractor.getSystemRelatedGraphs(graph)).isEmpty();
+        assertThat(extractor.getComponentRelatedGraphs(graph)).containsOnlyKeys("Component9");
+    }
+
+    @Test
+    void getRelatedGraphs_ofAnEmptyGraph_areEmpty() {
+        Graph empty = new Graph(List.of(), List.of());
+
+        assertThat(extractor.getSystemRelatedGraphs(empty)).isEmpty();
+        assertThat(extractor.getComponentRelatedGraphs(empty)).isEmpty();
+        assertThat(extractor.getMessageRelatedGraphs(empty)).isEmpty();
+    }
+
+    /** Nodes and edges as sets: both forms build them from sets, so the order is not part of the answer. */
+    private static void assertSameGraph(Graph expected, Graph actual, String what) {
+        assertThat(Set.copyOf(actual.nodes()))
+                .describedAs("nodes of " + what)
+                .isEqualTo(Set.copyOf(expected.nodes()));
+        assertThat(Set.copyOf(actual.edges()))
+                .describedAs("edges of " + what)
+                .isEqualTo(Set.copyOf(expected.edges()));
     }
 }

@@ -1,17 +1,16 @@
 package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
-import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot;
+import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot.IndexPayload;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphIndexDto;
-import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphIndexDto.GraphIndexEntryDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.MessageGraphIndexDto;
-import ch.admin.bit.jeap.reaction.observer.web.models.graph.MessageGraphIndexDto.MessageGraphIndexEntryDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
 
@@ -31,14 +29,17 @@ import java.nio.charset.StandardCharsets;
  * system, per component and per message type - and the fingerprint that would answer the question is inside
  * the payload.
  * <p>
- * The entries come from the snapshot built when the graph was last refreshed, so serving an index extracts
- * nothing.
+ * <b>Nothing is built per request.</b> The payloads and their tags come from the snapshot built when the graph
+ * was last refreshed, so serving an index writes bytes that already exist and a {@code 304} writes none.
  */
 @RestController
 @RequestMapping("/api/graphs")
 @RequiredArgsConstructor
 @Slf4j
 public class GraphIndexController {
+
+    /** What an index is before there is a snapshot to serve one from. */
+    private static final byte[] EMPTY_INDEX = "{\"entries\":[]}".getBytes(StandardCharsets.UTF_8);
 
     private final GraphHolder graphHolder;
     private final EtagSupport etagSupport;
@@ -51,14 +52,8 @@ public class GraphIndexController {
             content = @Content(schema = @Schema(implementation = GraphIndexDto.class)))
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/systems", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<byte[]> getSystemGraphIndex(WebRequest request) {
-        GraphSnapshot snapshot = snapshot();
-        GraphIndexDto index = new GraphIndexDto(snapshot.systems().stream()
-                .map(entry -> new GraphIndexEntryDto(entry.name(), null,
-                        etagSupport.entityTag(entry.fingerprint()),
-                        "/api/graphs/systems/" + encode(entry.name())))
-                .toList());
-        return etagSupport.respondSerialized(request, index);
+    public @Nullable ResponseEntity<byte[]> getSystemGraphIndex(WebRequest request) {
+        return respond(request, graphHolder.getSnapshot().systemIndex());
     }
 
     @PreAuthorize("@reactionsApiAuthorization.canRead()")
@@ -70,14 +65,8 @@ public class GraphIndexController {
             content = @Content(schema = @Schema(implementation = GraphIndexDto.class)))
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/components", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<byte[]> getComponentGraphIndex(WebRequest request) {
-        GraphSnapshot snapshot = snapshot();
-        GraphIndexDto index = new GraphIndexDto(snapshot.components().stream()
-                .map(entry -> new GraphIndexEntryDto(entry.name(), entry.system(),
-                        etagSupport.entityTag(entry.fingerprint()),
-                        "/api/graphs/components/" + encode(entry.name())))
-                .toList());
-        return etagSupport.respondSerialized(request, index);
+    public @Nullable ResponseEntity<byte[]> getComponentGraphIndex(WebRequest request) {
+        return respond(request, graphHolder.getSnapshot().componentIndex());
     }
 
     @PreAuthorize("@reactionsApiAuthorization.canRead()")
@@ -88,31 +77,21 @@ public class GraphIndexController {
             content = @Content(schema = @Schema(implementation = MessageGraphIndexDto.class)))
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/messages", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<byte[]> getMessageGraphIndex(WebRequest request) {
-        GraphSnapshot snapshot = snapshot();
-        MessageGraphIndexDto index = new MessageGraphIndexDto(snapshot.messageTypes().stream()
-                .map(entry -> new MessageGraphIndexEntryDto(entry.messageType(), entry.variantKeys(),
-                        etagSupport.entityTag(entry.fingerprint()),
-                        "/api/graphs/messages/" + encode(entry.messageType())))
-                .toList());
-        return etagSupport.respondSerialized(request, index);
+    public @Nullable ResponseEntity<byte[]> getMessageGraphIndex(WebRequest request) {
+        return respond(request, graphHolder.getSnapshot().messageIndex());
     }
 
     /**
-     * A name as a path segment. Component names are service names and message types are identifiers, so this
-     * changes nothing today - and it is what keeps the path usable if one of them ever carries a character
-     * that has to be escaped.
+     * The index as it was built, or an empty one before the first refresh - which is a landscape nothing has
+     * been observed in yet, not an error.
      */
-    private static String encode(String name) {
-        return UriUtils.encodePathSegment(name, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * The snapshot to answer from, never null: a holder that has never been given a graph answers as an empty
-     * landscape would rather than failing the request.
-     */
-    private GraphSnapshot snapshot() {
-        GraphSnapshot snapshot = graphHolder.getSnapshot();
-        return snapshot == null ? GraphSnapshot.empty() : snapshot;
+    private @Nullable ResponseEntity<byte[]> respond(WebRequest request,
+                                                     @Nullable IndexPayload index) {
+        if (index == null) {
+            // Before the first refresh - which GraphHolder makes a transient state, not a lasting one. No
+            // entity tag, so a consumer asks again rather than caching an emptiness.
+            return ResponseEntity.ok(EMPTY_INDEX);
+        }
+        return etagSupport.respond(request, index.bytes(), index.etag());
     }
 }

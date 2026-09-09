@@ -3,6 +3,7 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +17,10 @@ import java.nio.charset.StandardCharsets;
 /**
  * Entity tags and conditional requests for the API.
  * <p>
- * A tag is always {@code "sha256:<hex>"}. For a graph it is <b>the fingerprint the body already carries</b>, so
+ * A tag is always {@code "sha256:<hex>"}. For a graph it is <b>the fingerprint the body also carries</b>, so
  * the tag of an index entry is the same string as the {@code ETag} of the resource it points at: a consumer can
  * compare without a request, and send what it stored as {@code If-None-Match} when it does fetch. For an index
- * it is the hash of the bytes that are written.
+ * it is the hash of the bytes that are written, computed once when the index is built.
  * <p>
  * <b>The tag of a graph names the graph, not the bytes.</b> The fingerprint is computed over the canonicalized
  * graph, so it survives a change in property order - and it would not move if the envelope around the graph
@@ -29,6 +30,10 @@ import java.nio.charset.StandardCharsets;
  * It lives here rather than in each controller because a slip in the sequence - tagging something other than
  * what is written, or forgetting the cache directive on the {@code 304} - would break conditional requests on
  * one resource only, quietly.
+ * <p>
+ * <b>The contract of the two {@code respond} methods:</b> they answer {@code null} when the caller is to
+ * return {@code null} itself, so that the {@code 304} they have already prepared on the response is the
+ * answer. A handler therefore reads {@code return etagSupport.respond(...)} and nothing else.
  */
 @Component
 @RequiredArgsConstructor
@@ -40,57 +45,59 @@ public class EtagSupport {
      * @param fingerprint a graph fingerprint, may be null
      * @return the entity tag for it, or null when there is none
      */
-    public String entityTag(String fingerprint) {
+    public @Nullable String entityTag(@Nullable String fingerprint) {
         return fingerprint == null ? null : "\"sha256:" + fingerprint + "\"";
+    }
+
+    /** The entity tag of an already serialized body, so that the tag names exactly the bytes on the wire. */
+    public String entityTagOf(byte[] serializedBody) {
+        return entityTag(DigestUtils.sha256Hex(serializedBody));
+    }
+
+    /**
+     * Serializes a body to the bytes that will be written, so that it can be tagged and kept - see
+     * {@code GraphSnapshotFactory}, which does both once per refresh.
+     */
+    public byte[] serialize(Object body) {
+        return jsonMapper.writeValueAsString(body).getBytes(StandardCharsets.UTF_8);
     }
 
     /**
      * Answers with the body and the given entity tag, or with {@code 304} when the caller already has it.
      *
-     * @return the response, or null when the prepared {@code 304} is to be sent
+     * @param entityTag the tag of this body. Null only where the resource has none to offer - an answer that
+     *                  is not addressable by a tag - and then the answer carries no {@code ETag} rather than
+     *                  an empty one a consumer would send back
+     * @return the response, or <b>null when the prepared {@code 304} is to be sent</b>
      */
-    public <T> ResponseEntity<T> respond(WebRequest request, T body, String entityTag) {
+    public <T> @Nullable ResponseEntity<T> respond(WebRequest request, T body, @Nullable String entityTag) {
         if (isNotModified(request, entityTag)) {
             return null;
         }
-        if (entityTag == null) {
-            // Nothing to tag it with: an answer that is not addressable by a tag - an unknown name - is
-            // served without one rather than with an empty header a consumer would try to send back.
-            return ResponseEntity.ok().cacheControl(CacheControl.noCache()).body(body);
-        }
-        return ResponseEntity.ok()
-                .eTag(entityTag)
-                .cacheControl(CacheControl.noCache())
-                .body(body);
+        return ok(body, entityTag);
     }
 
     /**
-     * Answers with a body whose entity tag is the hash of its own serialized form - for an index, which has no
-     * fingerprint of its own.
-     * <p>
-     * The bytes are serialized once here and written as they are, rather than serialized for the tag and
-     * again by the message converter.
-     *
-     * @return the response, or null when the prepared {@code 304} is to be sent
+     * The {@code 200} of a resource whose condition has already been evaluated with
+     * {@link #isNotModified(WebRequest, String)} - so that no request evaluates it twice.
      */
-    public ResponseEntity<byte[]> respondSerialized(WebRequest request, Object body) {
-        byte[] serialized = jsonMapper.writeValueAsString(body).getBytes(StandardCharsets.UTF_8);
-        String entityTag = entityTag(DigestUtils.sha256Hex(serialized));
-        if (isNotModified(request, entityTag)) {
-            return null;
+    public <T> ResponseEntity<T> ok(T body, @Nullable String entityTag) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok().cacheControl(CacheControl.noCache());
+        if (entityTag != null) {
+            response.eTag(entityTag);
         }
-        return ResponseEntity.ok()
-                .eTag(entityTag)
-                .cacheControl(CacheControl.noCache())
-                .body(serialized);
+        return response.body(body);
     }
 
     /**
      * Evaluates {@code If-None-Match} and, when it matches, prepares the {@code 304} response.
+     * <p>
+     * <b>Call it once per request.</b> {@code WebRequest.checkNotModified} writes the tag it was given onto
+     * the response, so a second call with a different tag would leave the response carrying the wrong one.
      *
      * @return true when the caller should return null so that the prepared {@code 304} is sent
      */
-    public boolean isNotModified(WebRequest request, String entityTag) {
+    public boolean isNotModified(WebRequest request, @Nullable String entityTag) {
         if (entityTag == null) {
             return false;
         }

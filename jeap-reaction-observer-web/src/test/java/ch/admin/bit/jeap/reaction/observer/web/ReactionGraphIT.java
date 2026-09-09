@@ -42,8 +42,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>
  * So a node is compared by what it <em>is</em> - a message type and variant, or a component - and an edge by
  * the nodes it connects and the median it carries. The fingerprint is checked for what it promises: that it
- * covers the graph that was answered. Its exact value over surrogate keys is pinned by
- * {@code GraphSnapshotFactoryTest} and the controller tests instead.
+ * covers the graph that was answered. That the algorithm itself does not drift is
+ * {@code GraphFingerprintCalculatorTest}'s golden value over a fixed graph; that an index entry carries the
+ * same value as its resource is {@code GraphSnapshotFactoryTest}'s.
  */
 class ReactionGraphIT extends IntegrationTestBase {
 
@@ -263,7 +264,6 @@ class ReactionGraphIT extends IntegrationTestBase {
         sendAndAwaitReactionPersistence(lonelyReaction, "lonelySystem", "lonelyService");
 
         // when: data is aggregated and the graph refreshed
-        // (use the unlocked refresh so the second refresh below is not skipped by ShedLock's lockAtLeastFor)
         aggregationService.aggregateData(getToday());
         scheduledTasksService.refreshReactionGraphInternal();
 

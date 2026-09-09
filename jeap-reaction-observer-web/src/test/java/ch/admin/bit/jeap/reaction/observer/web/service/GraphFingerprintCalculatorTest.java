@@ -103,4 +103,24 @@ class GraphFingerprintCalculatorTest {
         TriggerEdgeDto triggerEdge = new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5);
         return new GraphDto(List.of(messageNode, reactionNode), List.of(triggerEdge));
     }
+
+    /**
+     * The value itself, over a graph that will not change - so that a change to how a fingerprint is computed
+     * cannot pass unnoticed.
+     * <p>
+     * It matters because the fingerprint is <b>published</b>: it is the entity tag of every graph resource and
+     * of every entry in the replication indexes, and a consumer stores it to decide whether to fetch again.
+     * Changing how it is computed invalidates every stored tag - which is allowed, and has to be deliberate.
+     */
+    @Test
+    void calculate_ofAFixedGraph_isThisValue() {
+        GraphDto graph = new GraphDto(
+                List.of(new MessageNodeDto(1L, "OrdersPaymentAcceptedEvent", null),
+                        new ReactionNodeDto(2L, "orders-intake")),
+                List.of(new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5)));
+
+        assertThat(calculator.calculate(graph))
+                .describedAs("if this changed on purpose, every entity tag a consumer stored is invalidated")
+                .isEqualTo("d308da964cc5a296f5ebf8b8f036405913d052b0f8544a5e8912f184ec95e838");
+    }
 }

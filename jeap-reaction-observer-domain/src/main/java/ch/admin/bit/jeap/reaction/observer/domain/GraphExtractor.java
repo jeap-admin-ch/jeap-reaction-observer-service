@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -107,6 +108,175 @@ public class GraphExtractor {
                     return Stream.concat(triggerSources, actionTargets);
                 })
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * The subgraph of <b>every</b> system in one pass, keyed by the lower-cased system name.
+     * <p>
+     * Equivalent to calling {@link #getSystemRelatedGraph} for each system, and that equivalence is what
+     * {@code GraphExtractorTest} asserts - but at the cost of one pass over the nodes and one over the edges
+     * instead of one of each per system. It is what makes fingerprinting every subgraph of a landscape on
+     * every refresh affordable.
+     * <p>
+     * <b>Lower-cased keys</b>, because {@link #getSystemRelatedGraph} matches a system ignoring case: two
+     * spellings of one system are one subgraph there and have to be one entry here.
+     */
+    public Map<String, Graph> getSystemRelatedGraphs(Graph graph) {
+        return getFilteredGraphs(graph, reaction -> reaction.system() == null
+                ? null
+                : reaction.system().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * The subgraph of <b>every</b> component in one pass, keyed by the component name.
+     * <p>
+     * The counterpart of {@link #getSystemRelatedGraphs}; the key is exact, because
+     * {@link #getComponentRelatedGraph} matches a component name exactly.
+     */
+    public Map<String, Graph> getComponentRelatedGraphs(Graph graph) {
+        return getFilteredGraphs(graph, Reaction::component);
+    }
+
+    /**
+     * The subgraph of <b>every</b> message node in one pass, keyed by the message type and its variant.
+     * <p>
+     * Equivalent to calling {@link #getMessageRelatedGraph} for each of them, again asserted by the tests. The
+     * neighbourhood of one message is small; what this avoids is walking every edge of the graph four times
+     * for each of them.
+     */
+    public Map<MessageKey, Graph> getMessageRelatedGraphs(Graph graph) {
+        Map<Message, List<Trigger>> triggersBySource = new HashMap<>();
+        Map<Reaction, List<Trigger>> triggersByTarget = new HashMap<>();
+        Map<Message, List<Action>> actionsByTarget = new HashMap<>();
+        Map<Reaction, List<Action>> actionsBySource = new HashMap<>();
+        for (Edge edge : graph.edges()) {
+            if (edge instanceof Trigger trigger && trigger.source() instanceof Message message) {
+                triggersBySource.computeIfAbsent(message, key -> new ArrayList<>()).add(trigger);
+                triggersByTarget.computeIfAbsent(trigger.target(), key -> new ArrayList<>()).add(trigger);
+            } else if (edge instanceof Action action && action.target() instanceof Message message) {
+                actionsByTarget.computeIfAbsent(message, key -> new ArrayList<>()).add(action);
+                actionsBySource.computeIfAbsent(action.source(), key -> new ArrayList<>()).add(action);
+            }
+        }
+
+        Map<MessageKey, Graph> graphs = new LinkedHashMap<>();
+        for (Node node : graph.nodes()) {
+            if (!(node instanceof Message message)) {
+                continue;
+            }
+            MessageKey key = new MessageKey(message.messageType(), message.variant());
+            if (graphs.containsKey(key)) {
+                // The first node of a key wins, as findFirst() does in getMessageRelatedGraph
+                continue;
+            }
+            graphs.put(key, messageRelatedGraph(message, triggersBySource, triggersByTarget, actionsByTarget,
+                    actionsBySource));
+        }
+        return graphs;
+    }
+
+    private Graph messageRelatedGraph(Message message,
+                                      Map<Message, List<Trigger>> triggersBySource,
+                                      Map<Reaction, List<Trigger>> triggersByTarget,
+                                      Map<Message, List<Action>> actionsByTarget,
+                                      Map<Reaction, List<Action>> actionsBySource) {
+        List<Trigger> outgoingTriggers = triggersBySource.getOrDefault(message, List.of());
+        List<Action> incomingActions = actionsByTarget.getOrDefault(message, List.of());
+
+        Set<Node> relatedReactions = Stream.concat(
+                        outgoingTriggers.stream().map(Trigger::target),
+                        incomingActions.stream().map(Action::source))
+                .collect(Collectors.toSet());
+
+        Set<Node> relevantNodes = new HashSet<>();
+        relevantNodes.add(message);
+        relevantNodes.addAll(relatedReactions);
+        relatedReactions.forEach(reactionNode -> {
+            Reaction reaction = (Reaction) reactionNode;
+            triggersByTarget.getOrDefault(reaction, List.of())
+                    .forEach(trigger -> relevantNodes.add(trigger.source()));
+            actionsBySource.getOrDefault(reaction, List.of())
+                    .forEach(action -> relevantNodes.add(action.target()));
+        });
+
+        // Every edge between two relevant nodes, in the graph's own order - the same set getMessageRelatedGraph
+        // arrives at, reached from the ends rather than by scanning the whole graph
+        List<Edge> relevantEdges = Stream.concat(
+                        relevantNodes.stream()
+                                .filter(Message.class::isInstance)
+                                .flatMap(node -> triggersBySource.getOrDefault((Message) node, List.of())
+                                        .stream()),
+                        relevantNodes.stream()
+                                .filter(Reaction.class::isInstance)
+                                .flatMap(node -> actionsBySource.getOrDefault((Reaction) node, List.of())
+                                        .stream()))
+                .filter(edge -> edge instanceof Trigger trigger
+                        ? relevantNodes.contains(trigger.source()) && relevantNodes.contains(trigger.target())
+                        : relevantNodes.contains(((Action) edge).source())
+                          && relevantNodes.contains(((Action) edge).target()))
+                .map(Edge.class::cast)
+                .toList();
+
+        return new Graph(List.copyOf(relevantNodes), relevantEdges);
+    }
+
+    /**
+     * One filtered subgraph per key a reaction belongs to. A reaction whose key is null belongs to none - the
+     * way a reaction without a system is in no system's subgraph.
+     */
+    private Map<String, Graph> getFilteredGraphs(Graph graph, Function<Reaction, String> keyOf) {
+        Map<String, List<Reaction>> reactionsByKey = new LinkedHashMap<>();
+        for (Node node : graph.nodes()) {
+            if (node instanceof Reaction reaction) {
+                String key = keyOf.apply(reaction);
+                if (key != null) {
+                    reactionsByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(reaction);
+                }
+            }
+        }
+
+        Map<String, List<Edge>> edgesByKey = new LinkedHashMap<>();
+        Map<Reaction, List<String>> keysByReaction = new HashMap<>();
+        reactionsByKey.forEach((key, reactions) ->
+                reactions.forEach(reaction ->
+                        keysByReaction.computeIfAbsent(reaction, r -> new ArrayList<>()).add(key)));
+        for (Edge edge : graph.edges()) {
+            Reaction reaction = reactionOf(edge);
+            if (reaction == null) {
+                continue;
+            }
+            keysByReaction.getOrDefault(reaction, List.of())
+                    .forEach(key -> edgesByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(edge));
+        }
+
+        Map<String, Graph> graphs = new LinkedHashMap<>();
+        reactionsByKey.forEach((key, reactions) -> {
+            List<Edge> edges = edgesByKey.getOrDefault(key, List.of());
+            Set<Node> nodes = new HashSet<>(reactions);
+            edges.forEach(edge -> nodes.add(messageOf(edge)));
+            graphs.put(key, new Graph(List.copyOf(nodes), List.copyOf(edges)));
+        });
+        return graphs;
+    }
+
+    /** The reaction an edge belongs to: a trigger's target, an action's source. */
+    private static Reaction reactionOf(Edge edge) {
+        if (edge instanceof Trigger trigger) {
+            return trigger.target();
+        }
+        if (edge instanceof Action action) {
+            return action.source();
+        }
+        return null;
+    }
+
+    /** The message at the other end of an edge from its reaction. */
+    private static Node messageOf(Edge edge) {
+        return edge instanceof Trigger trigger ? trigger.source() : ((Action) edge).target();
+    }
+
+    /** A message node's identity in {@link #getMessageRelatedGraphs}: its type and its variant, which may be null. */
+    public record MessageKey(String messageType, String variant) {
     }
 
     public Graph getFilteredGraph(Graph graph, Predicate<Reaction> reactionFilter) {

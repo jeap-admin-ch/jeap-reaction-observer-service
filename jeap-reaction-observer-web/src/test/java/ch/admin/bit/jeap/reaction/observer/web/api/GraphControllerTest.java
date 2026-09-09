@@ -4,6 +4,8 @@ import ch.admin.bit.jeap.reaction.observer.domain.GraphExtractor;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.*;
 import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
 import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot;
+import tools.jackson.databind.json.JsonMapper;
+import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshotFactory;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
@@ -26,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,20 +77,11 @@ class GraphControllerTest {
 
         Graph domainGraph = new Graph(List.of(message, reaction), List.of(trigger));
 
-        when(graphHolder.getGraph()).thenReturn(domainGraph);
-
-        GraphDto graphDto = new GraphDto(
-                List.of(
-                        new MessageNodeDto(1L, "TestType", "v1"),
-                        new ReactionNodeDto(2L, "TestComponent")
-                ),
-                List.of(
-                        new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5)
-                )
-        );
-
-        String expectedFingerprint = "abc123fingerprint";
-        when(fingerprintCalculator.calculate(graphDto)).thenReturn(expectedFingerprint);
+        // The fingerprint comes from the snapshot the refresh built, so the test asks it for the value
+        // rather than dictating one - see GraphSnapshotFactoryTest for how it is computed
+        GraphSnapshot snapshot = aSnapshotOf(domainGraph);
+        when(graphHolder.getSnapshot()).thenReturn(snapshot);
+        String expectedFingerprint = snapshot.graphFingerprint();
 
         // Act & Assert
         JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
@@ -129,9 +123,9 @@ class GraphControllerTest {
 
         Graph fullGraph = new Graph(List.of(message, reaction), List.of(trigger));
 
-        when(graphHolder.getGraph()).thenReturn(fullGraph);
+        GraphSnapshot snapshot = aSnapshotOf(fullGraph);
+        when(graphHolder.getSnapshot()).thenReturn(snapshot);
         when(graphExtractor.getSystemRelatedGraph(fullGraph, systemName)).thenReturn(fullGraph);
-        when(fingerprintCalculator.calculate(GraphDtoMapper.map(fullGraph))).thenReturn("abc123fingerprint");
 
         JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
                 .withUserRoles("reaction-observer-read")
@@ -144,7 +138,7 @@ class GraphControllerTest {
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
                 .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
                 .andExpect(jsonPath("$.graph.edges[0].edgeType").value("TRIGGER"))
-                .andExpect(jsonPath("$.fingerprint").value("abc123fingerprint"));
+                .andExpect(jsonPath("$.fingerprint").value(snapshot.fingerprintOfSystem(systemName)));
     }
 
     @Test
@@ -153,7 +147,7 @@ class GraphControllerTest {
 
         Graph fullGraph = new Graph(List.of(), List.of());
 
-        when(graphHolder.getGraph()).thenReturn(fullGraph);
+        when(graphHolder.getSnapshot()).thenReturn(aSnapshotOf(fullGraph));
         when(graphExtractor.getSystemRelatedGraph(fullGraph, systemName)).thenReturn(fullGraph);
 
         JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
@@ -191,9 +185,9 @@ class GraphControllerTest {
 
         Graph componentGraph = new Graph(List.of(message, reaction), List.of(trigger));
 
-        when(graphHolder.getGraph()).thenReturn(componentGraph);
+        GraphSnapshot snapshot = aSnapshotOf(componentGraph);
+        when(graphHolder.getSnapshot()).thenReturn(snapshot);
         when(graphExtractor.getComponentRelatedGraph(componentGraph, componentName)).thenReturn(componentGraph);
-        when(fingerprintCalculator.calculate(GraphDtoMapper.map(componentGraph))).thenReturn("component-fingerprint");
 
         JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
                 .withUserRoles("reaction-observer-read")
@@ -206,7 +200,7 @@ class GraphControllerTest {
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
                 .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
                 .andExpect(jsonPath("$.graph.edges[0].edgeType").value("TRIGGER"))
-                .andExpect(jsonPath("$.fingerprint").value("component-fingerprint"));
+                .andExpect(jsonPath("$.fingerprint").value(snapshot.fingerprintOfComponent(componentName)));
     }
 
     @Test
@@ -215,7 +209,7 @@ class GraphControllerTest {
 
         Graph emptyGraph = new Graph(List.of(), List.of());
 
-        when(graphHolder.getGraph()).thenReturn(emptyGraph);
+        when(graphHolder.getSnapshot()).thenReturn(aSnapshotOf(emptyGraph));
         when(graphExtractor.getComponentRelatedGraph(emptyGraph, componentName)).thenReturn(emptyGraph);
 
         JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
@@ -271,7 +265,7 @@ class GraphControllerTest {
                 List.of(trigger1, trigger2)
         );
 
-        when(graphHolder.getGraph()).thenReturn(fullGraph);
+        when(graphHolder.getSnapshot()).thenReturn(aSnapshotOf(fullGraph));
 
         // Mock subgraphs for both variants
         Graph subgraphWithVariant = new Graph(List.of(messageWithVariant, reaction), List.of(trigger1));
@@ -308,13 +302,12 @@ class GraphControllerTest {
      */
     @Test
     void aSystemGraph_askedWithItsEntityTag_isNotModifiedAndExtractsNothing() throws Exception {
-        String fingerprint = "the-stored-fingerprint";
-        when(graphHolder.getSnapshot()).thenReturn(new GraphSnapshot(
-                new Graph(List.of(), List.of()), "whole-graph",
-                List.of(new GraphSnapshot.SystemEntry("TestSystem", fingerprint)), List.of(), List.of()));
+        GraphSnapshot snapshot = aSnapshotOf(aSystemGraph());
+        when(graphHolder.getSnapshot()).thenReturn(snapshot);
 
         mockMvc.perform(get("/api/graphs/systems/TestSystem")
-                        .header(HttpHeaders.IF_NONE_MATCH, "\"sha256:" + fingerprint + "\"")
+                        .header(HttpHeaders.IF_NONE_MATCH,
+                                "\"sha256:" + snapshot.fingerprintOfSystem("TestSystem") + "\"")
                         .with(authentication(reader())))
                 .andExpect(status().isNotModified())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-cache"));
@@ -322,23 +315,24 @@ class GraphControllerTest {
         verifyNoInteractions(graphExtractor);
     }
 
+    /**
+     * And the tag it is answered with is the snapshot's - the same string the index publishes, not a value
+     * recomputed from the body.
+     */
     @Test
     void aSystemGraph_askedWithAStaleEntityTag_isAnsweredWithItsCurrentTag() throws Exception {
-        Message message = Message.builder().id(1L).messageType("TestType").semantic(SemanticType.EVENT).build();
-        Reaction reaction = Reaction.builder().id(2L).component("TestComponent").system("TestSystem").build();
-        Graph graph = new Graph(List.of(message, reaction),
-                List.of(Trigger.builder().source(message).target(reaction).build()));
-        when(graphHolder.getGraph()).thenReturn(graph);
-        when(graphHolder.getSnapshot()).thenReturn(new GraphSnapshot(graph, "whole-graph",
-                List.of(new GraphSnapshot.SystemEntry("TestSystem", "moved-on")), List.of(), List.of()));
+        Graph graph = aSystemGraph();
+        GraphSnapshot snapshot = aSnapshotOf(graph);
+        when(graphHolder.getSnapshot()).thenReturn(snapshot);
         when(graphExtractor.getSystemRelatedGraph(graph, "TestSystem")).thenReturn(graph);
-        when(fingerprintCalculator.calculate(any())).thenReturn("moved-on");
 
         mockMvc.perform(get("/api/graphs/systems/TestSystem")
                         .header(HttpHeaders.IF_NONE_MATCH, "\"sha256:what-it-had-before\"")
                         .with(authentication(reader())))
                 .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.ETAG, "\"sha256:moved-on\""));
+                .andExpect(header().string(HttpHeaders.ETAG,
+                        "\"sha256:" + snapshot.fingerprintOfSystem("TestSystem") + "\""))
+                .andExpect(jsonPath("$.fingerprint").value(snapshot.fingerprintOfSystem("TestSystem")));
     }
 
     /** A name the graph does not have is a 404, tag or no tag - a consumer must be able to tell the two apart. */
@@ -357,5 +351,23 @@ class GraphControllerTest {
         return JeapAuthenticationTestTokenBuilder.create()
                 .withUserRoles("reaction-observer-read")
                 .build();
+    }
+
+    /** One system, one component, one message - enough for every subgraph to exist. */
+    private static Graph aSystemGraph() {
+        Message message = Message.builder().id(1L).messageType("TestType").semantic(SemanticType.EVENT).build();
+        Reaction reaction = Reaction.builder().id(2L).component("TestComponent").system("TestSystem").build();
+        return new Graph(List.of(message, reaction),
+                List.of(Trigger.builder().source(message).target(reaction).build()));
+    }
+
+    /**
+     * The real snapshot of a graph, built the way a refresh builds it - so the tags under test are the ones
+     * production computes rather than strings chosen here.
+     */
+    private static GraphSnapshot aSnapshotOf(Graph graph) {
+        return new GraphSnapshotFactory(new GraphExtractor(),
+                new GraphFingerprintCalculator(JsonMapper.builder().build()),
+                new EtagSupport(JsonMapper.builder().build()), "").of(graph);
     }
 }
