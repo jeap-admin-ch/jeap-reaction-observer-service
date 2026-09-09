@@ -320,6 +320,89 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
+    // --- Both mechanisms, on one instance ------------------------------------------------------------------
+
+    /**
+     * <b>The claim of this whole change, in one method:</b> one running instance serves the same endpoint to a
+     * password and to a bearer token at the same time, and refuses the wrong version of either.
+     * <p>
+     * The requests are <b>interleaved</b> on purpose - basic, bearer, basic, bearer - because the thing that
+     * could break is shared: one filter chain, one authorization rule, one snapshot. A mechanism that only
+     * works when it is the first to be tried, or that leaves the chain in a state the other cannot use, passes
+     * two separate tests and fails this one.
+     * <p>
+     * That both answers are byte-identical and carry the same {@code ETag} is what says it really is the same
+     * instance and the same state answering both, rather than two runs that happened to agree.
+     */
+    @Test
+    void oneInstance_servesBasicAuthAndBearerTokens_atTheSameTime() {
+        String resource = "/api/graphs/systems";
+
+        // Positive, interleaved: each mechanism works with the other in between
+        ResponseEntity<String> firstBasic = get(resource, basic("read", "read-secret"));
+        ResponseEntity<String> firstBearer = get(resource, bearer(READ_ROLE));
+        ResponseEntity<String> secondBasic = get(resource, basic("read", "read-secret"));
+        ResponseEntity<String> secondBearer = get(resource, bearer(READ_ROLE));
+
+        assertThat(List.of(firstBasic, firstBearer, secondBasic, secondBearer))
+                .describedAs("both mechanisms answer, whichever went first")
+                .allSatisfy(response -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK));
+
+        // And it is one instance with one state behind both of them
+        assertThat(firstBearer.getBody())
+                .describedAs("the same instance and the same graph answer either credential")
+                .isEqualTo(firstBasic.getBody());
+        assertThat(firstBearer.getHeaders().getETag()).isEqualTo(firstBasic.getHeaders().getETag());
+        assertThat(secondBasic.getBody()).isEqualTo(firstBasic.getBody());
+        assertThat(secondBearer.getBody()).isEqualTo(firstBasic.getBody());
+
+        // Negative, on the same instance and in the same breath: the wrong version of either is refused,
+        // and each is refused in its own way - an unusable password is not authenticated, a token without
+        // the role is authenticated and not permitted
+        assertThat(get(resource, basic("read", "not-the-password")).getStatusCode())
+                .describedAs("a wrong password")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(get(resource, basic("write", "write-secret")).getStatusCode())
+                .describedAs("the write user, which may not read")
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(get(resource, bearer(SOME_OTHER_ROLE)).getStatusCode())
+                .describedAs("a token carrying another role")
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(get(resource, "Bearer not-a-token").getStatusCode())
+                .describedAs("a token that is not one")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(get(resource, null).getStatusCode())
+                .describedAs("no credentials at all")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        // ... and after all of that, both mechanisms still work: nothing above left the chain unusable
+        assertThat(get(resource, basic("read", "read-secret")).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(get(resource, bearer(READ_ROLE)).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    /**
+     * The same, for the endpoint that changes something: one instance, both mechanisms, and the read
+     * credentials of either refused.
+     */
+    @Test
+    void oneInstance_servesTheWriteEndpointToBothMechanisms_andRefusesReadCredentials() {
+        String resource = "/api/management/aggregate-data/2026-09-09";
+
+        assertThat(get(resource, basic("write", "write-secret")).getStatusCode())
+                .describedAs("the write user over basic auth")
+                .isEqualTo(HttpStatus.OK);
+        assertThat(get(resource, bearer(WRITE_ROLE)).getStatusCode())
+                .describedAs("a token carrying the write role, on the same instance")
+                .isEqualTo(HttpStatus.OK);
+
+        assertThat(get(resource, basic("read", "read-secret")).getStatusCode())
+                .describedAs("the read user may not trigger an aggregation")
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(get(resource, bearer(READ_ROLE)).getStatusCode())
+                .describedAs("nor may a token with the read role")
+                .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
     // --- Helpers -------------------------------------------------------------------------------------------
 
     private ResponseEntity<String> get(String path, String authorization) {
