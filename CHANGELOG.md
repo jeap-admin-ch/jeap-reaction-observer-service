@@ -5,19 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [10.4.0] - 2026-09-09
+## [11.0.0] - 2026-09-09
+
+### Breaking changes
+- A bearer token is authorized **only** by the semantic role `<system-name>_@reactions_#read` (and
+  `..._#write`). The simple roles `reaction-observer-read` / `reaction-observer-write` are no longer accepted
+  from a token; they remain what the two HTTP Basic users hold. One credential, one role model.
+- An instance that configures an authorization server
+  (`jeap.security.oauth2.resourceserver.authorization-server.issuer`) must now also configure
+  `jeap.security.oauth2.resourceserver.system-name`, or **it does not start**: without a system name the jEAP
+  security starter does not evaluate semantic roles, so the API would accept tokens and authorize none of
+  them.
+- HTTP Basic is unchanged, and an instance that configures no authorization server is unaffected.
 
 ### Added
 - Indexes of the reaction graphs: `GET /api/graphs/systems`, `/api/graphs/components` and `/api/graphs/messages`
   list every graph that exists with the entity tag of its content, so a consumer learns in one call what it has
-  to fetch. The component index also names the system each component's reactions were published under.
+  to fetch. The component index also names the system each component's reactions were published under. The
+  `path` of an entry carries the servlet context path, so it can be fetched as it stands.
 - Entity tags and conditional requests on every graph resource and index: `ETag` on the answer,
   `If-None-Match` honoured with `304 Not Modified`. The tag of an index entry is the same string the graph
   resource answers with.
-- OAuth2 authentication beside HTTP Basic, authorized with the semantic role `<system-name>_@reactions_#read`
-  and `..._#write` (no tenant part). It is inactive unless the instance configures
-  `jeap.security.oauth2.resourceserver.authorization-server.issuer`; HTTP Basic is unchanged and stays
-  supported.
+- OAuth2 authentication beside HTTP Basic, on the API's own filter chain - so no CSRF token is needed with
+  either mechanism.
 
 ### Changed
 - The scheduled graph refresh no longer holds a ShedLock: the graph is held per JVM and rebuilding it writes

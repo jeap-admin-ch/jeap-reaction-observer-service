@@ -10,31 +10,32 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 /**
- * Who may read the reaction graphs and who may trigger an aggregation - over <b>both</b> ways of
- * authenticating.
+ * Which of the two ways of authenticating a request came in by, and whether it may do what it asks.
  * <p>
- * The API accepts HTTP Basic with the two in-memory users it has always had, and a bearer token authorized
- * with a semantic role:
+ * <b>One mechanism, one rule:</b>
  *
  * <table>
- *     <caption>The roles</caption>
- *     <tr><td>{@code <system-name>_@reactions_#read}</td><td>every {@code GET} under {@code /api}</td></tr>
- *     <tr><td>{@code <system-name>_@reactions_#write}</td><td>triggering an aggregation</td></tr>
+ *     <caption>The rules</caption>
+ *     <tr><th>Authenticated by</th><th>Authorized by</th></tr>
+ *     <tr><td>HTTP Basic</td><td>the in-memory user's role, {@code reaction-observer-read} / {@code -write}</td></tr>
+ *     <tr><td>A bearer token</td><td>the semantic role {@code <system-name>_@reactions_#read} / {@code _#write}</td></tr>
  * </table>
  *
- * <b>No tenant part</b>, and that is deliberate: a tenant says which mandant may exercise a role, and there is
- * no such division here. A system's subgraph is cut out of one graph and carries the messages of other systems
- * by construction, and a consumer that documents a landscape reads every system of it.
+ * <b>No tenant part</b> on the semantic role, and that is deliberate: a tenant says which mandant may
+ * exercise a role, and there is no such division here. A system's subgraph is cut out of one graph and
+ * carries the messages of other systems by construction, and a consumer that documents a landscape reads
+ * every system of it.
  * <p>
- * <b>Why a bean and not {@code hasRole('reactions', 'read')} in the annotation:</b> the two-argument
- * expression exists only when semantic authorization is active, which the jEAP security starter ties to
- * {@code jeap.security.oauth2.resourceserver.system-name}. An instance that configures no resource server -
- * which is every instance until one is set up - would then fail every request with an unknown expression
- * instead of authorizing it by basic auth. So the choice is made here, in Java, where it can be conditional.
+ * <b>A token is authorized by its semantic role and by nothing else.</b> The simple role a basic-auth user
+ * holds is not accepted from a token: one credential, one role model, so that what a grant means cannot
+ * depend on how the caller happened to connect.
  * <p>
- * A token that carries the <em>simple</em> role {@code reaction-observer-read} is accepted as well, because
- * the starter maps a token's user roles to authorities: that is what lets an authorization server grant either
- * spelling while its consumers move.
+ * <b>Why this bean exists at all - and why it is only this.</b> Everything here would be an expression on the
+ * handler methods if a single expression could serve both mechanisms, and none can:
+ * {@code hasRole('reactions', 'read')} exists only on the expression root the jEAP security starter installs
+ * <em>for a {@code JeapAuthenticationToken}</em> ({@code SemanticMethodSecurityExpressionHandler}), so on a
+ * basic-auth request the expression would not resolve at all and the request would fail rather than be
+ * refused. Hence one bean, two branches, and nothing else in it.
  */
 @Component("reactionsApiAuthorization")
 @RequiredArgsConstructor
@@ -46,15 +47,17 @@ public class ReactionsApiAuthorization {
     public static final String READ_OPERATION = "read";
     public static final String WRITE_OPERATION = "write";
 
-    /** The in-memory roles of the basic-auth users, and the simple roles a token may carry instead. */
+    /** The roles of the two basic-auth users. */
     static final String READ_ROLE = "reaction-observer-read";
     static final String WRITE_ROLE = "reaction-observer-write";
 
     private static final String ROLE_PREFIX = "ROLE_";
 
     /**
-     * Present only when semantic authorization is active. Asking it while it is absent would be a wrong
-     * answer rather than a missing one, so it is asked through a provider.
+     * Present exactly when semantic authorization is active, which
+     * {@code jeap.security.oauth2.resourceserver.system-name} decides. A bearer token cannot be authenticated
+     * at all unless the resource server is configured, and {@code WebSecurityConfig} refuses to start a
+     * resource server without a system name - so where a token can arrive, this is here.
      */
     private final ObjectProvider<ServletSemanticAuthorization> semanticAuthorization;
 
@@ -68,31 +71,22 @@ public class ReactionsApiAuthorization {
         return isAuthorized(WRITE_ROLE, WRITE_OPERATION);
     }
 
-    private boolean isAuthorized(String simpleRole, String operation) {
+    private boolean isAuthorized(String basicAuthRole, String operation) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             return false;
         }
-        return hasAuthority(authentication, ROLE_PREFIX + simpleRole)
-               || hasSemanticRole(authentication, operation);
+        if (authentication instanceof JeapAuthenticationToken) {
+            // ServletSemanticAuthorization reads the token out of the security context itself
+            ServletSemanticAuthorization semantic = semanticAuthorization.getIfAvailable();
+            return semantic != null && semantic.hasRole(RESOURCE, operation);
+        }
+        return hasAuthority(authentication, ROLE_PREFIX + basicAuthRole);
     }
 
     private static boolean hasAuthority(Authentication authentication, String authority) {
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(authority::equals);
-    }
-
-    /**
-     * The semantic role, asked only of a token: {@link ServletSemanticAuthorization} reads the authentication
-     * out of the security context and casts it, so asking it about a basic-auth request would not answer
-     * false - it would fail.
-     */
-    private boolean hasSemanticRole(Authentication authentication, String operation) {
-        if (!(authentication instanceof JeapAuthenticationToken)) {
-            return false;
-        }
-        ServletSemanticAuthorization semantic = semanticAuthorization.getIfAvailable();
-        return semantic != null && semantic.hasRole(RESOURCE, operation);
     }
 }

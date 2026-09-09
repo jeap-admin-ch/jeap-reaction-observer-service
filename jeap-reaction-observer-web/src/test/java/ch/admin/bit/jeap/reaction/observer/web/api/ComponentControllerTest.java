@@ -21,6 +21,7 @@ import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -29,6 +30,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class})
 @EnableWebSecurity
 class ComponentControllerTest {
+
+    /** The read user of the test configuration - the basic-auth half of the API's two mechanisms. */
+    private static final String READ_USER = "read";
+    private static final String READ_PASSWORD = "secret";
 
     @Autowired
     private MockMvc mockMvc;
@@ -41,26 +46,32 @@ class ComponentControllerTest {
         List<String> components = List.of("TestComponent1", "TestComponent2");
         when(componentRepository.getComponentNames()).thenReturn(components);
 
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-        mockMvc.perform(get("/api/components/names")
+                mockMvc.perform(get("/api/components/names")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication)))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(2))
                 .andExpect(MockMvcResultMatchers.jsonPath("$[0]").value("TestComponent1"))
                 .andExpect(MockMvcResultMatchers.jsonPath("$[1]").value("TestComponent2"));
     }
 
+    /** A token carrying some other role is refused - as is any token without the semantic read role. */
     @Test
     void getComponentNames_accessDenied() throws Exception {
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
+        JeapAuthenticationToken withAnotherRole = JeapAuthenticationTestTokenBuilder.create()
                 .withUserRoles("foo-role")
                 .build();
         mockMvc.perform(get("/api/components/names")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication)))
+                        .with(authentication(withAnotherRole)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getComponentNames_withTheWrongPassword_isUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/components/names")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(httpBasic(READ_USER, "not-the-password")))
+                .andExpect(status().isUnauthorized());
     }
 }

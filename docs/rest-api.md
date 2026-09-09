@@ -12,24 +12,27 @@ The API accepts **two ways of authenticating**, on the same paths:
 | HTTP Basic       | the two configured users, with the roles `reaction-observer-read` and `reaction-observer-write`  | always                                                |
 | OAuth2 (bearer)  | a token carrying the semantic role `<system-name>_@reactions_#read` or `..._#write`             | when the instance is configured as a resource server  |
 
+**One mechanism, one rule.** A password is authorized by the in-memory user's role, a token by its semantic
+role - and by nothing else. A token carrying the simple role `reaction-observer-read` is refused, so that what
+a grant means does not depend on how the caller connected.
+
 The semantic role has **no tenant part**: a tenant says which mandant may exercise a role, and there is no such
 division here - a system's subgraph carries the messages of other systems by construction, and a consumer that
 documents a landscape reads every system of it.
 
 A bearer token is accepted only when the instance configures an issuer
 (`jeap.security.oauth2.resourceserver.authorization-server.issuer`), because without one there is nothing to
-validate a token with; and the semantic role is only evaluated when a system name
-(`jeap.security.oauth2.resourceserver.system-name`) is configured, which is what activates semantic
-authorization in the jEAP security starter. An instance that configures neither behaves exactly as it did
-before: HTTP Basic, and a bearer token is refused.
-
-A token may also carry the *simple* role `reaction-observer-read` or `reaction-observer-write` instead, which
-is what lets an authorization server grant either spelling while its consumers move.
+validate a token with. **An issuer without `jeap.security.oauth2.resourceserver.system-name` fails the
+startup**: that property is what makes the jEAP security starter evaluate semantic roles, and without it the
+API would accept tokens and authorize none of them. An instance that configures no issuer is unaffected and
+serves HTTP Basic exactly as before.
 
 `WebSecurityConfig` permits HTTP `GET` requests to `/api/**` at the filter-chain level and requires anything
 else to be authenticated; every controller method is authorized with
 `@PreAuthorize("@reactionsApiAuthorization.canRead()")` or `...canWrite()`, which is where the two mechanisms
-meet. `ReactionsApiRoleCoverageTest` fails the build if a handler appears without it.
+meet - one bean with one branch per mechanism, because the starter's two-argument `hasRole(resource,
+operation)` only exists on the expression root it installs for a token and would not resolve at all on a
+basic-auth request. `ReactionsApiRoleCoverageTest` fails the build if a handler appears without it.
 
 **No CSRF token is needed.** The API is stateless and authenticated per request, so its own filter chain
 disables CSRF protection - for both mechanisms. That is also why bearer tokens are handled by this chain

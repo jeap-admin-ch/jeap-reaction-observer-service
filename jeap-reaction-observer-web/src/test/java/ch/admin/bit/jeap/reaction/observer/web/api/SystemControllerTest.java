@@ -22,6 +22,7 @@ import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,6 +31,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class})
 @EnableWebSecurity
 class SystemControllerTest {
+
+    /** The read user of the test configuration - the basic-auth half of the API's two mechanisms. */
+    private static final String READ_USER = "read";
+    private static final String READ_PASSWORD = "secret";
 
     @Autowired
     private MockMvc mockMvc;
@@ -43,12 +48,9 @@ class SystemControllerTest {
         when(systemRepository.getSystemNames()).thenReturn(systems);
 
         // Act & Assert
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-        mockMvc.perform(get("/api/systems/names")
+                mockMvc.perform(get("/api/systems/names")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication))
+                        .with(httpBasic(READ_USER, READ_PASSWORD))
                 )
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(2))
@@ -65,12 +67,9 @@ class SystemControllerTest {
         when(systemRepository.getSystemNames()).thenReturn(systems);
 
         // Act & Assert
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-        mockMvc.perform(get("/api/systems/names")
+                mockMvc.perform(get("/api/systems/names")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication))
+                        .with(httpBasic(READ_USER, READ_PASSWORD))
                 )
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(2))

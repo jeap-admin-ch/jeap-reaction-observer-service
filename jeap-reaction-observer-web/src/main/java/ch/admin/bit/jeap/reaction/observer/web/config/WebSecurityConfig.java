@@ -24,6 +24,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Configuration
@@ -41,6 +42,12 @@ public class WebSecurityConfig {
 
     @Value("${jeap.reaction.observer.write-user.password}")
     private String writeUserPassword;
+
+    /** What activates semantic authorization in the jEAP security starter, and the first part of the role. */
+    static final String SYSTEM_NAME_PROPERTY = "jeap.security.oauth2.resourceserver.system-name";
+
+    @Value("${" + SYSTEM_NAME_PROPERTY + ":}")
+    private String systemName;
 
     /**
      * The API's own chain, which authenticates <b>either</b> way: HTTP Basic with the two in-memory users, and
@@ -109,6 +116,7 @@ public class WebSecurityConfig {
                     ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.READ_OPERATION);
             return;
         }
+        requireSystemName(systemName);
         JwtDecoder jwtDecoder = decoderFactory.createJwtDecoder();
         JeapAuthenticationConverter authenticationConverter = authoritiesResolver.getIfAvailable() == null
                 ? new JeapAuthenticationConverter()
@@ -120,6 +128,26 @@ public class WebSecurityConfig {
                  "'<system-name>_@{}_#{}' or '<system-name>_@{}_#{}'.",
                 ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.READ_OPERATION,
                 ReactionsApiAuthorization.RESOURCE, ReactionsApiAuthorization.WRITE_OPERATION);
+    }
+
+    /**
+     * A resource server without a system name would accept tokens and authorize none of them: the semantic
+     * role this API is authorized with only exists when the jEAP security starter has a system name, and
+     * without one the starter installs the simple role model instead - under which
+     * {@code <system-name>_@reactions_#read} is an opaque string nothing checks.
+     * <p>
+     * <b>So the instance is stopped here rather than serving an API that refuses every token.</b> A
+     * configuration error belongs in the deployment, not in the first request.
+     */
+    static void requireSystemName(String systemName) {
+        if (!StringUtils.hasText(systemName)) {
+            throw new IllegalStateException(
+                    "'" + SYSTEM_NAME_PROPERTY + "' is not set, but an authorization server is configured. " +
+                    "The API authorizes a bearer token with the semantic role '<system-name>_@" +
+                    ReactionsApiAuthorization.RESOURCE + "_#" + ReactionsApiAuthorization.READ_OPERATION +
+                    "', which the jEAP security starter only evaluates when the system name is configured. " +
+                    "Configure it, or remove the authorization server to accept HTTP Basic only.");
+        }
     }
 
     /**

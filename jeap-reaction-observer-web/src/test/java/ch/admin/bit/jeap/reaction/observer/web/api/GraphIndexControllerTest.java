@@ -32,6 +32,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,6 +48,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnableWebSecurity
 class GraphIndexControllerTest {
 
+    /** The read user of the test configuration - the basic-auth half of the API's two mechanisms. */
+    private static final String READ_USER = "read";
+    private static final String READ_PASSWORD = "secret";
+
     private static final String CONTEXT_PATH = "/jeap-reaction-observer";
 
     @Autowired
@@ -54,10 +59,6 @@ class GraphIndexControllerTest {
 
     @MockitoBean
     private GraphHolder graphHolder;
-
-    private final JeapAuthenticationToken reader = JeapAuthenticationTestTokenBuilder.create()
-            .withUserRoles("reaction-observer-read")
-            .build();
 
     @BeforeEach
     void setUp() {
@@ -72,7 +73,7 @@ class GraphIndexControllerTest {
 
     @Test
     void systemIndex_listsEverySystemWithItsEntityTagAndPath() throws Exception {
-        mockMvc.perform(get("/api/graphs/systems").with(authentication(reader)))
+        mockMvc.perform(get("/api/graphs/systems").with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries.length()").value(1))
                 .andExpect(jsonPath("$.entries[0].name").value("orders"))
@@ -84,7 +85,7 @@ class GraphIndexControllerTest {
 
     @Test
     void componentIndex_namesTheSystemOfEveryComponent() throws Exception {
-        mockMvc.perform(get("/api/graphs/components").with(authentication(reader)))
+        mockMvc.perform(get("/api/graphs/components").with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries[0].name").value("orders-intake"))
                 .andExpect(jsonPath("$.entries[0].system").value("orders"))
@@ -94,7 +95,7 @@ class GraphIndexControllerTest {
 
     @Test
     void messageIndex_listsTheVariantsOfEveryMessageType() throws Exception {
-        mockMvc.perform(get("/api/graphs/messages").with(authentication(reader)))
+        mockMvc.perform(get("/api/graphs/messages").with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries[0].messageType").value("OrdersPaymentAcceptedEvent"))
                 .andExpect(jsonPath("$.entries[0].variants.length()").value(1))
@@ -106,7 +107,7 @@ class GraphIndexControllerTest {
     /** The whole point: a consumer that already has the index is told so, and gets no payload. */
     @Test
     void anIndex_askedWithItsOwnEntityTag_isNotModified() throws Exception {
-        MvcResult first = mockMvc.perform(get("/api/graphs/systems").with(authentication(reader)))
+        MvcResult first = mockMvc.perform(get("/api/graphs/systems").with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn();
         String etag = first.getResponse().getHeader(HttpHeaders.ETAG);
@@ -114,7 +115,7 @@ class GraphIndexControllerTest {
 
         mockMvc.perform(get("/api/graphs/systems")
                         .header(HttpHeaders.IF_NONE_MATCH, etag)
-                        .with(authentication(reader)))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isNotModified())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-cache"));
     }
@@ -123,7 +124,7 @@ class GraphIndexControllerTest {
     void anIndex_askedWithAnotherEntityTag_isAnsweredWithTheIndex() throws Exception {
         mockMvc.perform(get("/api/graphs/systems")
                         .header(HttpHeaders.IF_NONE_MATCH, "\"sha256:something-else\"")
-                        .with(authentication(reader)))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries.length()").value(1));
     }
@@ -132,7 +133,7 @@ class GraphIndexControllerTest {
     void anIndex_ofAnEmptyGraph_isEmptyRatherThanAFailure() throws Exception {
         when(graphHolder.getSnapshot()).thenReturn(GraphSnapshot.empty());
 
-        mockMvc.perform(get("/api/graphs/systems").with(authentication(reader)))
+        mockMvc.perform(get("/api/graphs/systems").with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries.length()").value(0));
     }

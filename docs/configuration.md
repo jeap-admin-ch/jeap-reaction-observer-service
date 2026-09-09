@@ -32,15 +32,17 @@ Method security then restricts the endpoints documented in [REST API](rest-api.m
 The API also accepts bearer tokens, authorized with a semantic role. It is **off unless configured**, and
 these are the two properties that turn it on - both belong to the jEAP security starter:
 
-| Property                                                            | Required | Default / example                    | Purpose                                                                                                        |
-|---------------------------------------------------------------------|----------|--------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| `jeap.security.oauth2.resourceserver.authorization-server.issuer`   | no       | `https://keycloak.example.ch/realms/x` | The token issuer. **Configuring it is what makes the API accept bearer tokens at all**                        |
-| `jeap.security.oauth2.resourceserver.system-name`                   | no       | `myplatform`                         | Activates semantic authorization, and is the first part of the role name: `<system-name>_@reactions_#read`      |
+| Property                                                            | Required                | Default / example                      | Purpose                                                                                                   |
+|---------------------------------------------------------------------|-------------------------|----------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `jeap.security.oauth2.resourceserver.authorization-server.issuer`   | no                      | `https://keycloak.example.ch/realms/x` | The token issuer. **Configuring it is what makes the API accept bearer tokens at all**                    |
+| `jeap.security.oauth2.resourceserver.system-name`                   | **with an issuer, yes** | `myplatform`                           | Activates semantic authorization, and is the first part of the role name: `<system-name>_@reactions_#read` |
 
 Without an issuer there is nothing to validate a token with, so a request carrying one is refused like any
-other unauthenticated request - HTTP Basic keeps working unchanged. Without a system name a token can still be
-accepted, but only with the *simple* role `reaction-observer-read` / `reaction-observer-write`, since the
-semantic role cannot be evaluated. Configure both.
+other unauthenticated request - HTTP Basic keeps working unchanged.
+
+**An issuer without a system name fails the startup.** Semantic roles are only evaluated when the system name
+is configured, so an instance configured that way would accept tokens and authorize none of them; the two
+belong together and are checked together.
 
 The role carries **no tenant part**; see [REST API](rest-api.md) for why, and for the CSRF behaviour of the
 API.

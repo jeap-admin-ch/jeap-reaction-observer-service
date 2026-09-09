@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -41,6 +42,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class, EtagSupport.class})
 @EnableWebSecurity
 class GraphControllerTest {
+
+    /** The read user of the test configuration - the basic-auth half of the API's two mechanisms. */
+    private static final String READ_USER = "read";
+    private static final String READ_PASSWORD = "secret";
 
     @Autowired
     private MockMvc mockMvc;
@@ -84,12 +89,9 @@ class GraphControllerTest {
         String expectedFingerprint = snapshot.graphFingerprint();
 
         // Act & Assert
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-        mockMvc.perform(get("/api/graphs")
+                mockMvc.perform(get("/api/graphs")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication))
+                        .with(httpBasic(READ_USER, READ_PASSWORD))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
@@ -127,13 +129,9 @@ class GraphControllerTest {
         when(graphHolder.getSnapshot()).thenReturn(snapshot);
         when(graphExtractor.getSystemRelatedGraph(fullGraph, systemName)).thenReturn(fullGraph);
 
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        mockMvc.perform(get("/api/graphs/systems/{systemName}", systemName)
+                mockMvc.perform(get("/api/graphs/systems/{systemName}", systemName)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication)))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
                 .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
@@ -150,13 +148,9 @@ class GraphControllerTest {
         when(graphHolder.getSnapshot()).thenReturn(aSnapshotOf(fullGraph));
         when(graphExtractor.getSystemRelatedGraph(fullGraph, systemName)).thenReturn(fullGraph);
 
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        mockMvc.perform(get("/api/graphs/systems/{systemName}", systemName)
+                mockMvc.perform(get("/api/graphs/systems/{systemName}", systemName)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication)))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isNotFound());
     }
 
@@ -189,13 +183,9 @@ class GraphControllerTest {
         when(graphHolder.getSnapshot()).thenReturn(snapshot);
         when(graphExtractor.getComponentRelatedGraph(componentGraph, componentName)).thenReturn(componentGraph);
 
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        mockMvc.perform(get("/api/graphs/components/{componentName}", componentName)
+                mockMvc.perform(get("/api/graphs/components/{componentName}", componentName)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication)))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
                 .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
@@ -212,13 +202,9 @@ class GraphControllerTest {
         when(graphHolder.getSnapshot()).thenReturn(aSnapshotOf(emptyGraph));
         when(graphExtractor.getComponentRelatedGraph(emptyGraph, componentName)).thenReturn(emptyGraph);
 
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        mockMvc.perform(get("/api/graphs/components/{componentName}", componentName)
+                mockMvc.perform(get("/api/graphs/components/{componentName}", componentName)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication)))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isNotFound());
     }
 
@@ -280,13 +266,9 @@ class GraphControllerTest {
         when(fingerprintCalculator.calculate(dtoWithVariant)).thenReturn("fp-v1");
         when(fingerprintCalculator.calculate(dtoWithoutVariant)).thenReturn("fp-null");
 
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        mockMvc.perform(get("/api/graphs/messages/{messageType}", messageType)
+                mockMvc.perform(get("/api/graphs/messages/{messageType}", messageType)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(authentication(authentication)))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.['TestType/v1'].fingerprint").value("fp-v1"))
                 .andExpect(jsonPath("$.['TestType'].fingerprint").value("fp-null"));
@@ -308,7 +290,7 @@ class GraphControllerTest {
         mockMvc.perform(get("/api/graphs/systems/TestSystem")
                         .header(HttpHeaders.IF_NONE_MATCH,
                                 "\"sha256:" + snapshot.fingerprintOfSystem("TestSystem") + "\"")
-                        .with(authentication(reader())))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isNotModified())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-cache"));
 
@@ -328,7 +310,7 @@ class GraphControllerTest {
 
         mockMvc.perform(get("/api/graphs/systems/TestSystem")
                         .header(HttpHeaders.IF_NONE_MATCH, "\"sha256:what-it-had-before\"")
-                        .with(authentication(reader())))
+                        .with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.ETAG,
                         "\"sha256:" + snapshot.fingerprintOfSystem("TestSystem") + "\""))
@@ -343,14 +325,8 @@ class GraphControllerTest {
         when(graphHolder.getSnapshot()).thenReturn(GraphSnapshot.empty());
         when(graphExtractor.getSystemRelatedGraph(empty, "no-such-system")).thenReturn(empty);
 
-        mockMvc.perform(get("/api/graphs/systems/no-such-system").with(authentication(reader())))
+        mockMvc.perform(get("/api/graphs/systems/no-such-system").with(httpBasic(READ_USER, READ_PASSWORD)))
                 .andExpect(status().isNotFound());
-    }
-
-    private static JeapAuthenticationToken reader() {
-        return JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
     }
 
     /** One system, one component, one message - enough for every subgraph to exist. */

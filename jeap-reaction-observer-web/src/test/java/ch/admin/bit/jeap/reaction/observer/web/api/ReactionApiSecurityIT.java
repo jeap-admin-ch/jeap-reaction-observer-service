@@ -258,13 +258,13 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
     }
 
     /**
-     * The simple role a token may carry instead of the semantic one, which is what lets an authorization
-     * server grant either spelling while consumers move.
+     * A token is authorized by its semantic role and by nothing else: the simple role a basic-auth user holds
+     * is not a grant a token can carry. One credential, one role model.
      */
     @Test
-    void readEndpoint_withATokenCarryingTheSimpleRole_isAnswered() {
+    void readEndpoint_withATokenCarryingTheBasicAuthRole_isForbidden() {
         assertThat(get("/api/graphs/systems", bearer("reaction-observer-read")).getStatusCode())
-                .isEqualTo(HttpStatus.OK);
+                .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     // --- The write endpoint, and CSRF ----------------------------------------------------------------------

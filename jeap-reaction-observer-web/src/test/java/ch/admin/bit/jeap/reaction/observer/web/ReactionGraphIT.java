@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -47,6 +48,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * same value as its resource is {@code GraphSnapshotFactoryTest}'s.
  */
 class ReactionGraphIT extends IntegrationTestBase {
+
+    /**
+     * The read user, as basic auth authenticates it: a plain username/password authentication carrying the
+     * in-memory role. Injected rather than sent as a header, because this context has the test starter's
+     * permit-all chain in front of it - what is under test here is the graph, not the filter chain
+     * (ReactionApiSecurityIT drives that over real HTTP).
+     */
+    private static final String READ_USER = "read";
+    private static final String READ_ROLE = "reaction-observer-read";
 
     @Autowired
     AggregationService aggregationService;
@@ -119,12 +129,8 @@ class ReactionGraphIT extends IntegrationTestBase {
         givenInitialReactionsGraph();
 
         // when: all reactions graph is called
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        var result = mvc.perform(get("/api/graphs")
-                        .with(authentication(authentication)))
+                var result = mvc.perform(get("/api/graphs")
+                        .with(user(READ_USER).roles(READ_ROLE)))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -150,12 +156,8 @@ class ReactionGraphIT extends IntegrationTestBase {
         givenInitialReactionsGraph();
 
         // when: all system related graph is called
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        var result = mvc.perform(get("/api/graphs/systems/system1")
-                        .with(authentication(authentication)))
+                var result = mvc.perform(get("/api/graphs/systems/system1")
+                        .with(user(READ_USER).roles(READ_ROLE)))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -181,12 +183,8 @@ class ReactionGraphIT extends IntegrationTestBase {
         givenInitialReactionsGraph();
 
         // when: all component related graph is called
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        var result = mvc.perform(get("/api/graphs/components/service2")
-                        .with(authentication(authentication)))
+                var result = mvc.perform(get("/api/graphs/components/service2")
+                        .with(user(READ_USER).roles(READ_ROLE)))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -212,12 +210,8 @@ class ReactionGraphIT extends IntegrationTestBase {
         givenInitialReactionsGraph();
 
         // when: all component related graph is called
-        JeapAuthenticationToken authentication = JeapAuthenticationTestTokenBuilder.create()
-                .withUserRoles("reaction-observer-read")
-                .build();
-
-        var result = mvc.perform(get("/api/graphs/messages/Command1")
-                        .with(authentication(authentication)))
+                var result = mvc.perform(get("/api/graphs/messages/Command1")
+                        .with(user(READ_USER).roles(READ_ROLE)))
                 .andExpect(status().isOk())
                 .andReturn();
 
