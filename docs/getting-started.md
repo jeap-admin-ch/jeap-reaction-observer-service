@@ -37,7 +37,7 @@ The service requires:
 
 For local development, `docker/docker-compose.yml` provides PostgreSQL, Kafka, and Schema Registry, and
 `application-localtest.yml` contains matching sample connection properties - including an authorization server
-pointing at a local [jEAP OAuth mock server](https://jeap-admin-ch.github.io/docs/building-blocks/libraries/jeap-oauth-mock-server/getting-started)
+pointing at a local [jEAP OAuth mock server](https://jeap-admin-ch.github.io/docs/building-blocks/reusable-microservices/jeap-oauth-mock-server/getting-started)
 on port 8180. The mock only has to run when a request actually carries a bearer token; HTTP Basic works
 without it.
 
