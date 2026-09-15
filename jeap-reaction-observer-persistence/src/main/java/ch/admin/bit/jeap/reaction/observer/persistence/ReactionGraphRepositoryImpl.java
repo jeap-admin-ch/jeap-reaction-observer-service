@@ -18,7 +18,7 @@ public class ReactionGraphRepositoryImpl implements ReactionGraphRepository {
     }
 
     @Override
-    public Graph buildFullGraph() {
+    public Graph buildFullGraph(Map<Long, Integer> medians) {
         List<ReactionEntity> entities = jpaReactionRepository.findAllWithActions();
 
         List<Node> nodes = new ArrayList<>();
@@ -26,11 +26,16 @@ public class ReactionGraphRepositoryImpl implements ReactionGraphRepository {
         Map<Long, Interface> interfaces = new HashMap<>();
 
         for (ReactionEntity entity : entities) {
+            // The median belongs to the reaction, so the node carries it as well as the trigger edge - a
+            // reaction nothing triggered has no edge, and its number would otherwise be dropped here.
+            Integer median = medians.get(entity.getId());
+
             // Reaction node
             Reaction reaction = Reaction.builder()
                     .id(entity.getId())
                     .component(entity.getComponent())
                     .system(entity.getSystem())
+                    .median(median)
                     .build();
             nodes.add(reaction);
 
@@ -41,6 +46,7 @@ public class ReactionGraphRepositoryImpl implements ReactionGraphRepository {
                 edges.add(Trigger.builder()
                         .source(triggerMessage)
                         .target(reaction)
+                        .median(median)
                         .build());
             }
 

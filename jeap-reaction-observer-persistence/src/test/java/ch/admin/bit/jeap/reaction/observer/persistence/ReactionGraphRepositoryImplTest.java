@@ -12,6 +12,7 @@ import org.springframework.test.context.ContextConfiguration;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,13 +53,15 @@ class ReactionGraphRepositoryImplTest {
         Long reactionDbId = savedReaction.getId();
         Long triggerInterfaceId = triggerInterface.getId();
 
-        Graph graph = reactionGraphRepository.buildFullGraph();
+        Graph graph = reactionGraphRepository.buildFullGraph(Map.of(reactionDbId, 42));
 
-        // Reaction node
-        Optional<Node> reactionNode = graph.nodes().stream()
-                .filter(n -> n instanceof Reaction && ((Reaction) n).getId() == reactionDbId)
+        // Reaction node, carrying its median
+        Optional<Reaction> reactionNode = graph.nodes().stream()
+                .filter(n -> n instanceof Reaction && n.getId() == reactionDbId)
+                .map(Reaction.class::cast)
                 .findFirst();
         assertThat(reactionNode).isPresent();
+        assertThat(reactionNode.get().median()).isEqualTo(42);
 
         // Trigger message node
         Optional<Message> triggerMessage = graph.nodes().stream()
@@ -69,9 +72,41 @@ class ReactionGraphRepositoryImplTest {
         assertThat(triggerMessage.get().messageType()).isEqualTo("trigger");
         assertThat(triggerMessage.get().semantic()).isEqualTo(SemanticType.EVENT);
 
-        // Trigger edge
+        // Trigger edge, carrying the same median
         assertThat(graph.edges()).hasSize(1);
         assertThat(graph.edges().getFirst()).isInstanceOf(Trigger.class);
+        assertThat(((Trigger) graph.edges().getFirst()).median()).isEqualTo(42);
+        assertThat(((Trigger) graph.edges().getFirst()).target()).isEqualTo(reactionNode.get());
+    }
+
+    @Test
+    void buildFullGraph_whenTheReactionHasNoTrigger_thenItsNodeStillCarriesTheMedian() {
+        InterfaceEntity actionInterface = jpaInterfaceRepository.save(new InterfaceEntity("EVENT", "untriggered/action"));
+
+        ReactionEntity reaction = ReactionEntity.builder()
+                .system("systemU")
+                .component("componentU")
+                .reactionId("reactionWithoutTrigger")
+                .identifiedAt(ZonedDateTime.now())
+                .build();
+        reaction.addAction(ActionEntity.builder()
+                .reaction(reaction)
+                .actionId("a1")
+                .actionInterface(actionInterface)
+                .build());
+        Long reactionDbId = jpaReactionRepository.save(reaction).getId();
+
+        Graph graph = reactionGraphRepository.buildFullGraph(Map.of(reactionDbId, 9252));
+
+        // There is no trigger edge to carry the number, which is the whole point of having it on the node
+        assertThat(graph.edges()).noneMatch(Trigger.class::isInstance);
+        assertThat(graph.nodes())
+                .filteredOn(Reaction.class::isInstance)
+                .extracting(Reaction.class::cast)
+                .filteredOn(reactionNode -> reactionNode.getId() == reactionDbId)
+                .singleElement()
+                .extracting(Reaction::median)
+                .isEqualTo(9252);
     }
 
     @Test
@@ -94,13 +129,15 @@ class ReactionGraphRepositoryImplTest {
         reaction.addAction(action);
         ReactionEntity savedReaction = jpaReactionRepository.save(reaction);
 
-        Graph graph = reactionGraphRepository.buildFullGraph();
+        Graph graph = reactionGraphRepository.buildFullGraph(Map.of());
 
-        // Reaction node
-        Optional<Node> reactionNode = graph.nodes().stream()
-                .filter(n -> n instanceof Reaction && ((Reaction) n).getId() == savedReaction.getId())
+        // Reaction node - nothing was aggregated for it, so it carries no median
+        Optional<Reaction> reactionNode = graph.nodes().stream()
+                .filter(n -> n instanceof Reaction && n.getId() == savedReaction.getId())
+                .map(Reaction.class::cast)
                 .findFirst();
         assertThat(reactionNode).isPresent();
+        assertThat(reactionNode.get().median()).isNull();
 
         // Action message node
         Optional<Message> actionMessage = graph.nodes().stream()
@@ -148,11 +185,11 @@ class ReactionGraphRepositoryImplTest {
         reaction.addAction(action2);
         ReactionEntity savedReaction = jpaReactionRepository.save(reaction);
 
-        Graph graph = reactionGraphRepository.buildFullGraph();
+        Graph graph = reactionGraphRepository.buildFullGraph(Map.of(savedReaction.getId(), 3));
 
         // Reaction node
         Optional<Node> reactionNode = graph.nodes().stream()
-                .filter(n -> n instanceof Reaction && ((Reaction) n).getId() == savedReaction.getId())
+                .filter(n -> n instanceof Reaction && n.getId() == savedReaction.getId())
                 .findFirst();
         assertThat(reactionNode).isPresent();
 

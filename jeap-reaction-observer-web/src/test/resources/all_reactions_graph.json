@@ -4,22 +4,26 @@
       {
         "nodeType": "REACTION",
         "id": 1,
-        "component": "service1"
+        "component": "service1",
+        "median": 5
       },
       {
         "nodeType": "REACTION",
         "id": 2,
-        "component": "service2"
+        "component": "service2",
+        "median": 7
       },
       {
         "nodeType": "REACTION",
         "id": 3,
-        "component": "service3"
+        "component": "service3",
+        "median": 200
       },
       {
         "nodeType": "REACTION",
         "id": 4,
-        "component": "service4"
+        "component": "service4",
+        "median": 0
       },
       {
         "nodeType": "MESSAGE",

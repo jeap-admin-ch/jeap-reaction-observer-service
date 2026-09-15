@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.2.0] - 2026-09-15
+
+### Added
+- Reaction nodes carry their `median`, the median of their daily observation counts within the statistics
+  window. It is counted per reaction and was serialized onto trigger edges only, so a reaction that no message
+  triggered - one set off by a timer, or one whose trigger observation arrived incomplete - reached consumers
+  with no number although it had been counted. Trigger edges keep their `median` unchanged.
+
+### Changed
+- `ReactionGraphRepository.buildFullGraph` takes the medians per reaction id and builds them into the graph.
+  `ReactionGraphBuilderService` no longer enriches a finished graph: nodes and edges hold the same `Reaction`
+  records, so enriching one of the two would leave records that no longer compare equal, and `GraphExtractor`
+  matches an edge to its node by value. A downstream implementation of that interface has to take the map.
+- The fingerprint of every graph changes once, because it covers the new field: on the first refresh after the
+  upgrade, consumers see every entity tag move and re-fetch once, even where the graph itself did not change.
+
 ## [12.1.0] - 2026-09-15
 
 ### Dependencies

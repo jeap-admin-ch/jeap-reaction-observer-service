@@ -38,7 +38,7 @@ class GraphFingerprintCalculatorTest {
     @Test
     void shouldReturnSameFingerprintForSameGraphWithDifferentOrder() {
         MessageNodeDto messageNode = new MessageNodeDto(1L, "TestType", "v1");
-        ReactionNodeDto reactionNode = new ReactionNodeDto(2L, "TestComponent");
+        ReactionNodeDto reactionNode = new ReactionNodeDto(2L, "TestComponent", 5);
         TriggerEdgeDto triggerEdge = new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5);
 
         // Original order
@@ -56,7 +56,7 @@ class GraphFingerprintCalculatorTest {
     @Test
     void shouldReturnSameFingerprintForSameEdgesInDifferentOrder() {
         MessageNodeDto messageNode = new MessageNodeDto(1L, "TypeA", "v1");
-        ReactionNodeDto reactionNode = new ReactionNodeDto(2L, "ComponentA");
+        ReactionNodeDto reactionNode = new ReactionNodeDto(2L, "ComponentA", 5);
         TriggerEdgeDto edge1 = new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5);
         ActionEdgeDto edge2 = new ActionEdgeDto(2L, 1L, NodeDtoType.MESSAGE);
 
@@ -72,7 +72,7 @@ class GraphFingerprintCalculatorTest {
     @Test
     void shouldReturnDifferentFingerprintForDifferentMedian() {
         MessageNodeDto messageNode = new MessageNodeDto(1L, "TestType", "v1");
-        ReactionNodeDto reactionNode = new ReactionNodeDto(2L, "TestComponent");
+        ReactionNodeDto reactionNode = new ReactionNodeDto(2L, "TestComponent", 5);
 
         TriggerEdgeDto edge1 = new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5);
         TriggerEdgeDto edge2 = new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 6); // different median
@@ -84,6 +84,19 @@ class GraphFingerprintCalculatorTest {
         String fingerprint2 = calculator.calculate(graphDto2);
 
         assertThat(fingerprint1).isNotEqualTo(fingerprint2);
+    }
+
+    @Test
+    void shouldReturnDifferentFingerprintForDifferentMedianOnTheReactionNode() {
+        MessageNodeDto messageNode = new MessageNodeDto(1L, "TestType", "v1");
+        TriggerEdgeDto edge = new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5);
+
+        GraphDto graphDto1 = new GraphDto(
+                List.of(messageNode, new ReactionNodeDto(2L, "TestComponent", 5)), List.of(edge));
+        GraphDto graphDto2 = new GraphDto(
+                List.of(messageNode, new ReactionNodeDto(2L, "TestComponent", 6)), List.of(edge));
+
+        assertThat(calculator.calculate(graphDto1)).isNotEqualTo(calculator.calculate(graphDto2));
     }
 
     @Test
@@ -99,7 +112,7 @@ class GraphFingerprintCalculatorTest {
 
     private GraphDto createSampleGraph() {
         MessageNodeDto messageNode = new MessageNodeDto(1L, "TestType", "v1");
-        ReactionNodeDto reactionNode = new ReactionNodeDto(2L, "TestComponent");
+        ReactionNodeDto reactionNode = new ReactionNodeDto(2L, "TestComponent", 5);
         TriggerEdgeDto triggerEdge = new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5);
         return new GraphDto(List.of(messageNode, reactionNode), List.of(triggerEdge));
     }
@@ -116,11 +129,11 @@ class GraphFingerprintCalculatorTest {
     void calculate_ofAFixedGraph_isThisValue() {
         GraphDto graph = new GraphDto(
                 List.of(new MessageNodeDto(1L, "OrdersPaymentAcceptedEvent", null),
-                        new ReactionNodeDto(2L, "orders-intake")),
+                        new ReactionNodeDto(2L, "orders-intake", 5)),
                 List.of(new TriggerEdgeDto(1L, NodeDtoType.MESSAGE, 2L, 5)));
 
         assertThat(calculator.calculate(graph))
                 .describedAs("if this changed on purpose, every entity tag a consumer stored is invalidated")
-                .isEqualTo("d308da964cc5a296f5ebf8b8f036405913d052b0f8544a5e8912f184ec95e838");
+                .isEqualTo("07c9c6171566fc4b3be923a72c7fa0cc9f8411c2106c98cecbb490427f15b525");
     }
 }

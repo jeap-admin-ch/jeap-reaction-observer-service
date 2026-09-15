@@ -81,6 +81,7 @@ class GraphControllerTest {
                 .id(2L)
                 .component("TestComponent")
                 .system("TestSystem")
+                .median(5)
                 .build();
 
         Trigger trigger = Trigger.builder()
@@ -105,6 +106,7 @@ class GraphControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
                 .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
+                .andExpect(jsonPath("$.graph.nodes[1].median").value(5))
                 .andExpect(jsonPath("$.graph.edges[0].edgeType").value("TRIGGER"))
                 .andExpect(jsonPath("$.fingerprint").value(expectedFingerprint));
     }

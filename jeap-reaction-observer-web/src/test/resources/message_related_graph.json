@@ -11,12 +11,14 @@
         {
           "nodeType": "REACTION",
           "id": 4,
-          "component": "service4"
+          "component": "service4",
+          "median": 0
         },
         {
           "nodeType": "REACTION",
           "id": 1,
-          "component": "service1"
+          "component": "service1",
+          "median": 5
         },
         {
           "nodeType": "MESSAGE",
@@ -80,7 +82,8 @@
         {
           "nodeType": "REACTION",
           "id": 1,
-          "component": "service1"
+          "component": "service1",
+          "median": 5
         },
         {
           "nodeType": "MESSAGE",

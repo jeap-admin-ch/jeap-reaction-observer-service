@@ -4,7 +4,8 @@
       {
         "nodeType": "REACTION",
         "id": 2,
-        "component": "service2"
+        "component": "service2",
+        "median": 7
       },
       {
         "nodeType": "MESSAGE",

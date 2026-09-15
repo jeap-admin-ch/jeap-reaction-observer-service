@@ -280,6 +280,40 @@ class GraphExtractorTest {
     }
 
     /** Nodes and edges as sets: both forms build them from sets, so the order is not part of the answer. */
+    @Test
+    void everySubgraph_keepsItsEdgesWiredToItsNodes() {
+        // The extractor matches an edge to its node by value, so a node rebuilt with one field changed - a
+        // median applied to a finished graph, say - would leave every subgraph with its nodes and no edges.
+        Reaction counted = Reaction.builder()
+                .id(300L).component("ComponentZ").system("SystemC").median(9252).build();
+        Message trigger = Message.builder()
+                .id(3L).messageType("TypeC").variant("v1").semantic(SemanticType.EVENT).build();
+        Graph graph = new Graph(
+                List.of(message1, message2, reaction1, reaction2, counted, trigger),
+                List.of(trigger1, action1, unrelatedTrigger,
+                        Trigger.builder().source(trigger).target(counted).median(9252).build()));
+
+        assertEdgesAreWiredToNodes(graph);
+        extractor.getSystemRelatedGraphs(graph).values().forEach(GraphExtractorTest::assertEdgesAreWiredToNodes);
+        extractor.getComponentRelatedGraphs(graph).values().forEach(GraphExtractorTest::assertEdgesAreWiredToNodes);
+        extractor.getMessageRelatedGraphs(graph).values().forEach(GraphExtractorTest::assertEdgesAreWiredToNodes);
+
+        // And the subgraph of the counted reaction really has its edge, rather than passing the assertion by
+        // having none at all
+        assertThat(extractor.getSystemRelatedGraph(graph, "SystemC").edges()).hasSize(1);
+    }
+
+    private static void assertEdgesAreWiredToNodes(Graph graph) {
+        Set<Node> nodes = Set.copyOf(graph.nodes());
+        assertThat(graph.edges()).allSatisfy(edge -> {
+            if (edge instanceof Trigger triggerEdge) {
+                assertThat(nodes).contains(triggerEdge.source(), triggerEdge.target());
+            } else if (edge instanceof Action actionEdge) {
+                assertThat(nodes).contains(actionEdge.source(), actionEdge.target());
+            }
+        });
+    }
+
     private static void assertSameGraph(Graph expected, Graph actual, String what) {
         assertThat(Set.copyOf(actual.nodes()))
                 .describedAs("nodes of " + what)

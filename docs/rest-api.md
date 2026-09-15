@@ -111,9 +111,14 @@ graph even when a refresh lands in between.
 The graph DTO distinguishes:
 
 - message nodes by message type and optional variant
-- reaction nodes by id and component name
+- reaction nodes by id, component name and an optional `median`
 - trigger edges with an optional `median`
 - action edges without the median field
+
+The `median` is counted per reaction - the median of its daily observation counts within the statistics
+window - so a reaction node and every trigger edge into it carry the same number. It is on the node as well
+because a reaction that no message triggered has no trigger edge to carry it, and such a reaction is still
+observed and counted.
 
 ## OpenAPI
 

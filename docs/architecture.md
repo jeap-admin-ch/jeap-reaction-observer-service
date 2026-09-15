@@ -109,8 +109,13 @@ a conditional request be answered without extracting, serializing or hashing any
 - trigger edges connect message -&gt; reaction
 - action edges connect reaction -&gt; message
 
-`ReactionGraphBuilderService` then filters the graph to reactions observed since `fromDate` and enriches trigger edges with
-median values computed from aggregated daily counts.
+`ReactionGraphBuilderService` reads the reactions observed since `fromDate` and the median daily count of each,
+hands the medians to the repository so that reaction nodes and trigger edges are built with them, and filters
+the graph to those reactions.
+
+The medians are built into the graph rather than applied to a finished one, because nodes and edges hold the
+same `Reaction` records: enriching only one of the two would leave records that no longer compare equal, and
+`GraphExtractor` matches an edge to its node by value.
 
 ## Read path
 
