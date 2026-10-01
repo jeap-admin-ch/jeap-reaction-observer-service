@@ -7,6 +7,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [12.7.0] - 2026-10-01
 
+### Fixed
+- Work around the malformed `java-json-canonicalization:1.1` POM in license compliance checks; its Apache-2.0 license is verified separately.
+
 ### Dependencies
 - **ch.admin.bit.jeap:jeap-spring-boot-parent**: 41.10.0 → 41.13.0 (minor)
 
