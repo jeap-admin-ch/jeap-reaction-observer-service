@@ -29,17 +29,15 @@ The service requires:
 
 - a PostgreSQL-compatible database in production
 - Kafka plus Schema Registry through jEAP Messaging
-- credentials for two HTTP Basic users: one read user and one write user
 - **an OAuth2 authorization server and a system name** - `jeap.security.oauth2.resourceserver.authorization-server.issuer`
-  (with a `jwk-set-uri`) and `jeap.security.oauth2.resourceserver.system-name`. As of 11.0.0 the service does
-  not start without them: the API is authenticated both ways and both have to work. See
-  [Configuration](configuration.md#api-security-with-oauth2)
+  (with a `jwk-set-uri`) and `jeap.security.oauth2.resourceserver.system-name`. The service refuses to start
+  without them and the REST API accepts bearer tokens only. See
+  [Configuration](configuration.md#api-security)
 
 For local development, `docker/docker-compose.yml` provides PostgreSQL, Kafka, and Schema Registry, and
 `application-localtest.yml` contains matching sample connection properties - including an authorization server
 pointing at a local [jEAP OAuth mock server](https://jeap-admin-ch.github.io/docs/building-blocks/reusable-microservices/jeap-oauth-mock-server/getting-started)
-on port 8180. The mock only has to run when a request actually carries a bearer token; HTTP Basic works
-without it.
+on port 8180. The mock is needed when a request carries a bearer token.
 
 ## 4. Configure the service
 
@@ -58,8 +56,7 @@ jeap:
 The in-repo test and local examples use simpler topic names such as `reaction-identified` and `reactions-observed`,
 but the default packaged configuration points to the `applicationplatform-*` topics.
 
-You must also configure the read/write users and, if needed, adapt the aggregation and housekeeping schedules.
-See [Configuration reference](configuration.md).
+If needed, adapt the aggregation and housekeeping schedules. See [Configuration reference](configuration.md).
 
 ## 5. Start the service
 

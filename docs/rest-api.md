@@ -5,41 +5,24 @@ context path, which defaults to `/jeap-reaction-observer`.
 
 ## Authentication and authorization
 
-The API accepts **two ways of authenticating**, on the same paths:
+The API accepts **OAuth2 bearer tokens only**. Each token must carry the semantic role
+`<system-name>_@reactions_#read` to access read endpoints or `<system-name>_@reactions_#write` to trigger
+aggregation. HTTP Basic credentials are not supported.
 
-| Mechanism        | Credentials                                                                                     | Available |
-|------------------|-------------------------------------------------------------------------------------------------|-----------|
-| HTTP Basic       | the two configured users, with the roles `reaction-observer-read` and `reaction-observer-write`  | always    |
-| OAuth2 (bearer)  | a token carrying the semantic role `<system-name>_@reactions_#read` or `..._#write`             | always    |
-
-**Both are required to be configured.** An instance that configures no authorization server, or one without a
-system name, **does not start** - see [Configuration](configuration.md). There is no fallback to HTTP Basic
-alone: an instance serving only passwords would look healthy while being unusable to a consumer that
-authenticates with a token.
-
-**One mechanism, one rule.** A password is authorized by the in-memory user's role, a token by its semantic
-role - and by nothing else. A token carrying the simple role `reaction-observer-read` is refused, so that what
-a grant means does not depend on how the caller connected.
+The authorization server issuer and system name are required; the service refuses to start without either.
+See [Configuration](configuration.md#api-security).
 
 The semantic role has **no tenant part**: a tenant says which mandant may exercise a role, and there is no such
 division here - a system's subgraph carries the messages of other systems by construction, and a consumer that
 documents a landscape reads every system of it.
 
-Both properties are checked while the service starts, and either missing one stops it:
-`...authorization-server.issuer`, because without it there is nothing to validate a token with; and
-`...system-name`, because that is what makes the jEAP security starter evaluate semantic roles - without it
-the API would accept tokens and authorize none of them.
+The controller methods enforce those roles with jEAP semantic checks, for example
+`@PreAuthorize("hasRole('reactions', 'read')")`. `ReactionsApiRoleCoverageTest` fails the build if an API
+handler lacks one of the read/write checks.
 
-`WebSecurityConfig` permits HTTP `GET` requests to `/api/**` at the filter-chain level and requires anything
-else to be authenticated; every controller method is authorized with
-`@PreAuthorize("@reactionsApiAuthorization.canRead()")` or `...canWrite()`, which is where the two mechanisms
-meet - one bean with one branch per mechanism, because the starter's two-argument `hasRole(resource,
-operation)` only exists on the expression root it installs for a token and would not resolve at all on a
-basic-auth request. `ReactionsApiRoleCoverageTest` fails the build if a handler appears without it.
-
-**No CSRF token is needed.** The API is stateless and authenticated per request, so its own filter chain
-disables CSRF protection - for both mechanisms. That is also why bearer tokens are handled by this chain
-rather than left to the starter's, which enables CSRF with a cookie repository.
+**No CSRF token is needed.** The API is stateless and authenticated per request, so its filter chain disables
+CSRF protection. It handles bearer tokens directly rather than leaving them to the starter's default chain,
+which enables CSRF with a cookie repository.
 
 ## Endpoints
 
@@ -122,8 +105,8 @@ observed and counted.
 
 ## OpenAPI
 
-`OpenApiConfig` registers a Springdoc group named `reaction-observer-service-api` for `/api/**` and describes the API as
-HTTP Basic secured. If Swagger UI is enabled in the surrounding deployment, it reflects this group.
+`OpenApiConfig` registers a Springdoc group named `reaction-observer-service-api` for `/api/**` and describes the API
+as bearer-token secured. If Swagger UI is enabled in the surrounding deployment, it reflects this group.
 
 ## Related
 

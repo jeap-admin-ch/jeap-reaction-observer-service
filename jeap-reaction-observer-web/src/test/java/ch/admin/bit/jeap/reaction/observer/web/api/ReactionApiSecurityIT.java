@@ -42,21 +42,19 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * That the API can be reached with <b>both</b> ways of authenticating, over HTTP, through a real servlet
- * container - and that neither of them runs into a CSRF token.
+ * That the API can be reached with bearer tokens over HTTP, through a real servlet container, without a CSRF
+ * token, and no longer accepts HTTP Basic credentials.
  * <p>
  * A real container rather than {@code MockMvc} on purpose: what is under test is the filter chain, the
  * {@code WWW-Authenticate} handling, the entity tags on the wire and the absence of CSRF enforcement. MockMvc
  * would exercise the same filters but not the container's own handling of a header or a status, and the
  * question here is precisely what a client sees.
  *
- * @see ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization
  */
 // The consumer contracts of this module are declared once, on IntegrationTestBase: the annotation processor
 // writes one file per message type per module, so declaring them again here fails the compilation.
@@ -108,10 +106,6 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
         registry.add("jeap.security.oauth2.resourceserver.authorization-server.jwk-set-uri", JWKS::uri);
         // ... and configuring a system name is what activates semantic roles
         registry.add("jeap.security.oauth2.resourceserver.system-name", () -> SYSTEM_NAME);
-        registry.add("jeap.reaction.observer.read-user.username", () -> "read");
-        registry.add("jeap.reaction.observer.read-user.password", () -> "{noop}read-secret");
-        registry.add("jeap.reaction.observer.write-user.username", () -> "write");
-        registry.add("jeap.reaction.observer.write-user.password", () -> "{noop}write-secret");
     }
 
     @LocalServerPort
@@ -140,17 +134,6 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
         graphHolder.setGraph(aGraph());
     }
 
-    // --- HTTP Basic ----------------------------------------------------------------------------------------
-
-    @Test
-    void readEndpoint_withBasicAuthOfTheReadUser_isAnswered() {
-        ResponseEntity<String> response = get("/api/graphs/systems", basic("read", "read-secret"));
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("orders");
-        assertThat(response.getHeaders().getETag()).startsWith("\"sha256:");
-    }
-
     /**
      * The {@code path} an index publishes has to be usable as it stands - which means it carries the context
      * path this service is served under. Asserted here rather than in a slice test, because the context path
@@ -158,12 +141,12 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
      */
     @Test
     void anIndexEntry_publishesAPathThatCanBeFetched() {
-        ResponseEntity<String> index = get("/api/graphs/systems", basic("read", "read-secret"));
+        ResponseEntity<String> index = get("/api/graphs/systems", bearer(READ_ROLE));
 
         assertThat(index.getBody()).contains("\"path\":\"" + CONTEXT_PATH + "/api/graphs/systems/orders\"");
 
         // And it really is where the graph is: the same path, fetched
-        ResponseEntity<String> graph = get("/api/graphs/systems/orders", basic("read", "read-secret"));
+        ResponseEntity<String> graph = get("/api/graphs/systems/orders", bearer(READ_ROLE));
         assertThat(graph.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
@@ -173,33 +156,26 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
      */
     @Test
     void anIndexEntryTag_isTheTagOfTheGraph_andTheGraphAnswers304ForIt() {
-        ResponseEntity<String> index = get("/api/graphs/systems", basic("read", "read-secret"));
-        String tagOfTheSystemGraph = get("/api/graphs/systems/orders", basic("read", "read-secret"))
+        ResponseEntity<String> index = get("/api/graphs/systems", bearer(READ_ROLE));
+        String tagOfTheSystemGraph = get("/api/graphs/systems/orders", bearer(READ_ROLE))
                 .getHeaders().getETag();
 
         assertThat(index.getBody()).contains(tagOfTheSystemGraph.replace("\"", "\\\""));
 
         ResponseEntity<String> conditional = exchange(HttpMethod.GET, "/api/graphs/systems/orders",
-                basic("read", "read-secret"), tagOfTheSystemGraph);
+                bearer(READ_ROLE), tagOfTheSystemGraph);
         assertThat(conditional.getStatusCode()).isEqualTo(HttpStatus.NOT_MODIFIED);
     }
 
     /** And an index that has not moved is a 304 as well, which is what makes a round of them cheap. */
     @Test
     void anIndex_askedWithItsOwnTag_isNotModified() {
-        String tag = get("/api/graphs/systems", basic("read", "read-secret")).getHeaders().getETag();
+        String tag = get("/api/graphs/systems", bearer(READ_ROLE)).getHeaders().getETag();
 
         ResponseEntity<String> conditional = exchange(HttpMethod.GET, "/api/graphs/systems",
-                basic("read", "read-secret"), tag);
+                bearer(READ_ROLE), tag);
 
         assertThat(conditional.getStatusCode()).isEqualTo(HttpStatus.NOT_MODIFIED);
-    }
-
-    @Test
-    void readEndpoint_withBasicAuthOfTheWriteUser_isRefused() {
-        // The two users are separate: writing does not imply reading, as it never has
-        assertThat(get("/api/graphs/systems", basic("write", "write-secret")).getStatusCode())
-                .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
@@ -207,16 +183,8 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
         ResponseEntity<String> response = get("/api/graphs/systems", null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(response.getHeaders().getFirst(HttpHeaders.WWW_AUTHENTICATE)).contains("Basic");
+        assertThat(response.getHeaders().getFirst(HttpHeaders.WWW_AUTHENTICATE)).contains("Bearer");
     }
-
-    @Test
-    void readEndpoint_withTheWrongPassword_isUnauthorized() {
-        assertThat(get("/api/graphs/systems", basic("read", "not-the-password")).getStatusCode())
-                .isEqualTo(HttpStatus.UNAUTHORIZED);
-    }
-
-    // --- Bearer tokens with the semantic role --------------------------------------------------------------
 
     @Test
     void readEndpoint_withATokenCarryingTheReadRole_isAnswered() {
@@ -257,23 +225,14 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
-    /**
-     * A token is authorized by its semantic role and by nothing else: the simple role a basic-auth user holds
-     * is not a grant a token can carry. One credential, one role model.
-     */
+    /** A token is authorized by its semantic role and by nothing else. */
     @Test
-    void readEndpoint_withATokenCarryingTheBasicAuthRole_isForbidden() {
+    void readEndpoint_withATokenCarryingAnUnrelatedSimpleRole_isForbidden() {
         assertThat(get("/api/graphs/systems", bearer("reaction-observer-read")).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     // --- The write endpoint, and CSRF ----------------------------------------------------------------------
-
-    @Test
-    void writeEndpoint_withBasicAuthOfTheWriteUser_isAnswered() {
-        assertThat(get("/api/management/aggregate-data/2026-09-09", basic("write", "write-secret"))
-                .getStatusCode()).isEqualTo(HttpStatus.OK);
-    }
 
     @Test
     void writeEndpoint_withATokenCarryingTheWriteRole_isAnswered() {
@@ -282,15 +241,13 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
     }
 
     @Test
-    void writeEndpoint_withReadCredentialsOnly_isForbidden() {
-        assertThat(get("/api/management/aggregate-data/2026-09-09", basic("read", "read-secret"))
-                .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    void writeEndpoint_withReadRoleOnly_isForbidden() {
         assertThat(get("/api/management/aggregate-data/2026-09-09", bearer(READ_ROLE)).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     /**
-     * <b>No CSRF token is needed, with either mechanism.</b>
+     * <b>No CSRF token is needed for bearer-token requests.</b>
      * <p>
      * A state-changing request that the filter chain rejected for a missing CSRF token would answer
      * {@code 403} <em>before</em> reaching the handler mapping. These posts get {@code 405 Method Not
@@ -300,14 +257,10 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
      * <p>
      * It matters because the jEAP security starter's own filter chain enables CSRF with a cookie repository:
      * a bearer-token client that fell through to that chain would need a CSRF cookie it cannot have. This
-     * API's chain handles both mechanisms itself and disables CSRF, and this test is what says so.
+     * API's chain handles bearer requests itself and disables CSRF, and this test is what says so.
      */
     @Test
-    void aPostIsNotRejectedByCsrf_withEitherMechanism() {
-        assertThat(post("/api/management/aggregate-data/2026-09-09", basic("write", "write-secret"))
-                .getStatusCode())
-                .describedAs("basic auth: 405 from the handler mapping, not 403 from the CSRF filter")
-                .isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
+    void aPostIsNotRejectedByCsrf_withBearerToken() {
         assertThat(post("/api/management/aggregate-data/2026-09-09", bearer(WRITE_ROLE)).getStatusCode())
                 .describedAs("bearer token: 405 from the handler mapping, not 403 from the CSRF filter")
                 .isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
@@ -320,50 +273,34 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
-    // --- Both mechanisms, on one instance ------------------------------------------------------------------
+    // --- Authentication and authorization on one instance -------------------------------------------------
 
     /**
-     * <b>The claim of this whole change, in one method:</b> one running instance serves the same endpoint to a
-     * password and to a bearer token at the same time, and refuses the wrong version of either.
+     * One running instance serves bearer tokens and refuses Basic credentials and tokens without the required
+     * semantic role.
      * <p>
-     * The requests are <b>interleaved</b> on purpose - basic, bearer, basic, bearer - because the thing that
-     * could break is shared: one filter chain, one authorization rule, one snapshot. A mechanism that only
-     * works when it is the first to be tried, or that leaves the chain in a state the other cannot use, passes
-     * two separate tests and fails this one.
-     * <p>
-     * That both answers are byte-identical and carry the same {@code ETag} is what says it really is the same
-     * instance and the same state answering both, rather than two runs that happened to agree.
+     * The repeated requests exercise the same stateless filter chain and graph snapshot.
      */
     @Test
-    void oneInstance_servesBasicAuthAndBearerTokens_atTheSameTime() {
+    void oneInstance_acceptsBearerTokensAndRejectsBasicCredentials() {
         String resource = "/api/graphs/systems";
 
-        // Positive, interleaved: each mechanism works with the other in between
-        ResponseEntity<String> firstBasic = get(resource, basic("read", "read-secret"));
         ResponseEntity<String> firstBearer = get(resource, bearer(READ_ROLE));
-        ResponseEntity<String> secondBasic = get(resource, basic("read", "read-secret"));
         ResponseEntity<String> secondBearer = get(resource, bearer(READ_ROLE));
 
-        assertThat(List.of(firstBasic, firstBearer, secondBasic, secondBearer))
-                .describedAs("both mechanisms answer, whichever went first")
+        assertThat(List.of(firstBearer, secondBearer))
+                .describedAs("bearer tokens continue to be accepted on the same instance")
                 .allSatisfy(response -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK));
 
-        // And it is one instance with one state behind both of them
-        assertThat(firstBearer.getBody())
-                .describedAs("the same instance and the same graph answer either credential")
-                .isEqualTo(firstBasic.getBody());
-        assertThat(firstBearer.getHeaders().getETag()).isEqualTo(firstBasic.getHeaders().getETag());
-        assertThat(secondBasic.getBody()).isEqualTo(firstBasic.getBody());
-        assertThat(secondBearer.getBody()).isEqualTo(firstBasic.getBody());
-
-        // Negative, on the same instance and in the same breath: the wrong version of either is refused,
-        // and each is refused in its own way - an unusable password is not authenticated, a token without
-        // the role is authenticated and not permitted
-        assertThat(get(resource, basic("read", "not-the-password")).getStatusCode())
-                .describedAs("a wrong password")
+        ResponseEntity<String> rejectedBasic = get(resource, "Basic cmVhZDpyZWFkLXNlY3JldA==");
+        assertThat(rejectedBasic.getStatusCode())
+                .describedAs("Basic credentials are no longer supported")
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(get(resource, basic("write", "write-secret")).getStatusCode())
-                .describedAs("the write user, which may not read")
+        assertThat(rejectedBasic.getHeaders().getFirst(HttpHeaders.WWW_AUTHENTICATE))
+                .contains("Bearer")
+                .doesNotContain("Basic");
+        assertThat(get(resource, bearer(WRITE_ROLE)).getStatusCode())
+                .describedAs("the write role may not read")
                 .isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(get(resource, bearer(SOME_OTHER_ROLE)).getStatusCode())
                 .describedAs("a token carrying another role")
@@ -375,32 +312,9 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
                 .describedAs("no credentials at all")
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
 
-        // ... and after all of that, both mechanisms still work: nothing above left the chain unusable
-        assertThat(get(resource, basic("read", "read-secret")).getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(get(resource, bearer(READ_ROLE)).getStatusCode()).isEqualTo(HttpStatus.OK);
-    }
-
-    /**
-     * The same, for the endpoint that changes something: one instance, both mechanisms, and the read
-     * credentials of either refused.
-     */
-    @Test
-    void oneInstance_servesTheWriteEndpointToBothMechanisms_andRefusesReadCredentials() {
-        String resource = "/api/management/aggregate-data/2026-09-09";
-
-        assertThat(get(resource, basic("write", "write-secret")).getStatusCode())
-                .describedAs("the write user over basic auth")
-                .isEqualTo(HttpStatus.OK);
-        assertThat(get(resource, bearer(WRITE_ROLE)).getStatusCode())
-                .describedAs("a token carrying the write role, on the same instance")
-                .isEqualTo(HttpStatus.OK);
-
-        assertThat(get(resource, basic("read", "read-secret")).getStatusCode())
-                .describedAs("the read user may not trigger an aggregation")
-                .isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(get(resource, bearer(READ_ROLE)).getStatusCode())
-                .describedAs("nor may a token with the read role")
-                .isEqualTo(HttpStatus.FORBIDDEN);
+                .describedAs("rejecting Basic credentials does not disrupt bearer authentication")
+                .isEqualTo(HttpStatus.OK);
     }
 
     // --- Helpers -------------------------------------------------------------------------------------------
@@ -432,11 +346,6 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
                 .exchange((request, response) -> ResponseEntity.status(response.getStatusCode())
                         .headers(response.getHeaders())
                         .body(new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8)));
-    }
-
-    private static String basic(String username, String password) {
-        return "Basic " + Base64.getEncoder()
-                .encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
     }
 
     private String bearer(String... userRoles) {

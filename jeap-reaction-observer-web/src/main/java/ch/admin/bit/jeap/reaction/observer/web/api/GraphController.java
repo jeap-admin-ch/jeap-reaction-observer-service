@@ -51,7 +51,7 @@ public class GraphController {
     private final GraphExtractor graphExtractor;
     private final EtagSupport etagSupport;
 
-    @PreAuthorize("@reactionsApiAuthorization.canRead()")
+    @PreAuthorize("hasRole('reactions', 'read')")
     @Operation(summary = "Get all reactions graph")
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs")
@@ -64,7 +64,7 @@ public class GraphController {
         return answer(GraphDtoMapper.map(snapshot.graph()), fingerprint);
     }
 
-    @PreAuthorize("@reactionsApiAuthorization.canRead()")
+    @PreAuthorize("hasRole('reactions', 'read')")
     @Operation(summary = "Get graph for a system")
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs/systems/{systemName}")
@@ -83,7 +83,7 @@ public class GraphController {
         return answer(GraphDtoMapper.map(systemGraph), fingerprint);
     }
 
-    @PreAuthorize("@reactionsApiAuthorization.canRead()")
+    @PreAuthorize("hasRole('reactions', 'read')")
     @Operation(summary = "Get graph for a component")
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs/components/{componentName}")
@@ -102,7 +102,7 @@ public class GraphController {
         return answer(GraphDtoMapper.map(componentGraph), fingerprint);
     }
 
-    @PreAuthorize("@reactionsApiAuthorization.canRead()")
+    @PreAuthorize("hasRole('reactions', 'read')")
     @Operation(summary = "Get variant graphs for a message type")
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping("/graphs/messages/{messageType}")

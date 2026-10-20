@@ -14,9 +14,9 @@ import org.springframework.context.annotation.Configuration;
                 title = "jEAP Reaction Observer Service",
                 description = "The jEAP Reaction Observation Service records and aggregates triggers, actions, and reactions from events and makes the data available via a REST API."
         ),
-        security = {@SecurityRequirement(name = "basicAuth")}
+        security = {@SecurityRequirement(name = "bearerAuth")}
 )
-@SecurityScheme(name = "basicAuth", type = SecuritySchemeType.HTTP, scheme = "basic")
+@SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT")
 @Configuration
 public class OpenApiConfig {
     @Bean

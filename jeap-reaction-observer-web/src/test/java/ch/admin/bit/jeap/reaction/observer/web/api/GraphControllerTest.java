@@ -7,7 +7,6 @@ import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot;
 import tools.jackson.databind.json.JsonMapper;
 import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshotFactory;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
-import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.*;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphDtoMapper;
@@ -37,13 +36,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(GraphController.class)
 @AutoConfigureMockMvc
-@Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class, EtagSupport.class})
+@Import({WebSecurityConfig.class, ReactionObserverProperties.class, EtagSupport.class})
 // The resource server is required as of 11.0.0, so a slice needs the starter's security configuration - the
 // same beans production has - together with the properties it reads and the issuer and system name that
 // src/test/resources/application.yml sets
@@ -52,9 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnableWebSecurity
 class GraphControllerTest {
 
-    /** The read user of the test configuration - the basic-auth half of the API's two mechanisms. */
-    private static final String READ_USER = "read";
-    private static final String READ_PASSWORD = "secret";
+    private static final String READ_ROLE = "reactionobserver_@reactions_#read";
 
     @Autowired
     private MockMvc mockMvc;
@@ -101,7 +97,7 @@ class GraphControllerTest {
         // Act & Assert
                 mockMvc.perform(get("/api/graphs")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic(READ_USER, READ_PASSWORD))
+                        .with(authentication(readRoleAuthentication()))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
@@ -142,7 +138,7 @@ class GraphControllerTest {
 
                 mockMvc.perform(get("/api/graphs/systems/{systemName}", systemName)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
                 .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
@@ -161,7 +157,7 @@ class GraphControllerTest {
 
                 mockMvc.perform(get("/api/graphs/systems/{systemName}", systemName)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isNotFound());
     }
 
@@ -196,7 +192,7 @@ class GraphControllerTest {
 
                 mockMvc.perform(get("/api/graphs/components/{componentName}", componentName)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.graph.nodes[0].id").value(1))
                 .andExpect(jsonPath("$.graph.nodes[1].id").value(2))
@@ -215,7 +211,7 @@ class GraphControllerTest {
 
                 mockMvc.perform(get("/api/graphs/components/{componentName}", componentName)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isNotFound());
     }
 
@@ -279,7 +275,7 @@ class GraphControllerTest {
 
                 mockMvc.perform(get("/api/graphs/messages/{messageType}", messageType)
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.['TestType/v1'].fingerprint").value("fp-v1"))
                 .andExpect(jsonPath("$.['TestType'].fingerprint").value("fp-null"));
@@ -301,7 +297,7 @@ class GraphControllerTest {
         mockMvc.perform(get("/api/graphs/systems/TestSystem")
                         .header(HttpHeaders.IF_NONE_MATCH,
                                 "\"sha256:" + snapshot.fingerprintOfSystem("TestSystem") + "\"")
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isNotModified())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-cache"));
 
@@ -321,7 +317,7 @@ class GraphControllerTest {
 
         mockMvc.perform(get("/api/graphs/systems/TestSystem")
                         .header(HttpHeaders.IF_NONE_MATCH, "\"sha256:what-it-had-before\"")
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.ETAG,
                         "\"sha256:" + snapshot.fingerprintOfSystem("TestSystem") + "\""))
@@ -336,7 +332,8 @@ class GraphControllerTest {
         when(graphHolder.getSnapshot()).thenReturn(GraphSnapshot.empty());
         when(graphExtractor.getSystemRelatedGraph(empty, "no-such-system")).thenReturn(empty);
 
-        mockMvc.perform(get("/api/graphs/systems/no-such-system").with(httpBasic(READ_USER, READ_PASSWORD)))
+        mockMvc.perform(get("/api/graphs/systems/no-such-system")
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isNotFound());
     }
 
@@ -356,5 +353,9 @@ class GraphControllerTest {
         return new GraphSnapshotFactory(new GraphExtractor(),
                 new GraphFingerprintCalculator(JsonMapper.builder().build()),
                 new EtagSupport(JsonMapper.builder().build()), "").of(graph);
+    }
+
+    private static JeapAuthenticationToken readRoleAuthentication() {
+        return JeapAuthenticationTestTokenBuilder.create().withUserRoles(READ_ROLE).build();
     }
 }

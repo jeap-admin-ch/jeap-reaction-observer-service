@@ -1,6 +1,5 @@
 package ch.admin.bit.jeap.reaction.observer.web.api;
 
-import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -18,24 +17,20 @@ import java.util.TreeSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * That every handler of the API is authorized, and authorized through {@link ReactionsApiAuthorization}.
+ * That every handler of the API is authorized with one of its semantic roles.
  * <p>
- * The chain lets every {@code GET} under {@code /api} through and leaves the decision to the handler, which is
- * what lets one rule serve both HTTP Basic and a bearer token. The price of that is exactly this: <b>a handler
- * added without the annotation would be public</b>, and nothing else would say so. Hence a test that reads the
- * handlers rather than a list.
- * <p>
- * It also insists on the expression being the bean's: {@code hasRole('reactions', 'read')} written directly
- * into an annotation would work on an instance with semantic authorization and fail on every other one - see
- * {@link ReactionsApiAuthorization}.
+ * The chain requires authentication, while the handler decides which semantic role is needed. This test reads
+ * the handlers rather than a list so a new endpoint cannot accidentally omit that authorization.
  */
 class ReactionsApiRoleCoverageTest {
 
     private static final String API_PACKAGE = "ch.admin.bit.jeap.reaction.observer.web.api";
-    private static final String AUTHORIZATION_BEAN = "@reactionsApiAuthorization.";
+    private static final Set<String> AUTHORIZATION_EXPRESSIONS = Set.of(
+            "hasRole('reactions', 'read')",
+            "hasRole('reactions', 'write')");
 
     @Test
-    void everyApiHandler_isAuthorizedThroughTheAuthorizationBean() {
+    void everyApiHandler_hasASemanticRoleAuthorizationCheck() {
         Set<String> unauthorized = new TreeSet<>();
 
         for (Class<?> controller : apiControllers()) {
@@ -45,16 +40,14 @@ class ReactionsApiRoleCoverageTest {
                 }
                 PreAuthorize preAuthorize = AnnotatedElementUtils.findMergedAnnotation(method,
                         PreAuthorize.class);
-                if (preAuthorize == null || !preAuthorize.value().startsWith(AUTHORIZATION_BEAN)) {
+                if (preAuthorize == null || !AUTHORIZATION_EXPRESSIONS.contains(preAuthorize.value())) {
                     unauthorized.add(controller.getSimpleName() + "." + method.getName());
                 }
             }
         }
 
         assertThat(unauthorized)
-                .describedAs("every handler under /api needs @PreAuthorize(\"" + AUTHORIZATION_BEAN
-                             + "canRead()\") or ...canWrite(), or it is reachable by anyone who can reach "
-                             + "the service")
+                .describedAs("every handler under /api needs a semantic read/write @PreAuthorize role check")
                 .isEmpty();
     }
 

@@ -32,8 +32,8 @@ class WebSecurityConfigTest {
     }
 
     /**
-     * And there is no fallback to HTTP Basic alone: an instance without an authorization server does not
-     * start, rather than serving an API a token-authenticating consumer cannot use.
+     * An instance without an authorization server does not start rather than serving an API no consumer can
+     * authenticate to.
      */
     @Test
     void requireResourceServer_withoutOne_failsTheStartupAndSaysWhatToConfigure() {

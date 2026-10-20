@@ -2,8 +2,9 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionsAggregatedRepository;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
-import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
+import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
+import ch.admin.bit.jeap.security.test.resource.JeapAuthenticationTestTokenBuilder;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -22,12 +23,12 @@ import java.time.LocalDate;
 import java.util.Map;
 
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class})
+@Import({WebSecurityConfig.class, ReactionObserverProperties.class})
 @WebMvcTest(StatisticsController.class)
 @AutoConfigureMockMvc
 // The resource server is required as of 11.0.0, so a slice needs the starter's security configuration - the
@@ -37,6 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         MvcSecurityConfiguration.class})
 @EnableWebSecurity
 class StatisticsControllerTest {
+
+    private static final String READ_ROLE = "reactionobserver_@reactions_#read";
 
     @Autowired
     private MockMvc mockMvc;
@@ -59,10 +62,13 @@ class StatisticsControllerTest {
         // Act & Assert
         mockMvc.perform(get("/api/statistics/last-observation-date")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic("read", "secret"))
+                        .with(authentication(readRoleAuthentication()))
                 )
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"component1\":\"2025-06-29\",\"component2\":\"2022-05-22\",\"component3\":\"1998-07-13\",\"component4\":\"1997-01-01\"}"));
     }
 
+    private static JeapAuthenticationToken readRoleAuthentication() {
+        return JeapAuthenticationTestTokenBuilder.create().withUserRoles(READ_ROLE).build();
+    }
 }

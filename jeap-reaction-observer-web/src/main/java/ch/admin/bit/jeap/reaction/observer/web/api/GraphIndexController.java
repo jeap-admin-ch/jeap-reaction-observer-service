@@ -45,7 +45,7 @@ public class GraphIndexController {
     private final GraphHolder graphHolder;
     private final EtagSupport etagSupport;
 
-    @PreAuthorize("@reactionsApiAuthorization.canRead()")
+    @PreAuthorize("hasRole('reactions', 'read')")
     @Operation(summary = "Which systems have a reaction graph, with their entity tags",
             description = "One call tells a consumer which system graphs changed since it last replicated "
                           + "them. Only systems whose graph is not empty are listed.")
@@ -57,7 +57,7 @@ public class GraphIndexController {
         return respond(request, snapshot().systemIndex());
     }
 
-    @PreAuthorize("@reactionsApiAuthorization.canRead()")
+    @PreAuthorize("hasRole('reactions', 'read')")
     @Operation(summary = "Which components have a reaction graph, with their entity tags",
             description = "Each entry also names the system the component's reactions were published under, "
                           + "so a consumer does not have to guess it. Only components whose graph is not "
@@ -70,7 +70,7 @@ public class GraphIndexController {
         return respond(request, snapshot().componentIndex());
     }
 
-    @PreAuthorize("@reactionsApiAuthorization.canRead()")
+    @PreAuthorize("hasRole('reactions', 'read')")
     @Operation(summary = "Which message types have reaction graphs, with their variants and entity tags",
             description = "The variants are the keys the graph resource answers with, and the entity tag "
                           + "covers all of them.")

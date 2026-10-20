@@ -15,36 +15,20 @@ For local infrastructure examples see [Testing and local development](testing.md
 | `jeap.reaction.observer.service.housekeeping-aggregated-data-cron-expression` | yes | `0 0 5 * * *` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.graph-refresh-cron-expression` | yes | `0 0 6 * * *` | `ScheduledTasksService`, default properties |
 
-## API security users
+## API security
 
-| Property | Required | Default / example | Purpose |
-|---|---|---|---|
-| `jeap.reaction.observer.read-user.username` | yes | `read` | HTTP Basic user for read endpoints |
-| `jeap.reaction.observer.read-user.password` | yes | no safe default documented; tests use `{noop}secret` | Password for read user |
-| `jeap.reaction.observer.write-user.username` | yes | `write` | HTTP Basic user for management endpoint |
-| `jeap.reaction.observer.write-user.password` | yes | no safe default documented | Password for write user |
-
-`WebSecurityConfig` creates in-memory users with roles `reaction-observer-read` and `reaction-observer-write`.
-Method security then restricts the endpoints documented in [REST API](rest-api.md).
-
-## API security with OAuth2
-
-The API also accepts bearer tokens, authorized with a semantic role, and **this is not optional**: both
-properties below are required, and the service refuses to start without them. They belong to the jEAP
-security starter:
+The API accepts **OAuth2 bearer tokens only**. Both properties below are required, and the service refuses
+to start without them. They belong to the jEAP security starter:
 
 | Property                                                            | Required | Default / example                      | Purpose                                                                                                   |
 |---------------------------------------------------------------------|----------|----------------------------------------|-----------------------------------------------------------------------------------------------------------|
 | `jeap.security.oauth2.resourceserver.authorization-server.issuer`   | **yes**  | `https://keycloak.example.ch/realms/x` | The token issuer - what makes the service a resource server. Give it a `jwk-set-uri` as well, or an issuer the starter can discover one from |
 | `jeap.security.oauth2.resourceserver.system-name`                   | **yes**  | `myplatform`                           | Activates semantic authorization, and is the first part of the role name: `<system-name>_@reactions_#read` |
 
-**There is no fallback to HTTP Basic alone.** An instance that configures neither would serve passwords and
-refuse every token: healthy to look at, unusable to a consumer that authenticates with one, and the failure
-would surface as a `401` in that consumer's import rather than here. An instance that configures an issuer but
-no system name is worse still - it would accept tokens and authorize none of them, because semantic roles are
-only evaluated with a system name. So the two belong together, and both are checked while the service starts.
-
-HTTP Basic is unchanged and stays supported; what is required is that OAuth2 works **as well**.
+Both properties are checked at startup: the issuer lets the service validate tokens, and the system name
+activates semantic-role authorization. The API grants read access to
+`<system-name>_@reactions_#read` and aggregation access to `<system-name>_@reactions_#write`. No HTTP Basic
+users or password properties are required or supported.
 
 The role carries **no tenant part**; see [REST API](rest-api.md) for why, and for the CSRF behaviour of the
 API.

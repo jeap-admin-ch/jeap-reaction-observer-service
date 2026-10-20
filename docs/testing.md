@@ -57,8 +57,8 @@ graphHolder.setGraph(graph);
 - Schema Registry on port `7781`
 
 The matching Spring profile is `application-localtest.yml` in the web module. It also configures the
-authorization server the service requires as of 11.0.0 - a local jEAP OAuth mock server on port 8180. That
-mock is only needed to obtain a token; the profile starts, and HTTP Basic works, without it running.
+authorization server the service requires - a local jEAP OAuth mock server on port 8180. The mock is needed
+when making requests with bearer tokens.
 
 ## Useful commands
 

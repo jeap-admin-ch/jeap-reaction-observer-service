@@ -9,7 +9,6 @@ import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
 import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot;
 import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshotFactory;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
-import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphFingerprintCalculator;
 import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
@@ -36,7 +35,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,8 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(GraphIndexController.class)
 @AutoConfigureMockMvc
-@Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class,
-        EtagSupport.class})
+@Import({WebSecurityConfig.class, ReactionObserverProperties.class, EtagSupport.class})
 // The resource server is required as of 11.0.0, so a slice needs the starter's security configuration - the
 // same beans production has - together with the properties it reads and the issuer and system name that
 // src/test/resources/application.yml sets
@@ -57,9 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnableWebSecurity
 class GraphIndexControllerTest {
 
-    /** The read user of the test configuration - the basic-auth half of the API's two mechanisms. */
-    private static final String READ_USER = "read";
-    private static final String READ_PASSWORD = "secret";
+    private static final String READ_ROLE = "reactionobserver_@reactions_#read";
 
     private static final String CONTEXT_PATH = "/jeap-reaction-observer";
 
@@ -82,7 +77,7 @@ class GraphIndexControllerTest {
 
     @Test
     void systemIndex_listsEverySystemWithItsEntityTagAndPath() throws Exception {
-        mockMvc.perform(get("/api/graphs/systems").with(httpBasic(READ_USER, READ_PASSWORD)))
+        mockMvc.perform(get("/api/graphs/systems").with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries.length()").value(1))
                 .andExpect(jsonPath("$.entries[0].name").value("orders"))
@@ -94,7 +89,7 @@ class GraphIndexControllerTest {
 
     @Test
     void componentIndex_namesTheSystemOfEveryComponent() throws Exception {
-        mockMvc.perform(get("/api/graphs/components").with(httpBasic(READ_USER, READ_PASSWORD)))
+        mockMvc.perform(get("/api/graphs/components").with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries[0].name").value("orders-intake"))
                 .andExpect(jsonPath("$.entries[0].system").value("orders"))
@@ -104,7 +99,7 @@ class GraphIndexControllerTest {
 
     @Test
     void messageIndex_listsTheVariantsOfEveryMessageType() throws Exception {
-        mockMvc.perform(get("/api/graphs/messages").with(httpBasic(READ_USER, READ_PASSWORD)))
+        mockMvc.perform(get("/api/graphs/messages").with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries[0].messageType").value("OrdersPaymentAcceptedEvent"))
                 .andExpect(jsonPath("$.entries[0].variants.length()").value(1))
@@ -116,7 +111,8 @@ class GraphIndexControllerTest {
     /** The whole point: a consumer that already has the index is told so, and gets no payload. */
     @Test
     void anIndex_askedWithItsOwnEntityTag_isNotModified() throws Exception {
-        MvcResult first = mockMvc.perform(get("/api/graphs/systems").with(httpBasic(READ_USER, READ_PASSWORD)))
+        MvcResult first = mockMvc.perform(get("/api/graphs/systems")
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andReturn();
         String etag = first.getResponse().getHeader(HttpHeaders.ETAG);
@@ -124,7 +120,7 @@ class GraphIndexControllerTest {
 
         mockMvc.perform(get("/api/graphs/systems")
                         .header(HttpHeaders.IF_NONE_MATCH, etag)
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isNotModified())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-cache"));
     }
@@ -133,7 +129,7 @@ class GraphIndexControllerTest {
     void anIndex_askedWithAnotherEntityTag_isAnsweredWithTheIndex() throws Exception {
         mockMvc.perform(get("/api/graphs/systems")
                         .header(HttpHeaders.IF_NONE_MATCH, "\"sha256:something-else\"")
-                        .with(httpBasic(READ_USER, READ_PASSWORD)))
+                        .with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries.length()").value(1));
     }
@@ -142,7 +138,7 @@ class GraphIndexControllerTest {
     void anIndex_ofAnEmptyGraph_isEmptyRatherThanAFailure() throws Exception {
         when(graphHolder.getSnapshot()).thenReturn(GraphSnapshot.empty());
 
-        mockMvc.perform(get("/api/graphs/systems").with(httpBasic(READ_USER, READ_PASSWORD)))
+        mockMvc.perform(get("/api/graphs/systems").with(authentication(readRoleAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries.length()").value(0));
     }
@@ -167,5 +163,9 @@ class GraphIndexControllerTest {
         Reaction reaction = Reaction.builder().id(2).component("orders-intake").system("orders").build();
         return new Graph(List.of(message, reaction),
                 List.of(Trigger.builder().source(message).target(reaction).median(4).build()));
+    }
+
+    private static JeapAuthenticationToken readRoleAuthentication() {
+        return JeapAuthenticationTestTokenBuilder.create().withUserRoles(READ_ROLE).build();
     }
 }

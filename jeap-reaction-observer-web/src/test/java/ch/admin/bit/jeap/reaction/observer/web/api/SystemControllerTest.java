@@ -2,7 +2,6 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.domain.SystemRepository;
 import ch.admin.bit.jeap.reaction.observer.web.config.ReactionObserverProperties;
-import ch.admin.bit.jeap.reaction.observer.web.config.ReactionsApiAuthorization;
 import ch.admin.bit.jeap.reaction.observer.web.config.WebSecurityConfig;
 import ch.admin.bit.jeap.security.resource.token.JeapAuthenticationToken;
 import ch.admin.bit.jeap.security.test.resource.JeapAuthenticationTestTokenBuilder;
@@ -26,13 +25,12 @@ import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(SystemController.class)
 @AutoConfigureMockMvc
-@Import({WebSecurityConfig.class, ReactionObserverProperties.class, ReactionsApiAuthorization.class})
+@Import({WebSecurityConfig.class, ReactionObserverProperties.class})
 // The resource server is required as of 11.0.0, so a slice needs the starter's security configuration - the
 // same beans production has - together with the properties it reads and the issuer and system name that
 // src/test/resources/application.yml sets
@@ -41,9 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnableWebSecurity
 class SystemControllerTest {
 
-    /** The read user of the test configuration - the basic-auth half of the API's two mechanisms. */
-    private static final String READ_USER = "read";
-    private static final String READ_PASSWORD = "secret";
+    private static final String READ_ROLE = "reactionobserver_@reactions_#read";
 
     @Autowired
     private MockMvc mockMvc;
@@ -59,7 +55,7 @@ class SystemControllerTest {
         // Act & Assert
                 mockMvc.perform(get("/api/systems/names")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic(READ_USER, READ_PASSWORD))
+                        .with(authentication(readRoleAuthentication()))
                 )
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(2))
@@ -78,7 +74,7 @@ class SystemControllerTest {
         // Act & Assert
                 mockMvc.perform(get("/api/systems/names")
                         .accept(MediaType.APPLICATION_JSON)
-                        .with(httpBasic(READ_USER, READ_PASSWORD))
+                        .with(authentication(readRoleAuthentication()))
                 )
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.length()").value(2))
@@ -86,4 +82,7 @@ class SystemControllerTest {
                 .andExpect(MockMvcResultMatchers.jsonPath("$[1]").value("TestSystem2"));
     }
 
+    private static JeapAuthenticationToken readRoleAuthentication() {
+        return JeapAuthenticationTestTokenBuilder.create().withUserRoles(READ_ROLE).build();
+    }
 }

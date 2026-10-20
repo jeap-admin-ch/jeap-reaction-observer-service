@@ -20,7 +20,7 @@ public class ManagementController {
 
     private final AggregationService aggregationService;
 
-    @PreAuthorize("@reactionsApiAuthorization.canWrite()")
+    @PreAuthorize("hasRole('reactions', 'write')")
     @Operation(summary = "Aggregate data for a date in format yyyy-mm-dd.")
     @GetMapping("/aggregate-data/{date}")
     public String aggregateData(@PathVariable String date) {

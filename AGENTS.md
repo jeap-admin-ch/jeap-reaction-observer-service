@@ -62,7 +62,7 @@ Docker/ and root files: docker/docker-compose.yml, Jenkinsfile, CHANGELOG.md, pu
 - The producer side is documented in the sibling `jeap-reaction-observer` library; this repository documents the consumer/aggregator side only.
 - `ReactionIdentifiedEventListener` stores reaction definitions, while `ReactionsObservedEventListener` stores counted observations keyed by the event idempotence id.
 - The graph served by the API is rebuilt from persisted reactions and filtered to reactions observed within the configured statistics window; trigger edges are enriched with median values computed from aggregated daily counts.
-- Security is HTTP Basic with in-memory read/write users from configuration; read endpoints require role `reaction-observer-read`, manual aggregation requires `reaction-observer-write`.
+- REST API security uses OAuth2 bearer tokens with semantic roles `<system-name>_@reactions_#read` and `..._#write`; Basic Auth is not supported.
 - Database changes are Flyway migrations only — add new `V*__*.sql` files under `db/migration/common`, never edit applied migrations.
 
 ## Docs
