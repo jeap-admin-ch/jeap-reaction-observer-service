@@ -67,7 +67,8 @@ Those settings come from the surrounding jEAP platform libraries rather than fro
 The schedules are implemented in `ScheduledTasksService` as follows:
 
 - aggregation job: aggregates yesterday's raw observations
-- observed-reaction housekeeping: deletes raw observations before today
+- observed-reaction housekeeping: deletes raw observations with an observation date before today, in batches of
+  10,000 rows that each commit on their own, so a run that is interrupted keeps the progress it made
 - aggregated-data housekeeping: deletes daily aggregates older than `statistics-period-in-days`
 - graph refresh: rebuilds the in-memory graph from reactions observed within the same statistics window
 

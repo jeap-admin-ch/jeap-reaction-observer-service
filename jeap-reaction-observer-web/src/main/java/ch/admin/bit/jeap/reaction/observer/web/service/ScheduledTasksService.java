@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 
-import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getStartOfDay;
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
 import static java.time.LocalDate.now;
 
@@ -79,8 +78,8 @@ public class ScheduledTasksService {
     public void cleanUpObservedReactions() {
         log.info("Starting scheduled housekeeping for observed reactions");
         LockAssert.assertLocked();
-        this.observedReactionRepository.deleteByTimeframeStartBefore(getStartOfDay());
-        log.info("Finished scheduled housekeeping for observed reactions");
+        long deleted = this.observedReactionRepository.deleteByObservationDateBefore(getToday());
+        log.info("Finished scheduled housekeeping for observed reactions, deleted {} observed reactions", deleted);
     }
 
     @SchedulerLock(name = "aggregated-data-housekeeping-task", lockAtLeastFor = "5s", lockAtMostFor = "2h")

@@ -28,11 +28,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @Slf4j
 class ObservedReactionRepositoryImplTest {
 
+    private static final String COMPONENT = "component123";
+
     @Autowired
     private ObservedReactionRepository observedReactionRepository;
 
     @Autowired
     private JpaObservedReactionRepository jpaObservedReactionRepository;
+
+    @Autowired
+    private JpaReactionRepository jpaReactionRepository;
 
     @Autowired
     private ReactionRepository reactionRepository;
@@ -68,35 +73,62 @@ class ObservedReactionRepositoryImplTest {
     }
 
     @Test
-    void deleteByTimeframeStart() {
+    void deleteByObservationDateBefore() {
         // given: a reaction and several observations over different periods
         String reactionId = "reactionId456";
-        String system = "systemABC";
-        String component = "component123";
-        Reaction reaction = new Reaction(system, component, reactionId,
+        Reaction reaction = saveReaction(reactionId);
+        ZonedDateTime yesterday = getStartOfDay().minusDays(1);
+        ZonedDateTime theDayBeforeYesterday = yesterday.minusDays(1);
+
+        save(new ObservedReaction(COMPONENT, reactionId, new Timeframe(theDayBeforeYesterday, theDayBeforeYesterday.plusHours(1)), 1));
+        ObservedReaction yesterdaysObservedReaction = new ObservedReaction(COMPONENT, reactionId, new Timeframe(yesterday, yesterday.plusHours(1)), 5);
+        save(yesterdaysObservedReaction);
+        ObservedReaction todaysObservedReaction = new ObservedReaction(COMPONENT, reactionId, new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 5);
+        save(todaysObservedReaction);
+
+        // when
+        long deleted = observedReactionRepository.deleteByObservationDateBefore(yesterday.toLocalDate());
+
+        // then: observed reactions before yesterday are deleted
+        assertEquals(1, deleted);
+        assertThat(findAll(reaction)).containsExactly(yesterdaysObservedReaction, todaysObservedReaction);
+    }
+
+    @Test
+    void deleteByObservationDateBefore_deletesInBatchesUntilNothingIsLeft() {
+        // given: more old observed reactions than fit into one batch, and one observed reaction of today
+        String reactionId = "reactionId789";
+        Reaction reaction = saveReaction(reactionId);
+        ZonedDateTime yesterday = getStartOfDay().minusDays(1);
+        for (int i = 0; i < 5; i++) {
+            save(new ObservedReaction(COMPONENT, reactionId, new Timeframe(yesterday.plusMinutes(i), yesterday.plusMinutes(i + 1L)), 1));
+        }
+        ObservedReaction todaysObservedReaction = new ObservedReaction(COMPONENT, reactionId, new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 5);
+        save(todaysObservedReaction);
+        ObservedReactionRepositoryImpl repositoryWithSmallBatches =
+                new ObservedReactionRepositoryImpl(jpaObservedReactionRepository, jpaReactionRepository, 2);
+
+        // when
+        long deleted = repositoryWithSmallBatches.deleteByObservationDateBefore(getStartOfDay().toLocalDate());
+
+        // then: all old observed reactions are deleted over several batches, today's observed reaction is kept
+        assertEquals(5, deleted);
+        assertThat(findAll(reaction)).containsExactly(todaysObservedReaction);
+    }
+
+    private Reaction saveReaction(String reactionId) {
+        Reaction reaction = new Reaction("systemABC", COMPONENT, reactionId,
                 new Observation("t1", "triggerType", "triggerFqn", Map.of()),
                 List.of(new Observation("a1", "actionType", "actionFqn", Map.of())),
                 ZonedDateTime.now());
         reactionRepository.save(reaction);
-        ZonedDateTime yesterday = getStartOfDay().minusDays(1);
-        ZonedDateTime theDayBeforeYesterday = yesterday.minusDays(1);
+        return reaction;
+    }
 
-        save(new ObservedReaction(component, reactionId, new Timeframe(theDayBeforeYesterday, theDayBeforeYesterday.plusHours(1)), 1));
-        ObservedReaction yesterdaysObservedReaction = new ObservedReaction(component, reactionId, new Timeframe(yesterday, yesterday.plusHours(1)), 5);
-        save(yesterdaysObservedReaction);
-        ObservedReaction todaysObservedReaction = new ObservedReaction(component, reactionId, new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 5);
-        save(todaysObservedReaction);
-
-        // when
-        observedReactionRepository.deleteByTimeframeStartBefore(yesterday);
-
-        // then: observed reactions before yesterday are deleted
-        var foundObservedReactions = StreamSupport.stream(jpaObservedReactionRepository.findAll().spliterator(), false)
+    private List<ObservedReaction> findAll(Reaction reaction) {
+        return StreamSupport.stream(jpaObservedReactionRepository.findAll().spliterator(), false)
                 .map(entity -> entity.toDomainObject(reaction))
                 .toList();
-
-        assertEquals(2, foundObservedReactions.size());
-        assertThat(foundObservedReactions).containsExactly(yesterdaysObservedReaction, todaysObservedReaction);
     }
 
     private void save(ObservedReaction observedReaction) {

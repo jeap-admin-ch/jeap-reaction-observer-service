@@ -7,7 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.ZonedDateTime;
+import java.time.LocalDate;
 
 @Repository
 interface JpaObservedReactionRepository extends CrudRepository<ObservedReactionEntity, Long> {
@@ -16,6 +16,9 @@ interface JpaObservedReactionRepository extends CrudRepository<ObservedReactionE
 
     @Transactional
     @Modifying
-    @Query(value = "DELETE FROM observed_reaction WHERE timeframe_start < :startOfDay", nativeQuery = true)
-    void deleteByTimeframeStartBefore(@Param("startOfDay") ZonedDateTime startOfDay);
+    @Query(value = """
+            DELETE FROM observed_reaction
+            WHERE id IN (SELECT id FROM observed_reaction WHERE observation_date < :date LIMIT :batchSize)
+            """, nativeQuery = true)
+    int deleteBatchByObservationDateBefore(@Param("date") LocalDate date, @Param("batchSize") int batchSize);
 }
