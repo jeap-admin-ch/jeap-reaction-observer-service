@@ -2,6 +2,7 @@ package ch.admin.bit.jeap.reaction.observer.persistence;
 
 import ch.admin.bit.jeap.reaction.observer.domain.models.ObservedReaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ObservedReactionRepository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -31,11 +32,12 @@ class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
     }
 
     /**
-     * Not transactional on purpose: each batch commits on its own, so every statement stays short and the rows
-     * deleted so far stay deleted if a later batch fails. A single delete over the whole backlog can run into
-     * a timeout and roll back completely, and the backlog then keeps growing.
+     * Runs outside any transaction on purpose, also when the caller has one: each batch commits on its own, so every
+     * statement stays short and the rows deleted so far stay deleted if a later batch fails. A single delete over the
+     * whole backlog can run into a timeout and roll back completely, and the backlog then keeps growing.
      */
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public long deleteByObservationDateBefore(LocalDate date, int batchSize, int maxDeletions) {
         // A batch size of 0 would make every batch "complete" and loop forever
         if (batchSize < 1 || maxDeletions < 1) {

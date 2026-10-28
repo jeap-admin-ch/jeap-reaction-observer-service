@@ -82,8 +82,8 @@ public class ScheduledTasksService {
         long deleted = this.observedReactionRepository.deleteByObservationDateBefore(getToday(),
                 properties.getHousekeepingObservedReactionsBatchSize(), maxDeletions);
         if (deleted >= maxDeletions) {
-            log.warn("Finished scheduled housekeeping for observed reactions, deleted the maximum of {} observed " +
-                    "reactions per run, the remaining ones are deleted in the next runs", deleted);
+            log.warn("Finished scheduled housekeeping for observed reactions, reached the per-run maximum of {} " +
+                    "deleted observed reactions, older observed reactions may remain for the next runs", deleted);
         } else {
             log.info("Finished scheduled housekeeping for observed reactions, deleted {} observed reactions", deleted);
         }

@@ -73,7 +73,9 @@ The schedules are implemented in `ScheduledTasksService` as follows:
   `housekeeping-observed-reactions-batch-size` rows that each commit on their own, so a run that is interrupted
   keeps the progress it made. A run stops after `housekeeping-observed-reactions-max-deletions-per-run` rows and
   leaves the rest to the next runs, so working off a large backlog does not keep the job running for hours. Reaching
-  that limit is logged as a warning. Both values must be at least 1, otherwise the service does not start
+  that limit is logged as a warning. The limit is also the most the table can shrink per run, so keep it above the
+  number of observed reactions ingested per day, or the backlog never shrinks. Both values must be at least 1,
+  otherwise the service does not start
 - aggregated-data housekeeping: deletes daily aggregates older than `statistics-period-in-days`
 - graph refresh: rebuilds the in-memory graph from reactions observed within the same statistics window
 
