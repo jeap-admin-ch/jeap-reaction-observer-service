@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ContextConfiguration(classes = PersistenceAutoConfiguration.class)
 @Slf4j
-class ObservedReactionsAggregatedRepositoryImplTest {
+class ObservedReactionsAggregatedRepositoryImplTest extends PostgresTestContainerBase {
 
     private static final Map<String, String> actionProps = Map.of("actionKey1", "actionValue1", "actionKey2", "actionValue2");
 

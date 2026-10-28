@@ -53,8 +53,8 @@ Docker/ and root files: docker/docker-compose.yml, Jenkinsfile, CHANGELOG.md, pu
 
 - Parent: `ch.admin.bit.jeap:jeap-spring-boot-parent`.
 - Kafka listener tests use the jEAP Kafka integration test support with an embedded broker.
-- Persistence tests run Flyway migrations against H2.
-- Integration tests in `jeap-reaction-observer-web` use Testcontainers/PostgreSQL plus Kafka, so a running Docker daemon is required.
+- Persistence tests run Flyway migrations against PostgreSQL (Testcontainers), and the integration tests in
+  `jeap-reaction-observer-web` use Testcontainers/PostgreSQL plus Kafka, so a running Docker daemon is required.
 
 ## jEAP conventions
 

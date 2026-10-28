@@ -28,7 +28,7 @@ import static org.mockito.Mockito.verify;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ContextConfiguration(classes = PersistenceAutoConfiguration.class)
 @Slf4j
-class ReactionRepositoryImplTest {
+class ReactionRepositoryImplTest extends PostgresTestContainerBase {
 
     @Autowired
     private ReactionRepository reactionRepository;

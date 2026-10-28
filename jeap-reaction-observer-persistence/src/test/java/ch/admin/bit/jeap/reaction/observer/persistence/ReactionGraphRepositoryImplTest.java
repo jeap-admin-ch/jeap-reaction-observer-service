@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ContextConfiguration(classes = PersistenceAutoConfiguration.class)
 @Slf4j
-class ReactionGraphRepositoryImplTest {
+class ReactionGraphRepositoryImplTest extends PostgresTestContainerBase {
 
     @Autowired
     private JpaReactionRepository jpaReactionRepository;

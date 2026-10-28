@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ContextConfiguration(classes = PersistenceAutoConfiguration.class)
-class JpaInterfaceRepositoryTest {
+class JpaInterfaceRepositoryTest extends PostgresTestContainerBase {
 
     @Autowired
     private JpaInterfaceRepository jpaInterfaceRepository;
