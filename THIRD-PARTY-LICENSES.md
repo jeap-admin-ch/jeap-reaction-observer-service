@@ -266,6 +266,7 @@ Apache License Version 2.0
  * spring-boot-starter-webmvc-test - [org.springframework.boot:spring-boot-starter-webmvc-test](https://spring.io/projects/spring-boot)
  * spring-boot-test - [org.springframework.boot:spring-boot-test](https://spring.io/projects/spring-boot)
  * spring-boot-test-autoconfigure - [org.springframework.boot:spring-boot-test-autoconfigure](https://spring.io/projects/spring-boot)
+ * spring-boot-testcontainers - [org.springframework.boot:spring-boot-testcontainers](https://spring.io/projects/spring-boot)
  * spring-boot-tomcat - [org.springframework.boot:spring-boot-tomcat](https://spring.io/projects/spring-boot)
  * spring-boot-transaction - [org.springframework.boot:spring-boot-transaction](https://spring.io/projects/spring-boot)
  * spring-boot-validation - [org.springframework.boot:spring-boot-validation](https://spring.io/projects/spring-boot)
@@ -387,11 +388,6 @@ Eclipse Public License v2.0
  * JUnit Platform Engine API - [org.junit.platform:junit-platform-engine](https://junit.org/)
  * JUnit Platform Launcher - [org.junit.platform:junit-platform-launcher](https://junit.org/)
 
-Eclipse Public License, Version 1.0
--------------------------------
-
- * H2 Database Engine - [com.h2database:h2](https://h2database.com)
-
 GNU General Public License, version 2 (GPL2), with the classpath exception
 -------------------------------
 
@@ -449,11 +445,6 @@ MPL 1.1
 -------------------------------
 
  * Javassist - [org.javassist:javassist](http://www.javassist.org/)
-
-Mozilla Public License, Version 2.0
--------------------------------
-
- * H2 Database Engine - [com.h2database:h2](https://h2database.com)
 
 Public Domain
 -------------------------------
