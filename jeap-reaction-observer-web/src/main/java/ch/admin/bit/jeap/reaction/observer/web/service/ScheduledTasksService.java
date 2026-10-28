@@ -78,7 +78,8 @@ public class ScheduledTasksService {
     public void cleanUpObservedReactions() {
         log.info("Starting scheduled housekeeping for observed reactions");
         LockAssert.assertLocked();
-        long deleted = this.observedReactionRepository.deleteByObservationDateBefore(getToday());
+        long deleted = this.observedReactionRepository.deleteByObservationDateBefore(getToday(),
+                properties.getHousekeepingObservedReactionsBatchSize());
         log.info("Finished scheduled housekeeping for observed reactions, deleted {} observed reactions", deleted);
     }
 

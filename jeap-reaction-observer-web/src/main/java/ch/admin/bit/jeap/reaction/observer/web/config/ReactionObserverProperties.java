@@ -17,6 +17,9 @@ public class ReactionObserverProperties {
     @Value("${jeap.reaction.observer.service.housekeeping-observed-reactions-cron-expression}")
     private String housekeepingObservedReactionsCronExpression;
 
+    @Value("${jeap.reaction.observer.service.housekeeping-observed-reactions-batch-size}")
+    private int housekeepingObservedReactionsBatchSize;
+
     @Value("${jeap.reaction.observer.service.housekeeping-aggregated-data-cron-expression}")
     private String housekeepingAggregatedDataCronExpression;
 

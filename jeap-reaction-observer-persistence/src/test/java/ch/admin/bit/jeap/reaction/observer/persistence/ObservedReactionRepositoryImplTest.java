@@ -37,9 +37,6 @@ class ObservedReactionRepositoryImplTest {
     private JpaObservedReactionRepository jpaObservedReactionRepository;
 
     @Autowired
-    private JpaReactionRepository jpaReactionRepository;
-
-    @Autowired
     private ReactionRepository reactionRepository;
 
     @Test
@@ -87,7 +84,7 @@ class ObservedReactionRepositoryImplTest {
         save(todaysObservedReaction);
 
         // when
-        long deleted = observedReactionRepository.deleteByObservationDateBefore(yesterday.toLocalDate());
+        long deleted = observedReactionRepository.deleteByObservationDateBefore(yesterday.toLocalDate(), 1000);
 
         // then: observed reactions before yesterday are deleted
         assertEquals(1, deleted);
@@ -105,11 +102,9 @@ class ObservedReactionRepositoryImplTest {
         }
         ObservedReaction todaysObservedReaction = new ObservedReaction(COMPONENT, reactionId, new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 5);
         save(todaysObservedReaction);
-        ObservedReactionRepositoryImpl repositoryWithSmallBatches =
-                new ObservedReactionRepositoryImpl(jpaObservedReactionRepository, jpaReactionRepository, 2);
 
-        // when
-        long deleted = repositoryWithSmallBatches.deleteByObservationDateBefore(getStartOfDay().toLocalDate());
+        // when: deleting in batches of two
+        long deleted = observedReactionRepository.deleteByObservationDateBefore(getStartOfDay().toLocalDate(), 2);
 
         // then: all old observed reactions are deleted over several batches, today's observed reaction is kept
         assertEquals(5, deleted);

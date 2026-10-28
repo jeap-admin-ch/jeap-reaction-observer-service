@@ -10,20 +10,12 @@ import java.util.List;
 
 class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
 
-    static final int DELETE_BATCH_SIZE = 10_000;
-
     private final JpaObservedReactionRepository jpaObservedReactionRepository;
     private final JpaReactionRepository jpaReactionRepository;
-    private final int deleteBatchSize;
 
     ObservedReactionRepositoryImpl(JpaObservedReactionRepository jpaObservedReactionRepository, JpaReactionRepository jpaReactionRepository) {
-        this(jpaObservedReactionRepository, jpaReactionRepository, DELETE_BATCH_SIZE);
-    }
-
-    ObservedReactionRepositoryImpl(JpaObservedReactionRepository jpaObservedReactionRepository, JpaReactionRepository jpaReactionRepository, int deleteBatchSize) {
         this.jpaObservedReactionRepository = jpaObservedReactionRepository;
         this.jpaReactionRepository = jpaReactionRepository;
-        this.deleteBatchSize = deleteBatchSize;
     }
 
     @Override
@@ -44,13 +36,13 @@ class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
      * a timeout and roll back completely, and the backlog then keeps growing.
      */
     @Override
-    public long deleteByObservationDateBefore(LocalDate date) {
+    public long deleteByObservationDateBefore(LocalDate date, int batchSize) {
         long deleted = 0;
         int deletedInBatch;
         do {
-            deletedInBatch = jpaObservedReactionRepository.deleteBatchByObservationDateBefore(date, deleteBatchSize);
+            deletedInBatch = jpaObservedReactionRepository.deleteBatchByObservationDateBefore(date, batchSize);
             deleted += deletedInBatch;
-        } while (deletedInBatch == deleteBatchSize);
+        } while (deletedInBatch == batchSize);
         return deleted;
     }
 

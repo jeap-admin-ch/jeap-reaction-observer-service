@@ -10,8 +10,8 @@ public interface ObservedReactionRepository {
     void saveAll(String idempotenceId, List<ObservedReaction> observedReactions);
 
     /**
-     * Deletes all observed reactions with an observation date before the given date, in batches that each commit
-     * on their own, and returns the number of deleted observed reactions.
+     * Deletes all observed reactions with an observation date before the given date, in batches of the given size
+     * that each commit on their own, and returns the number of deleted observed reactions.
      */
-    long deleteByObservationDateBefore(LocalDate date);
+    long deleteByObservationDateBefore(LocalDate date, int batchSize);
 }
