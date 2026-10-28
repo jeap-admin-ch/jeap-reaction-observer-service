@@ -9,7 +9,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Fixed the housekeeping of observed reactions, which could not complete on large tables: it now deletes by the
   indexed observation date and in batches that each commit on their own. The batch size is configurable with
-  `jeap.reaction.observer.service.housekeeping-observed-reactions-batch-size` (default `1000`).
+  `jeap.reaction.observer.service.housekeeping-observed-reactions-batch-size` (default `1000`), the maximum number
+  of rows deleted per run with `jeap.reaction.observer.service.housekeeping-observed-reactions-max-deletions-per-run`
+  (default `500000`).
 
 ## [12.16.0] - 2026-10-27
 

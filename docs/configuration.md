@@ -13,6 +13,7 @@ For local infrastructure examples see [Testing and local development](testing.md
 | `jeap.reaction.observer.service.data-aggregation-cron-expression` | yes | `0 0 1 * * *` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.housekeeping-observed-reactions-cron-expression` | yes | `0 0 3 * * *` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.housekeeping-observed-reactions-batch-size` | yes | `1000` | `ReactionObserverProperties`, default properties |
+| `jeap.reaction.observer.service.housekeeping-observed-reactions-max-deletions-per-run` | yes | `500000` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.housekeeping-aggregated-data-cron-expression` | yes | `0 0 5 * * *` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.graph-refresh-cron-expression` | yes | `0 0 6 * * *` | `ScheduledTasksService`, default properties |
 
@@ -70,7 +71,8 @@ The schedules are implemented in `ScheduledTasksService` as follows:
 - aggregation job: aggregates yesterday's raw observations
 - observed-reaction housekeeping: deletes raw observations with an observation date before today, in batches of
   `housekeeping-observed-reactions-batch-size` rows that each commit on their own, so a run that is interrupted
-  keeps the progress it made
+  keeps the progress it made. A run stops after `housekeeping-observed-reactions-max-deletions-per-run` rows and
+  leaves the rest to the next runs, so working off a large backlog does not keep the job running for hours
 - aggregated-data housekeeping: deletes daily aggregates older than `statistics-period-in-days`
 - graph refresh: rebuilds the in-memory graph from reactions observed within the same statistics window
 

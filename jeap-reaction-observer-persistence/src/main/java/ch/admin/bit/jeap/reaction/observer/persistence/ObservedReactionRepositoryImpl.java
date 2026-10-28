@@ -36,13 +36,15 @@ class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
      * a timeout and roll back completely, and the backlog then keeps growing.
      */
     @Override
-    public long deleteByObservationDateBefore(LocalDate date, int batchSize) {
+    public long deleteByObservationDateBefore(LocalDate date, int batchSize, int maxDeletions) {
         long deleted = 0;
+        int limit;
         int deletedInBatch;
         do {
-            deletedInBatch = jpaObservedReactionRepository.deleteBatchByObservationDateBefore(date, batchSize);
+            limit = (int) Math.min(batchSize, maxDeletions - deleted);
+            deletedInBatch = jpaObservedReactionRepository.deleteBatchByObservationDateBefore(date, limit);
             deleted += deletedInBatch;
-        } while (deletedInBatch == batchSize);
+        } while (deletedInBatch == limit && deleted < maxDeletions);
         return deleted;
     }
 

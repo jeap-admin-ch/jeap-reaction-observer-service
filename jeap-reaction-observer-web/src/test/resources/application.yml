@@ -30,6 +30,7 @@ jeap:
           reactions-observed-topic: reactions-observed
         statistics-period-in-days: 30
         housekeeping-observed-reactions-batch-size: 1000
+        housekeeping-observed-reactions-max-deletions-per-run: 500000
 
 logging:
   level:

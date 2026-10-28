@@ -84,7 +84,7 @@ class ObservedReactionRepositoryImplTest {
         save(todaysObservedReaction);
 
         // when
-        long deleted = observedReactionRepository.deleteByObservationDateBefore(yesterday.toLocalDate(), 1000);
+        long deleted = observedReactionRepository.deleteByObservationDateBefore(yesterday.toLocalDate(), 1000, 500000);
 
         // then: observed reactions before yesterday are deleted
         assertEquals(1, deleted);
@@ -104,10 +104,37 @@ class ObservedReactionRepositoryImplTest {
         save(todaysObservedReaction);
 
         // when: deleting in batches of two
-        long deleted = observedReactionRepository.deleteByObservationDateBefore(getStartOfDay().toLocalDate(), 2);
+        long deleted = observedReactionRepository.deleteByObservationDateBefore(getStartOfDay().toLocalDate(), 2, 500000);
 
         // then: all old observed reactions are deleted over several batches, today's observed reaction is kept
         assertEquals(5, deleted);
+        assertThat(findAll(reaction)).containsExactly(todaysObservedReaction);
+    }
+
+    @Test
+    void deleteByObservationDateBefore_stopsAtMaxDeletions() {
+        // given: five old observed reactions and one observed reaction of today
+        String reactionId = "reactionId012";
+        Reaction reaction = saveReaction(reactionId);
+        ZonedDateTime yesterday = getStartOfDay().minusDays(1);
+        for (int i = 0; i < 5; i++) {
+            save(new ObservedReaction(COMPONENT, reactionId, new Timeframe(yesterday.plusMinutes(i), yesterday.plusMinutes(i + 1L)), 1));
+        }
+        ObservedReaction todaysObservedReaction = new ObservedReaction(COMPONENT, reactionId, new Timeframe(getStartOfDay(), getStartOfDay().plusHours(1)), 5);
+        save(todaysObservedReaction);
+
+        // when: deleting in batches of two, at most three per run
+        long deleted = observedReactionRepository.deleteByObservationDateBefore(getStartOfDay().toLocalDate(), 2, 3);
+
+        // then: three old observed reactions are deleted, the last batch is cut to the remaining one
+        assertEquals(3, deleted);
+        assertThat(findAll(reaction)).hasSize(3).contains(todaysObservedReaction);
+
+        // when: the next run deletes the rest
+        long deletedInNextRun = observedReactionRepository.deleteByObservationDateBefore(getStartOfDay().toLocalDate(), 2, 3);
+
+        // then
+        assertEquals(2, deletedInNextRun);
         assertThat(findAll(reaction)).containsExactly(todaysObservedReaction);
     }
 

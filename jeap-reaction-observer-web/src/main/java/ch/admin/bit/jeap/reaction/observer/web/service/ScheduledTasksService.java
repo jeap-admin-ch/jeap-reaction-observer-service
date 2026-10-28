@@ -78,9 +78,15 @@ public class ScheduledTasksService {
     public void cleanUpObservedReactions() {
         log.info("Starting scheduled housekeeping for observed reactions");
         LockAssert.assertLocked();
+        int maxDeletions = properties.getHousekeepingObservedReactionsMaxDeletionsPerRun();
         long deleted = this.observedReactionRepository.deleteByObservationDateBefore(getToday(),
-                properties.getHousekeepingObservedReactionsBatchSize());
-        log.info("Finished scheduled housekeeping for observed reactions, deleted {} observed reactions", deleted);
+                properties.getHousekeepingObservedReactionsBatchSize(), maxDeletions);
+        if (deleted >= maxDeletions) {
+            log.info("Finished scheduled housekeeping for observed reactions, deleted the maximum of {} observed " +
+                    "reactions per run, the remaining ones are deleted in the next runs", deleted);
+        } else {
+            log.info("Finished scheduled housekeeping for observed reactions, deleted {} observed reactions", deleted);
+        }
     }
 
     @SchedulerLock(name = "aggregated-data-housekeeping-task", lockAtLeastFor = "5s", lockAtMostFor = "2h")

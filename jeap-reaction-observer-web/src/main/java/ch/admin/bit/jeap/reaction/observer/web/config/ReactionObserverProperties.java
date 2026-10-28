@@ -20,6 +20,9 @@ public class ReactionObserverProperties {
     @Value("${jeap.reaction.observer.service.housekeeping-observed-reactions-batch-size}")
     private int housekeepingObservedReactionsBatchSize;
 
+    @Value("${jeap.reaction.observer.service.housekeeping-observed-reactions-max-deletions-per-run}")
+    private int housekeepingObservedReactionsMaxDeletionsPerRun;
+
     @Value("${jeap.reaction.observer.service.housekeeping-aggregated-data-cron-expression}")
     private String housekeepingAggregatedDataCronExpression;
 
