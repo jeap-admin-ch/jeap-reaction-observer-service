@@ -12,6 +12,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.test.context.ContextConfiguration;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,7 @@ import java.util.stream.StreamSupport;
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getStartOfDay;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -136,6 +138,14 @@ class ObservedReactionRepositoryImplTest {
         // then
         assertEquals(2, deletedInNextRun);
         assertThat(findAll(reaction)).containsExactly(todaysObservedReaction);
+    }
+
+    @Test
+    void deleteByObservationDateBefore_rejectsLimitsBelowOne() {
+        LocalDate today = getStartOfDay().toLocalDate();
+
+        assertThrows(IllegalArgumentException.class, () -> observedReactionRepository.deleteByObservationDateBefore(today, 0, 500000));
+        assertThrows(IllegalArgumentException.class, () -> observedReactionRepository.deleteByObservationDateBefore(today, 1000, 0));
     }
 
     private Reaction saveReaction(String reactionId) {

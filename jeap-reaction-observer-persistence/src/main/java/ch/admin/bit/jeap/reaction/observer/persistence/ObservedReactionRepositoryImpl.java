@@ -37,6 +37,11 @@ class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
      */
     @Override
     public long deleteByObservationDateBefore(LocalDate date, int batchSize, int maxDeletions) {
+        // A batch size of 0 would make every batch "complete" and loop forever
+        if (batchSize < 1 || maxDeletions < 1) {
+            throw new IllegalArgumentException("batchSize and maxDeletions must be at least 1, got %d and %d"
+                    .formatted(batchSize, maxDeletions));
+        }
         long deleted = 0;
         int limit;
         int deletedInBatch;
