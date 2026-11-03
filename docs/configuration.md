@@ -13,7 +13,7 @@ For local infrastructure examples see [Testing and local development](testing.md
 | `jeap.reaction.observer.service.data-aggregation-cron-expression` | yes | `0 0 1 * * *` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.housekeeping-observed-reactions-cron-expression` | yes | `0 0 3 * * *` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.housekeeping-observed-reactions-batch-size` | yes | `1000` | `ReactionObserverProperties`, default properties |
-| `jeap.reaction.observer.service.housekeeping-observed-reactions-max-deletions-per-run` | yes | `500000` | `ReactionObserverProperties`, default properties |
+| `jeap.reaction.observer.service.housekeeping-observed-reactions-max-deletions-per-run` | yes | `10000000` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.housekeeping-aggregated-data-cron-expression` | yes | `0 0 5 * * *` | `ReactionObserverProperties`, default properties |
 | `jeap.reaction.observer.service.graph-refresh-cron-expression` | yes | `0 0 6 * * *` | `ScheduledTasksService`, default properties |
 

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.17.2] - 2026-11-03
+
+- Raised the default of `jeap.reaction.observer.service.housekeeping-observed-reactions-max-deletions-per-run` from
+  `500000` to `10000000`, as the lower default can be below the number of observed reactions ingested per day, in
+  which case a backlog never shrinks.
+
 ## [12.17.1] - 2026-11-01
 
 ### Dependencies
