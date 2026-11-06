@@ -299,4 +299,25 @@ class ReactionRepositoryImplTest extends PostgresTestContainerBase {
                 .hasMessageContaining("ghostType")
                 .hasMessageContaining("ghostFqn");
     }
+
+    @Test
+    void save_httpRequestAndUnknownObservationTypes_withLongFqns() {
+        // An FQN of 1000 characters, beyond the former 255, and an id that is longer still: the id embeds the FQN
+        String longPattern = "/api/" + "x".repeat(1000 - "order-service GET /api/".length());
+        String longFqn = "order-service GET " + longPattern;
+        assertThat(longFqn).hasSize(1000);
+        Observation httpTrigger = new Observation("http_request:" + longFqn.replace(":", "%3A") + ":with%3Aencoded%3Acolons",
+                "http_request", longFqn, Map.of());
+        Observation httpAction = new Observation("http_request:stock-service PUT /api/stock/{id}", "http_request",
+                "stock-service PUT /api/stock/{id}", Map.of());
+        Observation unknownTypeAction = new Observation("scheduled:nightly-job", "scheduled", "nightly-job", Map.of());
+        Observation eventAction = new Observation("event:OrderCreated", "event", "OrderCreated", Map.of());
+        var identifiedReaction = new Reaction("system0", "component0", "reactionWithHttp", httpTrigger,
+                List.of(httpAction, unknownTypeAction, eventAction), ZonedDateTime.now());
+
+        reactionRepository.save(identifiedReaction);
+
+        assertThat(reactionRepository.findByComponentAndReactionId("component0", "reactionWithHttp"))
+                .contains(identifiedReaction);
+    }
 }

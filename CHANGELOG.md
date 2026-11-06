@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.19.0] - 2026-11-10
+
+- Reactions with HTTP requests (`http_request`) or observation types the service does not know are stored, and the
+  graph is built with a node per kind of interface (message, HTTP operation, generic interface) instead of failing.
+  An FQN of a known type that cannot be parsed becomes a generic interface and is counted in
+  `reaction_observer_service_unparsable_interfaces_total`.
+- The type and FQN of an interface can now be up to 1024 characters long, observation ids up to 4096.
+- Counts of unknown reaction ids are skipped and counted in `reaction_observer_service_unknown_reaction_counts_total`
+  instead of failing the whole `reactions-observed-event`; the other counts of the event are saved. Counts that
+  arrive before the identification of their reaction are therefore lost.
+- The graph endpoints of the API v1 keep their format and show messages only: other interfaces are removed, reactions without a message
+  are removed, and reactions triggered by something else are shown without a trigger.
+- The test builders can create HTTP request observations (`TestObservation.ofHttpRequest`) and observations of any
+  type (`TestObservation.ofType`).
+
 ## [12.18.0] - 2026-11-09
 
 ### Dependencies

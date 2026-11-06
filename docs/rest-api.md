@@ -87,7 +87,7 @@ graph even when a refresh lands in between.
 
 `GraphController` returns `GraphWithFingerprintDto`, which wraps:
 
-- `graph.nodes`: message nodes and reaction nodes
+- `graph.nodes`: message nodes and reaction nodes (see [Messages only in the API v1](#messages-only-in-the-api-v1))
 - `graph.edges`: trigger and action edges
 - `fingerprint`: a canonical-JSON-based hash for change detection
 
@@ -102,6 +102,38 @@ The `median` is counted per reaction - the median of its daily observation count
 window - so a reaction node and every trigger edge into it carry the same number. It is on the node as well
 because a reaction that no message triggered has no trigger edge to carry it, and such a reaction is still
 observed and counted.
+
+## Messages only in the API v1
+
+The API v1 shows what model version 1 of the reaction observer library observes: messages. Libraries can report
+other interfaces as well (HTTP requests, and types this service does not know yet), and the v1 hides them from its
+consumers with the same format as before:
+
+- interfaces that are not messages (any type other than `event` and `command`) are removed, with their edges
+- reactions left without any message are removed, e.g. a reaction triggered by an HTTP request with no message
+  action
+- reactions triggered by something other than a message are shown without a trigger, with their message actions
+
+The indexes, entity tags and fingerprints are all computed over this view, and every edge of the v1 still points
+to a `MESSAGE` node. A component or system whose reactions have no message part has no v1 graph (`404`) and is not
+in the indexes.
+
+This applies to the graph endpoints only. `/api/components/names`, `/api/systems/names` and
+`/api/statistics/last-observation-date` are not filtered: a component with only HTTP reactions is listed there and
+shown as recently observed, although its graph answers `404`.
+
+These consequences are accepted:
+
+1. Where model version 1 reported one action-only reaction per message (`→ A`, `→ B`), the v1 shows one reaction
+   without a trigger and with several actions (`→ {A, B}`) after the component upgrades the library.
+2. Actions of failed HTTP requests that model version 1 counted although they were rolled back (phantom actions)
+   are no longer shown.
+3. For an upgraded component, its old and new reactions are shown side by side until the old ones fall out of the
+   statistics window, as with any change of reaction ids.
+4. The median of a reaction is computed over its days of observation within the window only. After an upgrade on
+   day 10, the old reaction shows the median of days 1 to 10 and the new one the median of days 10 to 30, both at
+   the full daily value although the daily total was never doubled; only on the day of the upgrade are the counts
+   split between the two.
 
 ## OpenAPI
 

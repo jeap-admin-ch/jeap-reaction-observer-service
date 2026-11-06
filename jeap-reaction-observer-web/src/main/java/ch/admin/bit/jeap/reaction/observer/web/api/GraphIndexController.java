@@ -9,8 +9,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -36,7 +36,7 @@ import java.nio.charset.StandardCharsets;
 @RestController
 @RequestMapping("/api/graphs")
 @RequiredArgsConstructor
-@Slf4j
+@SecurityRequirement(name = "OIDC")
 public class GraphIndexController {
 
     /** What an index is before there is a snapshot to serve one from. */

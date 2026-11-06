@@ -23,9 +23,14 @@ import java.util.Objects;
  * always answered from one consistent graph - never from a graph that is being rebuilt under it. A handler
  * therefore has to read the snapshot <b>once</b> and answer everything from that one object; reading it twice
  * can straddle a refresh and tag one graph with another's fingerprint.
+ * <p>
+ * <b>Two graphs.</b> {@link #fullGraph()} is the internal model, with every kind of interface node. {@link #graph()}
+ * is what the API v1 serves - the view of model version 1, messages only (see {@code MessageGraphFilter}) - and
+ * every fingerprint and index of this snapshot is of that view.
  */
 public final class GraphSnapshot {
 
+    private final Graph fullGraph;
     private final Graph graph;
     private final String graphFingerprint;
     private final List<SystemEntry> systems;
@@ -91,10 +96,11 @@ public final class GraphSnapshot {
         }
     }
 
-    @SuppressWarnings("java:S107") // Seven parts of one snapshot; the factory is the only caller
-    private GraphSnapshot(Graph graph, String graphFingerprint, List<SystemEntry> systems,
+    @SuppressWarnings("java:S107") // Nine parts of one snapshot; the factory is the only caller
+    private GraphSnapshot(Graph fullGraph, Graph graph, String graphFingerprint, List<SystemEntry> systems,
                           List<ComponentEntry> components, List<MessageTypeEntry> messageTypes,
                           IndexPayload systemIndex, IndexPayload componentIndex, IndexPayload messageIndex) {
+        this.fullGraph = fullGraph;
         this.graph = graph;
         this.graphFingerprint = graphFingerprint;
         this.systems = List.copyOf(systems);
@@ -111,11 +117,11 @@ public final class GraphSnapshot {
     }
 
     @SuppressWarnings("java:S107")
-    static GraphSnapshot of(Graph graph, String graphFingerprint, List<SystemEntry> systems,
+    static GraphSnapshot of(Graph fullGraph, Graph graph, String graphFingerprint, List<SystemEntry> systems,
                             List<ComponentEntry> components, List<MessageTypeEntry> messageTypes,
                             IndexPayload systemIndex, IndexPayload componentIndex,
                             IndexPayload messageIndex) {
-        return new GraphSnapshot(graph, graphFingerprint, systems, components, messageTypes, systemIndex,
+        return new GraphSnapshot(fullGraph, graph, graphFingerprint, systems, components, messageTypes, systemIndex,
                 componentIndex, messageIndex);
     }
 
@@ -142,12 +148,19 @@ public final class GraphSnapshot {
 
     /** What an instance serves before its first refresh, so that nothing has to handle a missing graph. */
     public static GraphSnapshot empty() {
-        return new GraphSnapshot(new Graph(List.of(), List.of()), null, List.of(), List.of(), List.of(),
+        Graph empty = new Graph(List.of(), List.of());
+        return new GraphSnapshot(empty, empty, null, List.of(), List.of(), List.of(),
                 null, null, null);
     }
 
+    /** The graph the API v1 serves: the view of model version 1, with message nodes only. */
     public Graph graph() {
         return graph;
+    }
+
+    /** The internal model, with every kind of interface node - {@link #graph()} is the view of it the v1 serves. */
+    public Graph fullGraph() {
+        return fullGraph;
     }
 
     public @Nullable String graphFingerprint() {

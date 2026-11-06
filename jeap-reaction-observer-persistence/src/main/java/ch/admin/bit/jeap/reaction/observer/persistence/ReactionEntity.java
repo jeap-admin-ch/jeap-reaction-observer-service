@@ -36,7 +36,7 @@ class ReactionEntity {
     @Column(name = "component")
     private String component;
 
-    @Column(name = "trigger_id")
+    @Column(name = "trigger_id", length = 4096)
     private String triggerId;
 
     @ManyToOne(fetch = FetchType.EAGER)

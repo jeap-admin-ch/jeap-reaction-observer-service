@@ -1,6 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.web;
 
 import ch.admin.bit.jeap.reaction.observer.domain.GraphExtractor;
+import ch.admin.bit.jeap.reaction.observer.domain.MessageGraphFilter;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Reaction;
 import ch.admin.bit.jeap.reaction.observer.web.api.EtagSupport;
@@ -43,6 +44,9 @@ import java.util.TreeMap;
  * instead of one per name. The per-name form is what the graph resources answer with, and the two are held
  * equal by {@code GraphExtractorTest} - which matters, because an index entry's tag has to be the one its
  * resource answers with.
+ * <p>
+ * Everything is derived from the <b>view of the API v1</b> ({@link MessageGraphFilter}), which is what the graph
+ * resources and indexes serve; the full graph is kept in the snapshot as it is.
  */
 @Slf4j
 @Component
@@ -69,11 +73,12 @@ public class GraphSnapshotFactory {
     }
 
     @Timed("reaction_observer_service_graph_snapshot")
-    public GraphSnapshot of(Graph graph) {
-        if (graph == null) {
+    public GraphSnapshot of(Graph fullGraph) {
+        if (fullGraph == null) {
             return GraphSnapshot.empty();
         }
         Instant startedAt = Instant.now();
+        Graph graph = MessageGraphFilter.filter(fullGraph);
         String graphFingerprint = fingerprintCalculator.calculate(GraphDtoMapper.map(graph));
         List<GraphSnapshot.SystemEntry> systems = systemEntries(graph);
         List<GraphSnapshot.ComponentEntry> components = componentEntries(graph);
@@ -81,7 +86,7 @@ public class GraphSnapshotFactory {
         log.info("Indexed the reaction graph: {} systems, {} components, {} message types ({})",
                 systems.size(), components.size(), messageTypes.size(),
                 Duration.between(startedAt, Instant.now()));
-        return GraphSnapshot.of(graph, graphFingerprint, systems, components, messageTypes,
+        return GraphSnapshot.of(fullGraph, graph, graphFingerprint, systems, components, messageTypes,
                 systemIndex(systems), componentIndex(components), messageIndex(messageTypes));
     }
 

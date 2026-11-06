@@ -2,8 +2,8 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.domain.SystemRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,7 +16,7 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@Slf4j
+@SecurityRequirement(name = "OIDC")
 public class SystemController {
 
     private final SystemRepository systemRepository;

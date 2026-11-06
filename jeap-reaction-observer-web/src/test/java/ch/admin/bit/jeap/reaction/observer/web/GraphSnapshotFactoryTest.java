@@ -2,6 +2,9 @@ package ch.admin.bit.jeap.reaction.observer.web;
 
 import ch.admin.bit.jeap.reaction.observer.domain.GraphExtractor;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Action;
+import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Edge;
+import ch.admin.bit.jeap.reaction.observer.domain.models.graph.HttpOperation;
+import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Node;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Message;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Reaction;
@@ -12,6 +15,7 @@ import ch.admin.bit.jeap.reaction.observer.web.service.GraphFingerprintCalculato
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -155,6 +159,31 @@ class GraphSnapshotFactoryTest {
             assertThat(component.name()).isEqualTo("orphan-service");
             assertThat(component.system()).isNull();
         });
+    }
+
+    /**
+     * The v1 serves the messages only: a graph that also has other interfaces is fingerprinted and indexed as its
+     * view of messages, and keeps the full graph as it is.
+     */
+    @Test
+    void of_derivesEverythingFromTheMessageView_andKeepsTheFullGraph() {
+        Graph messagesOnly = aGraph();
+        Reaction restOnly = Reaction.builder().id(900).component("stock-service").system("stock").median(1).build();
+        HttpOperation putStock = new HttpOperation(901, "stock-service", "PUT", "/api/stock/{id}");
+        List<Node> nodes = new ArrayList<>(messagesOnly.nodes());
+        nodes.addAll(List.of(restOnly, putStock));
+        List<Edge> edges = new ArrayList<>(messagesOnly.edges());
+        edges.add(new Trigger(putStock, restOnly, 1));
+        Graph withHttp = new Graph(nodes, edges);
+
+        GraphSnapshot snapshot = factory.of(withHttp);
+
+        assertThat(snapshot.fullGraph()).isSameAs(withHttp);
+        assertThat(snapshot.graph().nodes()).doesNotContain(restOnly, putStock);
+        assertThat(snapshot.graphFingerprint()).isEqualTo(factory.of(messagesOnly).graphFingerprint());
+        assertThat(snapshot.components()).extracting(GraphSnapshot.ComponentEntry::name)
+                .containsExactly("orders-intake");
+        assertThat(snapshot.fingerprintOfSystem("stock")).isNull();
     }
 
     /**

@@ -8,7 +8,11 @@ This page covers the test-support module and the local infrastructure packaged w
 
 - `ReactionIdentifiedV2EventBuilder` for building `reaction-identified-event` v2 messages
 - `ReactionsObservedEventBuilder` for building `reactions-observed-event` messages
-- `TestReaction` and `TestObservation` model helpers
+- `TestReaction` and `TestObservation` model helpers. `TestObservation.ofEvent` and `ofCommand` create message
+  observations, `ofHttpRequest(provider, method, pattern)` an `http_request` observation with the FQN
+  `provider METHOD pattern`, and `ofType(type, fqn)` an observation of any type, e.g. one the service does not
+  know. Their ids are built as the library builds them: `type:` followed by the FQN with `%`, `:`, `#` and `&`
+  percent-encoded
 - jEAP Kafka test dependencies used by consumer-side tests
 
 The module is consumed by the in-repo Kafka and web tests and can also be used by downstream services that test their
@@ -29,6 +33,9 @@ Notable verified behaviours from tests include:
 - `ReactionsObservedEventListener` maps timeframe/count data into persisted `ObservedReaction` batches
 - aggregated statistics can be queried after persisting identified and observed reactions
 - graph endpoints return `404` for empty system/component subgraphs and variant-specific graphs for message types
+- reactions with HTTP requests, unknown observation types and FQNs of 1000 characters are stored, the graph is
+  built, and the API v1 shows their message part only (`ReactionGraphExtensionsIT`)
+- counts of unknown reaction ids are skipped and counted, and the other counts of the event are saved
 
 ## Downstream tests that replace `GraphHolder`
 

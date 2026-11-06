@@ -1,5 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
+import ch.admin.bit.jeap.reaction.observer.domain.InterfaceNodeFactory;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionGraphRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.*;
 import lombok.extern.slf4j.Slf4j;
@@ -29,11 +30,14 @@ class ReactionGraphRepositoryImplTest extends PostgresTestContainerBase {
     @Autowired
     private JpaInterfaceRepository jpaInterfaceRepository;
 
+    @Autowired
+    private InterfaceNodeFactory interfaceNodeFactory;
+
     private ReactionGraphRepository reactionGraphRepository;
 
     @BeforeEach
     void setUp() {
-        reactionGraphRepository = new ReactionGraphRepositoryImpl(jpaReactionRepository);
+        reactionGraphRepository = new ReactionGraphRepositoryImpl(jpaReactionRepository, interfaceNodeFactory);
     }
 
     @Test
@@ -195,7 +199,7 @@ class ReactionGraphRepositoryImplTest extends PostgresTestContainerBase {
 
         // Message nodes
         List<Message> messages = graph.nodes().stream()
-                .filter(n -> n instanceof Message)
+                .filter(Message.class::isInstance)
                 .map(n -> (Message) n)
                 .toList();
         assertThat(messages)
@@ -210,4 +214,46 @@ class ReactionGraphRepositoryImplTest extends PostgresTestContainerBase {
         assertThat(graph.edges()).filteredOn(Action.class::isInstance).hasSize(2);
     }
 
+    @Test
+    void buildFullGraph_withHttpRequestsAndUnknownTypes_buildsTheGraphWithANodeOfEachKind() {
+        InterfaceEntity httpTrigger = jpaInterfaceRepository.save(
+                new InterfaceEntity("http_request", "order-service POST /api/orders"));
+        InterfaceEntity httpAction = jpaInterfaceRepository.save(
+                new InterfaceEntity("http_request", "stock-service PUT /api/stock/{id}"));
+        InterfaceEntity unknownTypeAction = jpaInterfaceRepository.save(new InterfaceEntity("scheduled", "nightly-job"));
+        InterfaceEntity unparsableHttpAction = jpaInterfaceRepository.save(
+                new InterfaceEntity("http_request", "not-an-http-operation"));
+        InterfaceEntity eventAction = jpaInterfaceRepository.save(new InterfaceEntity("event", "OrderCreated"));
+
+        ReactionEntity reaction = ReactionEntity.builder()
+                .system("systemH")
+                .component("componentH")
+                .reactionId("reactionWithHttp")
+                .triggerId("http_request:order-service POST /api/orders")
+                .triggerInterface(httpTrigger)
+                .identifiedAt(ZonedDateTime.now())
+                .build();
+        for (InterfaceEntity action : List.of(httpAction, unknownTypeAction, unparsableHttpAction, eventAction)) {
+            reaction.addAction(ActionEntity.builder()
+                    .reaction(reaction)
+                    .actionId(action.getType() + ":" + action.getFqn())
+                    .actionInterface(action)
+                    .build());
+        }
+        jpaReactionRepository.save(reaction);
+
+        Graph graph = reactionGraphRepository.buildFullGraph(Map.of());
+
+        assertThat(graph.nodes())
+                .contains(new HttpOperation(httpTrigger.getId(), "order-service", "POST", "/api/orders"))
+                .contains(new HttpOperation(httpAction.getId(), "stock-service", "PUT", "/api/stock/{id}"))
+                .contains(new GenericInterface(unknownTypeAction.getId(), "scheduled", "nightly-job"))
+                .contains(new GenericInterface(unparsableHttpAction.getId(), "http_request", "not-an-http-operation"))
+                .contains(new Message(eventAction.getId(), "OrderCreated", null, SemanticType.EVENT));
+        assertThat(graph.edges())
+                .filteredOn(Trigger.class::isInstance)
+                .extracting(edge -> ((Trigger) edge).source())
+                .containsExactly(new HttpOperation(httpTrigger.getId(), "order-service", "POST", "/api/orders"));
+        assertThat(graph.edges()).filteredOn(Action.class::isInstance).hasSize(4);
+    }
 }

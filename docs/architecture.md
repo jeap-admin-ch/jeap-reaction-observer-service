@@ -53,6 +53,10 @@ for example ArchRepo"]
 
 The incoming event payload can contain a full reaction, trigger-only payload, or action-only payload; all three forms are handled.
 
+Every observation is stored with its type and FQN as reported, whatever the type: `event` and `command`
+(messages), `http_request` (HTTP operations), and any type the service does not know yet. The type and FQN of an
+interface can be up to 1024 characters long; the library cuts FQNs at 512 characters.
+
 ### Observed counts
 
 `ReactionsObservedEventListener` consumes `reactions-observed-event` messages and stores `ObservedReaction` records with:
@@ -65,6 +69,20 @@ The incoming event payload can contain a full reaction, trigger-only payload, or
 Persistence is idempotent per event idempotence id: `ObservedReactionRepositoryImpl` saves a batch only if no row with the
 same idempotence id exists yet.
 
+A count of a reaction id that has not been identified is **skipped**, and the other counts of the event are saved.
+The skipped counts are logged and counted in `reaction_observer_service_unknown_reaction_counts_total` (see
+[Metrics](metrics.md)). The known reactions of an event are looked up with one query per component.
+
+:::warning Counts that arrive before their reaction is identified are lost
+
+Until 12.17, one unknown reaction id failed the whole `reactions-observed-event`, which ended up in the error
+handling - and since an instance reports every five minutes until it restarts, so did every later count of that
+instance. Since 12.18, such a count is dropped instead. This happens when counts are processed before the
+identification of their reaction, for example while a backlog is consumed after a deployment of the service. The
+metric shows how often it happens.
+
+:::
+
 ## Persistence model
 
 Flyway creates four main tables over time:
@@ -74,8 +92,9 @@ Flyway creates four main tables over time:
 - `observed_reaction` for raw timeframe-based counts
 - `observed_reactions_aggregated` for daily aggregated counts
 
-Later migrations add ShedLock support, multi-action storage, the producer system name, an idempotence index, and an
-interface table used to normalize trigger/action message definitions.
+Later migrations add ShedLock support, multi-action storage, the producer system name, an idempotence index, an
+interface table used to normalize trigger/action interface definitions, and longer interface columns (`type` and
+`fqn` up to 1024 characters, observation ids up to 4096, as an id embeds its encoded FQN).
 
 ## Aggregation and graph building
 
@@ -104,10 +123,23 @@ a conditional request be answered without extracting, serializing or hashing any
 
 `ReactionGraphRepositoryImpl` builds the full graph from persisted reactions:
 
-- message/interface nodes come from normalized `InterfaceEntity` rows
+- interface nodes come from normalized `InterfaceEntity` rows
 - reaction nodes represent producer components within systems
-- trigger edges connect message -&gt; reaction
-- action edges connect reaction -&gt; message
+- trigger edges connect an interface -&gt; reaction
+- action edges connect a reaction -&gt; interface
+
+`InterfaceNodeFactory` creates the interface node from the observation type and FQN, with one parser per type:
+
+| Type | Node | FQN |
+|---|---|---|
+| `event`, `command` | `Message` | `messageType` or `messageType/variant` |
+| `http_request` | `HttpOperation` | `provider METHOD pattern`, split at the first two spaces |
+| any other | `GenericInterface` | kept as it is |
+
+The kind of node is a hint for how to present it; the identity of an interface remains its type and FQN. If the
+parser of a known type cannot parse an FQN, the factory does not fail: the interface becomes a `GenericInterface`
+and is counted, once per interface and instance, in `reaction_observer_service_unparsable_interfaces_total` (see
+[Metrics](metrics.md)). A single interface reported wrongly therefore cannot break the graph of the whole landscape.
 
 `ReactionGraphBuilderService` reads the reactions observed since `fromDate` and the median daily count of each,
 hands the medians to the repository so that reaction nodes and trigger edges are built with them, and filters
@@ -119,7 +151,9 @@ same `Reaction` records: enriching only one of the two would leave records that 
 
 ## Read path
 
-`GraphHolder` stores the current graph in memory. `GraphController` serves:
+`GraphHolder` stores the current graph in memory: the full graph with every kind of interface node, and the view
+of it the API v1 serves, which only has message nodes (see [REST API](rest-api.md#messages-only-in-the-api-v1)).
+`GraphController` serves, from that view:
 
 - the full graph
 - a graph filtered to one system

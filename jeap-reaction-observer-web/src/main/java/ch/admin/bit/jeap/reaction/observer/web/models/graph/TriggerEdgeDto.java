@@ -11,8 +11,7 @@ public record TriggerEdgeDto(
     public static TriggerEdgeDto from(Trigger trigger) {
         return new TriggerEdgeDto(
                 trigger.source().getId(),
-                //Currently it can only be a MessageNode
-                NodeDtoType.MESSAGE,
+                NodeDtoType.of(trigger.source()),
                 trigger.target().id(),
                 trigger.median()
         );

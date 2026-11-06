@@ -18,8 +18,4 @@ public record Reaction(
         String system,
         Integer median
 ) implements Node {
-    @Override
-    public long getId() {
-        return id;
-    }
 }

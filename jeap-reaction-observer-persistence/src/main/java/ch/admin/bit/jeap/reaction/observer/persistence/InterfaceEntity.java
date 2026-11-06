@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 
-import java.time.ZonedDateTime;
 import java.util.Objects;
 
 import static lombok.AccessLevel.PROTECTED;
@@ -23,10 +22,10 @@ public class InterfaceEntity {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "type", nullable = false)
+    @Column(name = "type", nullable = false, length = 1024)
     private String type;
 
-    @Column(name = "fqn", nullable = false)
+    @Column(name = "fqn", nullable = false, length = 1024)
     private String fqn;
 
     @Builder

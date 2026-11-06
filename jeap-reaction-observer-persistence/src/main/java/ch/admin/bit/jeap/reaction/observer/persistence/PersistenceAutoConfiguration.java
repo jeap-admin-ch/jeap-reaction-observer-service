@@ -1,8 +1,14 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
+import ch.admin.bit.jeap.reaction.observer.domain.InterfaceNodeFactory;
+import ch.admin.bit.jeap.reaction.observer.domain.ReactionObserverMetrics;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -22,14 +28,30 @@ class PersistenceAutoConfiguration {
         return new JdbcTemplateLockProvider(dataSource);
     }
 
+    /**
+     * The metrics go to the application's registry; a registry of its own only stands in where there is none, e.g.
+     * in a test that starts the persistence alone.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    ReactionObserverMetrics reactionObserverMetrics(ObjectProvider<MeterRegistry> meterRegistry) {
+        return new ReactionObserverMetrics(meterRegistry.getIfAvailable(SimpleMeterRegistry::new));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    InterfaceNodeFactory interfaceNodeFactory(ReactionObserverMetrics reactionObserverMetrics) {
+        return new InterfaceNodeFactory(reactionObserverMetrics);
+    }
+
     @Bean
     ReactionRepositoryImpl identifiedReactionRepository(JpaReactionRepository jpaReactionRepository, JpaObservationPropertiesRepository propertiesRepository, JpaInterfaceRepository jpaInterfaceRepository) {
         return new ReactionRepositoryImpl(jpaReactionRepository, propertiesRepository, jpaInterfaceRepository);
     }
 
     @Bean
-    ObservedReactionRepositoryImpl observedReactionRepository(JpaObservedReactionRepository jpaObservedReactionRepository, JpaReactionRepository jpaReactionRepository) {
-        return new ObservedReactionRepositoryImpl(jpaObservedReactionRepository, jpaReactionRepository);
+    ObservedReactionRepositoryImpl observedReactionRepository(JpaObservedReactionRepository jpaObservedReactionRepository, JpaReactionRepository jpaReactionRepository, ReactionObserverMetrics reactionObserverMetrics) {
+        return new ObservedReactionRepositoryImpl(jpaObservedReactionRepository, jpaReactionRepository, reactionObserverMetrics);
     }
 
     @Bean
@@ -38,8 +60,8 @@ class PersistenceAutoConfiguration {
     }
 
     @Bean
-    ReactionGraphRepositoryImpl reactionGraphRepository(JpaReactionRepository jpaReactionRepository) {
-        return new ReactionGraphRepositoryImpl(jpaReactionRepository);
+    ReactionGraphRepositoryImpl reactionGraphRepository(JpaReactionRepository jpaReactionRepository, InterfaceNodeFactory interfaceNodeFactory) {
+        return new ReactionGraphRepositoryImpl(jpaReactionRepository, interfaceNodeFactory);
     }
 
     @Bean

@@ -13,8 +13,4 @@ public record Message(
         String variant,
         SemanticType semantic
 ) implements Interface {
-    @Override
-    public long getId() {
-        return id;
-    }
 }

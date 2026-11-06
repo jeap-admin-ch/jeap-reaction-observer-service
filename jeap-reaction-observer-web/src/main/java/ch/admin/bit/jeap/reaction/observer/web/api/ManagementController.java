@@ -2,6 +2,7 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.domain.aggregation.AggregationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +17,7 @@ import java.time.LocalDate;
 @RequestMapping("/api/management")
 @RequiredArgsConstructor
 @Slf4j
+@SecurityRequirement(name = "OIDC")
 public class ManagementController {
 
     private final AggregationService aggregationService;

@@ -11,8 +11,7 @@ public record ActionEdgeDto(
         return new ActionEdgeDto(
                 action.source().id(),
                 action.target().getId(),
-                //Currently it can only be a MessageNode
-                NodeDtoType.MESSAGE
+                NodeDtoType.of(action.target())
         );
     }
     @Override

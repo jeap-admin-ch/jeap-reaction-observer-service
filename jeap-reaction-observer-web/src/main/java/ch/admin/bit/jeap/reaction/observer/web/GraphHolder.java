@@ -34,8 +34,14 @@ public class GraphHolder {
         this.snapshot = snapshotFactory.of(new Graph(List.of(), List.of()));
     }
 
+    /** The graph the API v1 serves, with message nodes only - see {@link GraphSnapshot#graph()}. */
     public Graph getGraph() {
         return snapshot.graph();
+    }
+
+    /** The internal model, with every kind of interface node - see {@link GraphSnapshot#fullGraph()}. */
+    public Graph getFullGraph() {
+        return snapshot.fullGraph();
     }
 
     /** Replaces the graph, and with it every fingerprint derived from it. */

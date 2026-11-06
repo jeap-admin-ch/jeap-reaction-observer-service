@@ -26,7 +26,7 @@ public class ActionEntity {
     @Setter
     private ReactionEntity reaction;
 
-    @Column(name = "action_id")
+    @Column(name = "action_id", length = 4096)
     private String actionId;
 
     @ManyToOne(fetch = FetchType.EAGER)
