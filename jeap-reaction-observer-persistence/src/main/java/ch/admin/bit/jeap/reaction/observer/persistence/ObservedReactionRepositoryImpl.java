@@ -107,6 +107,10 @@ class ObservedReactionRepositoryImpl implements ObservedReactionRepository {
                 .timeframeEnd(observedReaction.timeframe().end())
                 .observationDate(start.toLocalDate())
                 .count(observedReaction.count())
+                .reactionModelVersion(observedReaction.reactionModelVersion())
+                .minUnidentifiedActions(observedReaction.minUnidentifiedActions())
+                .observationsWithUnidentifiedActions(observedReaction.observationsWithUnidentifiedActions())
+                .unidentifiedActions(observedReaction.unidentifiedActions())
                 .build();
     }
 

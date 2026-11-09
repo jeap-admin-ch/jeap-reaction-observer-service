@@ -50,12 +50,22 @@ for example ArchRepo"]
 - optional trigger observation
 - zero or more action observations
 - identification timestamp
+- reaction model version of the emitter
 
 The incoming event payload can contain a full reaction, trigger-only payload, or action-only payload; all three forms are handled.
 
 Every observation is stored with its type and FQN as reported, whatever the type: `event` and `command`
 (messages), `http_request` (HTTP operations), and any type the service does not know yet. The type and FQN of an
 interface can be up to 1024 characters long; the library cuts FQNs at 512 characters.
+
+A reaction is created by its first identification. A later identification of a known reaction keeps its structure and
+identification timestamp and only replaces the reaction model version, which is stored for information only. Events that
+predate the field count as reaction model version 1.
+
+When a reaction is identified for the first time concurrently, exactly one reaction is created and the other events
+fail when their transaction commits, so they end up in the error handling. Processing such an event again finds the
+reaction. Over Kafka this is rare, as the reaction id is the message key and the identifications of a reaction are
+processed one after the other.
 
 ### Observed counts
 
@@ -65,6 +75,13 @@ interface can be up to 1024 characters long; the library cuts FQNs at 512 charac
 - reaction id
 - timeframe start/end
 - count
+- reaction model version of the emitter, which applies to all counts of the event
+- unidentified actions, which are actions the emitter detects while observing a reaction but cannot identify: the
+  minimum number of different unidentified actions per observed reaction, the number of times the reaction was
+  observed with at least one unidentified action, and the total number of unidentified actions
+
+The reaction model version and the unidentified actions are stored per count; the daily aggregation does not use them
+yet. Events that predate these fields count as reaction model version 1 without unidentified actions.
 
 Persistence is idempotent per event idempotence id: `ObservedReactionRepositoryImpl` saves a batch only if no row with the
 same idempotence id exists yet.
@@ -94,7 +111,8 @@ Flyway creates four main tables over time:
 
 Later migrations add ShedLock support, multi-action storage, the producer system name, an idempotence index, an
 interface table used to normalize trigger/action interface definitions, and longer interface columns (`type` and
-`fqn` up to 1024 characters, observation ids up to 4096, as an id embeds its encoded FQN).
+`fqn` up to 1024 characters, observation ids up to 4096, as an id embeds its encoded FQN), and the reaction model
+version and unidentified actions.
 
 ## Aggregation and graph building
 

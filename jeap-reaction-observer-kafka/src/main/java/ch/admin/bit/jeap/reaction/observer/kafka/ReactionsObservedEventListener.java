@@ -36,9 +36,12 @@ class ReactionsObservedEventListener {
     }
 
     private ObservedReaction toDomainObject(ReactionsObservedEvent event, Observation observation) {
-        var timeframe = event.getPayload().getTimeframe();
+        var payload = event.getPayload();
+        var timeframe = payload.getTimeframe();
         var component = event.getPublisher().getService();
         return new ObservedReaction(component, observation.getReactionId(),
-                Timeframe.ofInstantsInDefaultTimezone(timeframe.getStart(), timeframe.getEnd()), observation.getCount());
+                Timeframe.ofInstantsInDefaultTimezone(timeframe.getStart(), timeframe.getEnd()), observation.getCount(),
+                payload.getReactionModelVersion(), observation.getMinUnidentifiedActions(),
+                observation.getObservationsWithUnidentifiedActions(), observation.getUnidentifiedActions());
     }
 }

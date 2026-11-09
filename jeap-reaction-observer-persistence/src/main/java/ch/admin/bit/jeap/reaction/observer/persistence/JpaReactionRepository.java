@@ -1,6 +1,7 @@
 package ch.admin.bit.jeap.reaction.observer.persistence;
 
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
@@ -12,8 +13,15 @@ import java.util.Optional;
 @Repository
 interface JpaReactionRepository extends CrudRepository<ReactionEntity, Long> {
 
-    boolean existsByComponentAndReactionId(String component, String reactionId);
-
+    /**
+     * Records the reaction model version of an identification of a reaction.
+     *
+     * @return the number of updated reactions, 0 if the reaction is not known
+     */
+    @Modifying
+    @Query("update ReactionEntity r set r.lastIdentifiedByModelVersion = :modelVersion " +
+           "where r.component = :component and r.reactionId = :reactionId")
+    int updateLastIdentifiedByModelVersion(String component, String reactionId, int modelVersion);
 
     @EntityGraph(value = "Reaction.withActions", type = EntityGraph.EntityGraphType.LOAD)
     @Query("SELECT r FROM ReactionEntity r")

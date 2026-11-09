@@ -13,10 +13,19 @@ public class ReactionIdentifiedV2EventBuilder extends AvroDomainEventBuilder<Rea
     private final String serviceName;
     private final String systemName;
     private TestReaction reaction;
+    private int reactionModelVersion = 1;
 
     public static ReactionIdentifiedEvent buildEvent(String systemName, String serviceName, TestReaction reaction) {
         ReactionIdentifiedV2EventBuilder builder = new ReactionIdentifiedV2EventBuilder(serviceName, systemName);
         builder.setReaction(reaction);
+        return builder.build();
+    }
+
+    public static ReactionIdentifiedEvent buildEvent(String systemName, String serviceName, TestReaction reaction,
+                                                     int reactionModelVersion) {
+        ReactionIdentifiedV2EventBuilder builder = new ReactionIdentifiedV2EventBuilder(serviceName, systemName);
+        builder.setReaction(reaction);
+        builder.reactionModelVersion = reactionModelVersion;
         return builder.build();
     }
 
@@ -47,7 +56,7 @@ public class ReactionIdentifiedV2EventBuilder extends AvroDomainEventBuilder<Rea
             reactionPayload = new Reaction(reaction.id(),
                     createObservation(reaction.trigger()), createObservations(reaction.actions()));
         }
-        setPayload(new ReactionIdentifiedPayload(reactionPayload));
+        setPayload(new ReactionIdentifiedPayload(reactionPayload, reactionModelVersion));
         return super.build();
     }
 

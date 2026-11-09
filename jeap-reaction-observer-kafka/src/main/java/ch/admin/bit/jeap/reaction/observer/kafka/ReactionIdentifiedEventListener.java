@@ -65,7 +65,8 @@ class ReactionIdentifiedEventListener {
                 reactionId,
                 toDomainObservation(trigger),
                 toDomainObservationList(actions),
-                ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()));
+                ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()),
+                event.getPayload().getReactionModelVersion());
     }
 
     private static ch.admin.bit.jeap.reaction.observer.domain.models.Observation toDomainObservation(Observation observation) {

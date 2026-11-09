@@ -5,6 +5,7 @@ import ch.admin.bit.jeap.reaction.observer.event.observed.Observation;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedPayload;
 import ch.admin.bit.jeap.reaction.observer.event.observed.Timeframe;
+import ch.admin.bit.jeap.reaction.observer.service.test.model.TestUnidentifiedActions;
 
 import java.time.Instant;
 import java.util.List;
@@ -17,7 +18,9 @@ public class ReactionsObservedEventBuilder extends AvroDomainEventBuilder<Reacti
     private final String systemName;
     private UUID serviceInstanceIdentifier;
     private Timeframe timeframe;
-    private List<Observation> observations;
+    private Map<String, Integer> countByReactionId = Map.of();
+    private Map<String, TestUnidentifiedActions> unidentifiedActionsByReactionId = Map.of();
+    private int reactionModelVersion = 1;
 
     public ReactionsObservedEventBuilder(String serviceName, String systemName) {
         super(ReactionsObservedEvent::new);
@@ -36,19 +39,41 @@ public class ReactionsObservedEventBuilder extends AvroDomainEventBuilder<Reacti
     }
 
     public ReactionsObservedEventBuilder countByReactionId(Map<String, Integer> countByReactionId) {
-        this.observations = toObservations(countByReactionId);
+        this.countByReactionId = countByReactionId;
         return this;
     }
 
-    private List<Observation> toObservations(Map<String, Integer> countByReactionId) {
+    public ReactionsObservedEventBuilder reactionModelVersion(int reactionModelVersion) {
+        this.reactionModelVersion = reactionModelVersion;
+        return this;
+    }
+
+    public ReactionsObservedEventBuilder unidentifiedActionsByReactionId(Map<String, TestUnidentifiedActions> unidentifiedActionsByReactionId) {
+        this.unidentifiedActionsByReactionId = unidentifiedActionsByReactionId;
+        return this;
+    }
+
+    private List<Observation> toObservations() {
         return countByReactionId.entrySet().stream()
-                .map(entry -> new Observation(entry.getKey(), entry.getValue()))
+                .map(entry -> toObservation(entry.getKey(), entry.getValue()))
                 .toList();
+    }
+
+    private Observation toObservation(String reactionId, int count) {
+        TestUnidentifiedActions unidentifiedActions =
+                unidentifiedActionsByReactionId.getOrDefault(reactionId, TestUnidentifiedActions.NONE);
+        return Observation.newBuilder()
+                .setReactionId(reactionId)
+                .setCount(count)
+                .setMinUnidentifiedActions(unidentifiedActions.minUnidentifiedActions())
+                .setObservationsWithUnidentifiedActions(unidentifiedActions.observationsWithUnidentifiedActions())
+                .setUnidentifiedActions(unidentifiedActions.unidentifiedActions())
+                .build();
     }
 
     @Override
     public ReactionsObservedEvent build() {
-        setPayload(new ReactionsObservedPayload(timeframe, observations));
+        setPayload(new ReactionsObservedPayload(timeframe, toObservations(), reactionModelVersion));
         idempotenceId(createIdempotenceId());
         return super.build();
     }

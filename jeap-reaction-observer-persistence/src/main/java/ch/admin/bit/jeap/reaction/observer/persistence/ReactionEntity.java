@@ -49,16 +49,20 @@ class ReactionEntity {
     @Column(name = "identified_at")
     private ZonedDateTime identifiedAt;
 
+    @Column(name = "last_identified_by_model_version")
+    private int lastIdentifiedByModelVersion;
+
     @Builder
     private ReactionEntity(@NonNull String reactionId, String system, @NonNull String component,
                            String triggerId, InterfaceEntity triggerInterface,
-                           @NonNull ZonedDateTime identifiedAt) {
+                           @NonNull ZonedDateTime identifiedAt, int lastIdentifiedByModelVersion) {
         this.reactionId = reactionId;
         this.system = system;
         this.component = component;
         this.identifiedAt = identifiedAt;
         this.triggerId = triggerId;
         this.triggerInterface = triggerInterface;
+        this.lastIdentifiedByModelVersion = lastIdentifiedByModelVersion;
     }
 
     public void addAction(ActionEntity action) {

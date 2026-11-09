@@ -52,6 +52,30 @@ class ObservedReactionRepositoryImplTest extends PostgresTestContainerBase {
     private MeterRegistry meterRegistry;
 
     @Test
+    void saveAll_storesTheReactionModelVersionAndTheUnidentifiedActions() {
+        // given: a reaction and a count with a reaction model version and unidentified actions
+        String component = "componentWithModelVersion";
+        String idempotenceId = "idempotenceWithModelVersion";
+        Reaction reaction = new Reaction("systemABC", component, "reactionWithModelVersion",
+                new Observation("t1", "event", "SomeEvent", Map.of()), List.of(), ZonedDateTime.now());
+        reactionRepository.save(reaction);
+        ObservedReaction observedReaction = new ObservedReaction(component, reaction.reactionId(),
+                new Timeframe(ZonedDateTime.now(), ZonedDateTime.now().plusHours(1)), 5, 2, 1, 3, 7);
+
+        // when: the count is saved
+        observedReactionRepository.saveAll(idempotenceId, List.of(observedReaction));
+
+        // then: all its values are stored
+        var foundObservedReactions = StreamSupport.stream(jpaObservedReactionRepository.findAll().spliterator(), false)
+                .filter(entity -> entity.getIdempotenceId().equals(idempotenceId))
+                .map(entity -> entity.toDomainObject(reaction))
+                .toList();
+
+        assertThat(foundObservedReactions)
+                .containsExactly(observedReaction);
+    }
+
+    @Test
     void saveAll_noDuplicates() {
         // given: a reaction and an observation of the reaction
         String reactionId = "reactionId123";

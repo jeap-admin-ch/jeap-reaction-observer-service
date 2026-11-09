@@ -10,6 +10,7 @@ import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Timeframe;
 import ch.admin.bit.jeap.reaction.observer.event.observed.ReactionsObservedEvent;
 import ch.admin.bit.jeap.reaction.observer.service.test.ReactionsObservedEventBuilder;
+import ch.admin.bit.jeap.reaction.observer.service.test.model.TestUnidentifiedActions;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,28 @@ class ReactionsObservedEventListenerTest extends KafkaIntegrationTestBase {
     @MockitoBean
     private ReactionGraphRepository reactionGraphRepository;
 
+
+    @Test
+    void onReactionsObservedEvent_takesTheReactionModelVersionAndTheUnidentifiedActionsFromTheEvent() {
+        // given: observed reactions with a reaction model version and unidentified actions
+        Instant now = Instant.now();
+        ReactionsObservedEvent event = new ReactionsObservedEventBuilder("test", "system")
+                .serviceInstanceIdentifier(UUID.randomUUID())
+                .countByReactionId(Map.of("r1", 10))
+                .reactionModelVersion(2)
+                .unidentifiedActionsByReactionId(Map.of("r1", new TestUnidentifiedActions(1, 3, 7)))
+                .timeframe(now.minusSeconds(300), now)
+                .build();
+
+        // when: the observed reactions are notified to the reaction observer service
+        sendSync("reactions-observed", event);
+
+        // then: the values of the event are stored in the repository
+        var timeframe = event.getPayload().getTimeframe();
+        ObservedReaction expected = new ObservedReaction("test", "r1",
+                Timeframe.ofInstantsInDefaultTimezone(timeframe.getStart(), timeframe.getEnd()), 10, 2, 1, 3, 7);
+        await().untilAsserted(() -> verify(observedReactionRepository).saveAll(event.getIdentity().getIdempotenceId(), List.of(expected)));
+    }
 
     @Test
     void onReactionsObservedEvent() {

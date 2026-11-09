@@ -28,6 +28,7 @@ public record TestReaction(TestObservation trigger, List<TestObservation> action
 
         return new Reaction(event.getPublisher().getSystem(), event.getPublisher().getService(), id(),
                 trigger, actions,
-                ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()));
+                ZonedDateTime.ofInstant(event.getIdentity().getCreated(), ZoneId.systemDefault()),
+                event.getPayload().getReactionModelVersion());
     }
 }

@@ -3,6 +3,7 @@ package ch.admin.bit.jeap.reaction.observer.persistence;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Observation;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.ReactionRepository;
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,43 @@ class ReactionRepositoryImplTest extends PostgresTestContainerBase {
 
     @MockitoSpyBean
     private JpaInterfaceRepository jpaInterfaceRepository;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Test
+    void save_storesTheReactionModelVersionOfANewReaction() {
+        Observation action = new Observation("a1", "actionType", "actionFqn", Map.of());
+        var identifiedReaction = new Reaction("system0", "componentV", "reactionV", null, List.of(action), ZonedDateTime.now(), 2);
+
+        reactionRepository.save(identifiedReaction);
+
+        Optional<ReactionEntity> entity = jpaReactionRepository.findByComponentAndReactionId("componentV", "reactionV");
+        assertThat(entity).isPresent();
+        assertThat(entity.get().getLastIdentifiedByModelVersion()).isEqualTo(2);
+    }
+
+    @Test
+    void save_whenTheReactionIsKnown_thenOnlyTheReactionModelVersionIsReplaced() {
+        // given: a known reaction
+        ZonedDateTime identifiedAt = ZonedDateTime.parse("2026-01-01T10:00:00Z");
+        Observation trigger = new Observation("t1", "triggerType", "triggerFqn", Map.of());
+        Observation action = new Observation("a1", "actionType", "actionFqn", Map.of());
+        reactionRepository.save(new Reaction("system0", "componentK", "reactionK", trigger, List.of(action), identifiedAt, 1));
+
+        // when: it is identified again, with a newer reaction model version and everything else differing
+        Observation otherAction = new Observation("a2", "otherType", "otherFqn", Map.of());
+        reactionRepository.save(new Reaction("system1", "componentK", "reactionK", null, List.of(otherAction), identifiedAt.plusDays(1), 2));
+
+        // then: only the reaction model version has changed
+        entityManager.clear();
+        Reaction reaction = reactionRepository.findByComponentAndReactionId("componentK", "reactionK").orElseThrow();
+        assertThat(reaction.reactionModelVersion()).isEqualTo(2);
+        assertThat(reaction.system()).isEqualTo("system0");
+        assertThat(reaction.trigger()).isEqualTo(trigger);
+        assertThat(reaction.actions()).containsExactly(action);
+        assertThat(reaction.identifiedAt()).isEqualTo(identifiedAt);
+    }
 
     @Test
     void save_noProps() {

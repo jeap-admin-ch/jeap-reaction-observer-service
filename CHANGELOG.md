@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.20.0] - 2026-11-10
+
+- Consumes `reaction-identified-event` 2.1.0 and `reactions-observed-event` 1.1.0 and stores the reaction model version
+  of the last identification per reaction, and the reaction model version and unidentified actions per count. Events
+  without these values count as reaction model version 1 without unidentified actions.
+- The test builders can set the reaction model version and the unidentified actions.
+
 ## [12.19.1] - 2026-11-10
 
 - Reactions with HTTP requests (`http_request`) or observation types the service does not know are stored, and the

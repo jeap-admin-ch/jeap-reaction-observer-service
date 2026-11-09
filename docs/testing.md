@@ -6,8 +6,10 @@ This page covers the test-support module and the local infrastructure packaged w
 
 `jeap-reaction-observer-service-test` is a reusable JAR, not just an internal test folder. Its POM publishes:
 
-- `ReactionIdentifiedV2EventBuilder` for building `reaction-identified-event` v2 messages
-- `ReactionsObservedEventBuilder` for building `reactions-observed-event` messages
+- `ReactionIdentifiedV2EventBuilder` for building `reaction-identified-event` v2 messages, optionally with a reaction
+  model version
+- `ReactionsObservedEventBuilder` for building `reactions-observed-event` messages, optionally with a reaction model
+  version and unidentified actions per reaction (`TestUnidentifiedActions`)
 - `TestReaction` and `TestObservation` model helpers. `TestObservation.ofEvent` and `ofCommand` create message
   observations, `ofHttpRequest(provider, method, pattern)` an `http_request` observation with the FQN
   `provider METHOD pattern`, and `ofType(type, fqn)` an observation of any type, e.g. one the service does not
@@ -35,6 +37,10 @@ Notable verified behaviours from tests include:
 - graph endpoints return `404` for empty system/component subgraphs and variant-specific graphs for message types
 - reactions with HTTP requests, unknown observation types and FQNs of 1000 characters are stored, the graph is
   built, and the API v1 shows their message part only (`ReactionGraphExtensionsIT`)
+- the reaction model version and the unidentified actions of the events are stored, and events without them count as
+  reaction model version 1 without unidentified actions (`ReactionModelVersionIT`)
+- a further identification of a known reaction only replaces its reaction model version, and concurrent first
+  identifications create exactly one reaction
 - counts of unknown reaction ids are skipped and counted, and the other counts of the event are saved
 
 ## Downstream tests that replace `GraphHolder`

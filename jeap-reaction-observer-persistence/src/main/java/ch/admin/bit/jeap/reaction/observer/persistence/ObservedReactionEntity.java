@@ -4,6 +4,7 @@ import ch.admin.bit.jeap.reaction.observer.domain.models.ObservedReaction;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Reaction;
 import ch.admin.bit.jeap.reaction.observer.domain.models.Timeframe;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,9 +14,12 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 
+import static lombok.AccessLevel.PRIVATE;
 import static lombok.AccessLevel.PROTECTED;
 
 @NoArgsConstructor(access = PROTECTED) // for JPA
+@AllArgsConstructor(access = PRIVATE) // for the builder
+@Builder
 @ToString
 @Getter
 @Entity
@@ -46,15 +50,17 @@ class ObservedReactionEntity {
     @Column(name = "count")
     private int count;
 
-    @Builder
-    private ObservedReactionEntity(Long reactionFk, String idempotenceId, ZonedDateTime timeframeStart, ZonedDateTime timeframeEnd, LocalDate observationDate, int count) {
-        this.reactionFk = reactionFk;
-        this.idempotenceId = idempotenceId;
-        this.timeframeStart = timeframeStart;
-        this.timeframeEnd = timeframeEnd;
-        this.observationDate = observationDate;
-        this.count = count;
-    }
+    @Column(name = "reaction_model_version")
+    private int reactionModelVersion;
+
+    @Column(name = "min_unidentified_actions")
+    private int minUnidentifiedActions;
+
+    @Column(name = "observations_with_unidentified_actions")
+    private int observationsWithUnidentifiedActions;
+
+    @Column(name = "unidentified_actions")
+    private int unidentifiedActions;
 
     @Override
     public boolean equals(Object o) {
@@ -70,6 +76,7 @@ class ObservedReactionEntity {
 
     public ObservedReaction toDomainObject(Reaction reaction) {
         var timeframe = new Timeframe(timeframeStart, timeframeEnd);
-        return new ObservedReaction(reaction.component(), reaction.reactionId(), timeframe, count);
+        return new ObservedReaction(reaction.component(), reaction.reactionId(), timeframe, count,
+                reactionModelVersion, minUnidentifiedActions, observationsWithUnidentifiedActions, unidentifiedActions);
     }
 }
