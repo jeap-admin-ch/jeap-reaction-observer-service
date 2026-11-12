@@ -159,9 +159,9 @@ parser of a known type cannot parse an FQN, the factory does not fail: the inter
 and is counted, once per interface and instance, in `reaction_observer_service_unparsable_interfaces_total` (see
 [Metrics](metrics.md)). A single interface reported wrongly therefore cannot break the graph of the whole landscape.
 
-`ReactionGraphBuilderService` reads the reactions observed since `fromDate` and the median daily count of each,
-hands the medians to the repository so that reaction nodes and trigger edges are built with them, and filters
-the graph to those reactions.
+`ReactionGraphBuilderService` reads the median daily count of each reaction observed since `fromDate`, hands the
+medians to the repository so that reaction nodes and trigger edges are built with them, and filters the graph to
+the reactions it has a median for. Every reaction of the graph therefore has its median.
 
 The medians are built into the graph rather than applied to a finished one, because nodes and edges hold the
 same `Reaction` records: enriching only one of the two would leave records that no longer compare equal, and
@@ -178,7 +178,17 @@ of it the API v1 serves, which only has message nodes (see [REST API](rest-api.m
 - a graph filtered to one component
 - one subgraph per variant of a message type
 
+`GraphV2Controller` serves the API v2 from the full graph, with every kind of interface (see
+[REST API](rest-api.md#api-v2)):
+
+- the full graph
+- a graph filtered to one system
+- a graph filtered to one component
+- the graph of one interface: every reaction that has it as its trigger or as one of its actions
+
 Each response includes a fingerprint produced by `GraphFingerprintCalculator` from canonical JSON so consumers can detect changes.
+The fingerprints and indexes of both API versions are computed once per refresh and kept in the same snapshot,
+each over the representation its version serves.
 
 The repository also exposes supporting lookup/statistics endpoints for known systems, known components, and the last
 observation date per component. This API shape matches the service's role as an internal source for system-behaviour tooling.

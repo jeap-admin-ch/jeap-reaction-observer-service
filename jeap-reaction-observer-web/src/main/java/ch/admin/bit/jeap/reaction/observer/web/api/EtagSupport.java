@@ -1,5 +1,6 @@
 package ch.admin.bit.jeap.reaction.observer.web.api;
 
+import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot.IndexPayload;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -39,6 +40,9 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class EtagSupport {
 
+    /** What an index is before there is a snapshot to serve one from. */
+    private static final byte[] EMPTY_INDEX = "{\"entries\":[]}".getBytes(StandardCharsets.UTF_8);
+
     private final JsonMapper jsonMapper;
 
     /**
@@ -75,6 +79,22 @@ public class EtagSupport {
             return null;
         }
         return ok(body, entityTag);
+    }
+
+    /**
+     * Answers with an index as it was built when the graph was refreshed, or with {@code 304}.
+     * <p>
+     * Before the first refresh there is no index: the answer is an empty one without an entity tag, so that a
+     * consumer asks again rather than caching an emptiness. That is a landscape nothing has been observed in yet,
+     * not an error - and a transient state, see {@code GraphHolder}.
+     *
+     * @return the response, or <b>null when the prepared {@code 304} is to be sent</b>
+     */
+    public @Nullable ResponseEntity<byte[]> respondWithIndex(WebRequest request, @Nullable IndexPayload index) {
+        if (index == null) {
+            return ResponseEntity.ok(EMPTY_INDEX);
+        }
+        return respond(request, index.bytes(), index.etag());
     }
 
     /**

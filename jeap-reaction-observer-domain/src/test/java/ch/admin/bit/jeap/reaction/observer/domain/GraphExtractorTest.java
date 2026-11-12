@@ -279,6 +279,82 @@ class GraphExtractorTest {
         assertThat(extractor.getMessageRelatedGraphs(empty)).isEmpty();
     }
 
+    // The reactions of an invented order service and partner service, made up to have interfaces of every kind:
+    //   [submitted] --> [checkOrder] --> [checked], [reserveCredit], [nightlyJob]
+    //   [reserveCredit] --> [reserve] --> [reserved]
+    //   [startOrder] --> [start] --> [submitted]
+    private final Message submitted = new Message(11, "OrderSubmitted", null, SemanticType.EVENT);
+    private final Message checked = new Message(12, "OrderChecked", null, SemanticType.EVENT);
+    private final Message reserved = new Message(13, "CreditReserved", null, SemanticType.EVENT);
+    private final HttpOperation reserveCredit = new HttpOperation(14, "partner-service", "POST", "/api/credits");
+    private final HttpOperation startOrder = new HttpOperation(15, "order-service", "POST", "/api/orders");
+    private final GenericInterface nightlyJob = new GenericInterface(16, "scheduled", "nightly-job");
+    private final Reaction checkOrder = Reaction.builder().id(11L).component("order-service").system("shop").build();
+    private final Reaction reserve = Reaction.builder().id(12L).component("partner-service").system("shop").build();
+    private final Reaction start = Reaction.builder().id(13L).component("order-service").system("shop").build();
+    private final Trigger submittedTriggersCheck = Trigger.builder().source(submitted).target(checkOrder).build();
+    private final Action checkSendsChecked = Action.builder().source(checkOrder).target(checked).build();
+    private final Action checkCallsReserve = Action.builder().source(checkOrder).target(reserveCredit).build();
+    private final Action checkStartsJob = Action.builder().source(checkOrder).target(nightlyJob).build();
+    private final Trigger callTriggersReserve = Trigger.builder().source(reserveCredit).target(reserve).build();
+    private final Action reserveSendsReserved = Action.builder().source(reserve).target(reserved).build();
+    private final Trigger startTriggersStart = Trigger.builder().source(startOrder).target(start).build();
+    private final Action startSendsSubmitted = Action.builder().source(start).target(submitted).build();
+    private final Graph mixedGraph = new Graph(
+            List.of(submitted, checked, reserved, reserveCredit, startOrder, nightlyJob, checkOrder, reserve, start),
+            List.of(submittedTriggersCheck, checkSendsChecked, checkCallsReserve, checkStartsJob,
+                    callTriggersReserve, reserveSendsReserved, startTriggersStart, startSendsSubmitted));
+
+    @Test
+    void getInterfaceRelatedGraph_ofAnHttpOperation_hasEveryReactionOfItWhole_andNoneOfItsNeighbours() {
+        Graph graph = extractor.getInterfaceRelatedGraph(mixedGraph, reserveCredit.id());
+
+        // The reaction calling the operation with its trigger and all its actions, of every kind of interface,
+        // and the reaction the operation triggers - but not the reaction that only sends the neighbour [submitted]
+        assertThat(graph.nodes()).containsExactlyInAnyOrder(
+                reserveCredit, checkOrder, submitted, checked, nightlyJob, reserve, reserved);
+        assertThat(graph.edges()).containsExactlyInAnyOrder(submittedTriggersCheck, checkSendsChecked,
+                checkCallsReserve, checkStartsJob, callTriggersReserve, reserveSendsReserved);
+    }
+
+    @Test
+    void getInterfaceRelatedGraph_ofAMessage_hasItsReactionsWholeWithTheirOtherKindsOfInterfaces() {
+        Graph graph = extractor.getInterfaceRelatedGraph(mixedGraph, submitted.id());
+
+        // The reaction sending the message is triggered by an HTTP operation, the one it triggers calls one
+        assertThat(graph.nodes()).containsExactlyInAnyOrder(
+                submitted, start, startOrder, checkOrder, checked, reserveCredit, nightlyJob);
+        assertThat(graph.edges()).containsExactlyInAnyOrder(startTriggersStart, startSendsSubmitted,
+                submittedTriggersCheck, checkSendsChecked, checkCallsReserve, checkStartsJob);
+    }
+
+    @Test
+    void getInterfaceRelatedGraph_ofAnIdThatIsNoInterface_isEmpty() {
+        // 11 is the id of an interface and of a reaction, 99 of none, and 13 the id of a reaction as well
+        assertThat(extractor.getInterfaceRelatedGraph(mixedGraph, 99).nodes()).isEmpty();
+        assertThat(extractor.getInterfaceRelatedGraph(mixedGraph, 11).nodes()).contains(submitted);
+        assertThat(extractor.getInterfaceRelatedGraph(mixedGraph, 13).nodes()).contains(reserved).doesNotContain(start);
+    }
+
+    @Test
+    void getInterfaceRelatedGraphs_answersWhatGetInterfaceRelatedGraphAnswers() {
+        Map<Long, Graph> batched = extractor.getInterfaceRelatedGraphs(mixedGraph);
+
+        assertThat(batched).containsOnlyKeys(11L, 12L, 13L, 14L, 15L, 16L);
+        batched.forEach((id, subgraph) -> {
+            assertSameGraph(extractor.getInterfaceRelatedGraph(mixedGraph, id), subgraph, "interface " + id);
+            assertEdgesAreWiredToNodes(subgraph);
+        });
+    }
+
+    @Test
+    void getInterfaceRelatedGraphs_ofAGraphOfMessages_areTheMessageRelatedGraphs() {
+        Map<Long, Graph> byInterface = extractor.getInterfaceRelatedGraphs(fullGraph);
+
+        assertSameGraph(extractor.getMessageRelatedGraph(fullGraph, "TypeA", "v1"), byInterface.get(1L), "TypeA");
+        assertSameGraph(extractor.getMessageRelatedGraph(fullGraph, "TypeB", "v1"), byInterface.get(2L), "TypeB");
+    }
+
     /** Nodes and edges as sets: both forms build them from sets, so the order is not part of the answer. */
     @Test
     void everySubgraph_keepsItsEdgesWiredToItsNodes() {

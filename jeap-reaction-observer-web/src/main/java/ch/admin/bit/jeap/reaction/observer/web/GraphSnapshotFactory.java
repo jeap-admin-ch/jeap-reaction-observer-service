@@ -3,14 +3,19 @@ package ch.admin.bit.jeap.reaction.observer.web;
 import ch.admin.bit.jeap.reaction.observer.domain.GraphExtractor;
 import ch.admin.bit.jeap.reaction.observer.domain.MessageGraphFilter;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
+import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Interface;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Reaction;
 import ch.admin.bit.jeap.reaction.observer.web.api.EtagSupport;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphIndexDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphIndexDto.GraphIndexEntryDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.MessageGraphIndexDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.MessageGraphIndexDto.MessageGraphIndexEntryDto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.InterfaceGraphIndexDto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.InterfaceGraphIndexDto.InterfaceGraphIndexEntryDto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.NodeV2Id;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphDtoMapper;
 import ch.admin.bit.jeap.reaction.observer.web.service.GraphFingerprintCalculator;
+import ch.admin.bit.jeap.reaction.observer.web.service.GraphV2DtoMapper;
 import io.micrometer.core.annotation.Timed;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Locale;
@@ -30,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 
 /**
  * Builds a {@link GraphSnapshot}: every subgraph is extracted and fingerprinted, and the three indexes are
@@ -45,8 +52,9 @@ import java.util.TreeMap;
  * equal by {@code GraphExtractorTest} - which matters, because an index entry's tag has to be the one its
  * resource answers with.
  * <p>
- * Everything is derived from the <b>view of the API v1</b> ({@link MessageGraphFilter}), which is what the graph
- * resources and indexes serve; the full graph is kept in the snapshot as it is.
+ * The fingerprints and indexes of the API v1 are derived from the <b>view of the API v1</b>
+ * ({@link MessageGraphFilter}), those of the API v2 from the full graph ({@link GraphSnapshotV2}). They are computed
+ * separately, over the representation each version serves, so the entity tags of the two are independent.
  */
 @Slf4j
 @Component
@@ -61,6 +69,7 @@ public class GraphSnapshotFactory {
      * to be usable as it stands, and this service runs under a context path.
      */
     private final String apiRoot;
+    private final String apiRootV2;
 
     public GraphSnapshotFactory(GraphExtractor graphExtractor,
                                 GraphFingerprintCalculator fingerprintCalculator,
@@ -70,6 +79,7 @@ public class GraphSnapshotFactory {
         this.fingerprintCalculator = fingerprintCalculator;
         this.etagSupport = etagSupport;
         this.apiRoot = normalized(contextPath) + "/api/graphs";
+        this.apiRootV2 = normalized(contextPath) + "/api/v2/graphs";
     }
 
     @Timed("reaction_observer_service_graph_snapshot")
@@ -80,21 +90,90 @@ public class GraphSnapshotFactory {
         Instant startedAt = Instant.now();
         Graph graph = MessageGraphFilter.filter(fullGraph);
         String graphFingerprint = fingerprintCalculator.calculate(GraphDtoMapper.map(graph));
-        List<GraphSnapshot.SystemEntry> systems = systemEntries(graph);
-        List<GraphSnapshot.ComponentEntry> components = componentEntries(graph);
+        List<GraphSnapshot.SystemEntry> systems = systemEntries(graph, this::fingerprintOf);
+        List<GraphSnapshot.ComponentEntry> components = componentEntries(graph, this::fingerprintOf);
         List<GraphSnapshot.MessageTypeEntry> messageTypes = messageTypeEntries(graph);
         log.info("Indexed the reaction graph: {} systems, {} components, {} message types ({})",
                 systems.size(), components.size(), messageTypes.size(),
                 Duration.between(startedAt, Instant.now()));
         return GraphSnapshot.of(fullGraph, graph, graphFingerprint, systems, components, messageTypes,
-                systemIndex(systems), componentIndex(components), messageIndex(messageTypes));
+                systemIndex(systems, apiRoot), componentIndex(components, apiRoot), messageIndex(messageTypes),
+                v2(fullGraph));
+    }
+
+    /** The fingerprints and indexes of the API v2, over the full graph and its own representation of it. */
+    private GraphSnapshotV2 v2(Graph fullGraph) {
+        Instant startedAt = Instant.now();
+        List<GraphSnapshot.SystemEntry> systems = systemEntries(fullGraph, this::fingerprintOfV2);
+        List<GraphSnapshot.ComponentEntry> components = componentEntries(fullGraph, this::fingerprintOfV2);
+        List<InterfaceEntry> interfaces = interfaceEntries(fullGraph);
+
+        Map<String, String> fingerprintsBySystem = new HashMap<>();
+        systems.forEach(entry -> fingerprintsBySystem.put(entry.name().toLowerCase(Locale.ROOT), entry.fingerprint()));
+        Map<String, String> fingerprintsByComponent = new HashMap<>();
+        components.forEach(entry -> fingerprintsByComponent.put(entry.name(), entry.fingerprint()));
+        Map<Long, String> fingerprintsByInterface = new HashMap<>();
+        interfaces.forEach(entry -> fingerprintsByInterface.put(entry.id(), entry.fingerprint()));
+
+        // An interface without a type is in the index of all interfaces only: there is no type to ask for it by
+        Map<String, List<InterfaceEntry>> interfacesByType = new TreeMap<>();
+        interfaces.stream()
+                .filter(entry -> entry.type() != null)
+                .forEach(entry -> interfacesByType.computeIfAbsent(entry.type(), type -> new ArrayList<>())
+                        .add(entry));
+        Map<String, GraphSnapshot.IndexPayload> interfaceIndexesByType = new HashMap<>();
+        interfacesByType.forEach((type, entries) -> interfaceIndexesByType.put(type, interfaceIndex(entries)));
+
+        log.info("Indexed the reaction graph for the API v2: {} systems, {} components, {} interfaces of the types "
+                 + "{} ({})", systems.size(), components.size(), interfaces.size(), interfacesByType.keySet(),
+                Duration.between(startedAt, Instant.now()));
+        return new GraphSnapshotV2(fingerprintOfV2(fullGraph), fingerprintsBySystem, fingerprintsByComponent,
+                fingerprintsByInterface, systemIndex(systems, apiRootV2), componentIndex(components, apiRootV2),
+                interfaceIndex(interfaces), interfaceIndexesByType, interfaceIndex(List.of()));
+    }
+
+    private static final Comparator<String> NULLS_FIRST = Comparator.nullsFirst(Comparator.naturalOrder());
+
+    /** An interface of the full graph, and the fingerprint of its subgraph. */
+    private record InterfaceEntry(long id, String type, String fqn, String fingerprint) {
+    }
+
+    /**
+     * One entry per interface of the full graph, ordered by type and FQN. Every interface of the graph belongs to
+     * a reaction, so its subgraph is never empty.
+     * <p>
+     * A stored interface always has a type and an FQN. A graph handed to {@link GraphHolder#setGraph(Graph)} by
+     * other means may have interfaces without, which are listed first and must not fail the snapshot - it is the
+     * one every endpoint answers from.
+     */
+    private List<InterfaceEntry> interfaceEntries(Graph fullGraph) {
+        Map<Long, Graph> subgraphs = graphExtractor.getInterfaceRelatedGraphs(fullGraph);
+        return fullGraph.nodes().stream()
+                .filter(Interface.class::isInstance)
+                .map(Interface.class::cast)
+                .map(iface -> new InterfaceEntry(iface.id(), iface.type(), iface.fqn(),
+                        fingerprintOfV2(subgraphs.get(iface.id()))))
+                .sorted(Comparator.comparing(InterfaceEntry::type, NULLS_FIRST)
+                        .thenComparing(InterfaceEntry::fqn, NULLS_FIRST)
+                        .thenComparingLong(InterfaceEntry::id))
+                .toList();
+    }
+
+    private GraphSnapshot.IndexPayload interfaceIndex(List<InterfaceEntry> interfaces) {
+        return payload(new InterfaceGraphIndexDto(interfaces.stream()
+                .map(entry -> {
+                    String nodeId = NodeV2Id.ofInterface(entry.id());
+                    return new InterfaceGraphIndexEntryDto(nodeId, entry.type(), entry.fqn(),
+                            etagSupport.entityTag(entry.fingerprint()), apiRootV2 + "/interfaces/" + nodeId);
+                })
+                .toList()));
     }
 
     /**
      * One entry per system that has a reaction, so the index lists what the graph resource answers with
      * {@code 200} and nothing else - a name whose subgraph would be empty is not in the graph to begin with.
      */
-    private List<GraphSnapshot.SystemEntry> systemEntries(Graph graph) {
+    private List<GraphSnapshot.SystemEntry> systemEntries(Graph graph, Function<Graph, String> fingerprintOf) {
         Map<String, Graph> subgraphs = graphExtractor.getSystemRelatedGraphs(graph);
         return reactions(graph).stream()
                 .map(Reaction::system)
@@ -102,7 +181,7 @@ public class GraphSnapshotFactory {
                 .distinct()
                 .sorted()
                 .map(system -> new GraphSnapshot.SystemEntry(system,
-                        fingerprintOf(subgraphs.get(system.toLowerCase(Locale.ROOT)))))
+                        fingerprintOf.apply(subgraphs.get(system.toLowerCase(Locale.ROOT)))))
                 .toList();
     }
 
@@ -113,7 +192,8 @@ public class GraphSnapshotFactory {
      * taken and the conflict is logged, because a component that reports two systems is a producer-side defect
      * and not something a reader of the index can act on.
      */
-    private List<GraphSnapshot.ComponentEntry> componentEntries(Graph graph) {
+    private List<GraphSnapshot.ComponentEntry> componentEntries(Graph graph,
+                                                                Function<Graph, String> fingerprintOf) {
         Map<String, Graph> subgraphs = graphExtractor.getComponentRelatedGraphs(graph);
         Map<String, Set<String>> systemsByComponent = new LinkedHashMap<>();
         reactions(graph).forEach(reaction -> systemsByComponent
@@ -128,7 +208,7 @@ public class GraphSnapshotFactory {
             }
             String system = systems.stream().filter(Objects::nonNull).sorted().findFirst().orElse(null);
             entries.add(new GraphSnapshot.ComponentEntry(component, system,
-                    fingerprintOf(subgraphs.get(component))));
+                    fingerprintOf.apply(subgraphs.get(component))));
         });
         entries.sort(Comparator.comparing(GraphSnapshot.ComponentEntry::name));
         return entries;
@@ -158,19 +238,20 @@ public class GraphSnapshotFactory {
         return entries;
     }
 
-    private GraphSnapshot.IndexPayload systemIndex(List<GraphSnapshot.SystemEntry> systems) {
+    private GraphSnapshot.IndexPayload systemIndex(List<GraphSnapshot.SystemEntry> systems, String root) {
         return payload(new GraphIndexDto(systems.stream()
                 .map(entry -> new GraphIndexEntryDto(entry.name(), null,
                         etagSupport.entityTag(entry.fingerprint()),
-                        apiRoot + "/systems/" + encode(entry.name())))
+                        root + "/systems/" + encode(entry.name())))
                 .toList()));
     }
 
-    private GraphSnapshot.IndexPayload componentIndex(List<GraphSnapshot.ComponentEntry> components) {
+    private GraphSnapshot.IndexPayload componentIndex(List<GraphSnapshot.ComponentEntry> components,
+                                                      String root) {
         return payload(new GraphIndexDto(components.stream()
                 .map(entry -> new GraphIndexEntryDto(entry.name(), entry.system(),
                         etagSupport.entityTag(entry.fingerprint()),
-                        apiRoot + "/components/" + encode(entry.name())))
+                        root + "/components/" + encode(entry.name())))
                 .toList()));
     }
 
@@ -191,6 +272,11 @@ public class GraphSnapshotFactory {
     private String fingerprintOf(Graph subgraph) {
         Graph graph = subgraph == null ? new Graph(List.of(), List.of()) : subgraph;
         return fingerprintCalculator.calculate(GraphDtoMapper.map(graph));
+    }
+
+    private String fingerprintOfV2(Graph subgraph) {
+        Graph graph = subgraph == null ? new Graph(List.of(), List.of()) : subgraph;
+        return fingerprintCalculator.calculate(GraphV2DtoMapper.map(graph));
     }
 
     private static List<Reaction> reactions(Graph graph) {

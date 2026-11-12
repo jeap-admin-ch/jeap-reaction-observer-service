@@ -2,6 +2,7 @@ package ch.admin.bit.jeap.reaction.observer.domain;
 
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.GenericInterface;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.HttpOperation;
+import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Interface;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Message;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.SemanticType;
 import io.micrometer.core.instrument.Counter;
@@ -26,19 +27,47 @@ class InterfaceNodeFactoryTest {
     @Test
     void create_commandWithVariant_isAMessageWithTheVariant_ignoringTheCaseOfTheType() {
         assertThat(factory.create(2, "COMMAND", "ShipOrder/express"))
-                .isEqualTo(new Message(2, "ShipOrder", "express", SemanticType.COMMAND));
+                .isEqualTo(new Message(2, "COMMAND", "ShipOrder/express", "ShipOrder", "express",
+                        SemanticType.COMMAND));
     }
 
     @Test
     void create_messageWithFurtherSegments_isSplitAsBefore() {
         assertThat(factory.create(3, "event", "Type/variant/ignored"))
-                .isEqualTo(new Message(3, "Type", "variant", SemanticType.EVENT));
+                .isEqualTo(new Message(3, "event", "Type/variant/ignored", "Type", "variant", SemanticType.EVENT));
+    }
+
+    @Test
+    void create_everyKindOfInterface_keepsTheTypeAndFqnAsReported() {
+        assertThat(factory.create(11, "event", "OrderCreated/eu"))
+                .returns("event", Interface::type)
+                .returns("OrderCreated/eu", Interface::fqn);
+        assertThat(factory.create(12, "HTTP_REQUEST", "order-service GET /api/orders/{}"))
+                .isInstanceOf(HttpOperation.class)
+                .returns("HTTP_REQUEST", Interface::type)
+                .returns("order-service GET /api/orders/{}", Interface::fqn);
+        assertThat(factory.create(13, "scheduled", "nightly-job"))
+                .returns("scheduled", Interface::type)
+                .returns("nightly-job", Interface::fqn);
     }
 
     @Test
     void create_httpRequest_isAnHttpOperation_splitAtTheFirstTwoSpaces() {
         assertThat(factory.create(4, "http_request", "order-service GET /api/orders/{id} with space"))
                 .isEqualTo(new HttpOperation(4, "order-service", "GET", "/api/orders/{id} with space"));
+        assertThat(unparsableInterfaces("http_request")).isZero();
+    }
+
+    /**
+     * An operation the caller named, because the called service did not: the provider starts with {@code //} and
+     * is where the call went. It is split like any other operation, whatever follows the {@code //}.
+     */
+    @Test
+    void create_httpRequestNamedByTheCaller_isAnHttpOperation_withWhereTheCallWentAsProvider() {
+        assertThat(factory.create(14, "http_request", "//foo.bar.admin.ch POST /{*}"))
+                .isEqualTo(new HttpOperation(14, "//foo.bar.admin.ch", "POST", "/{*}"));
+        assertThat(factory.create(15, "http_request", "//foo.bar.admin.ch:8443/foo-service GET /{*}"))
+                .isEqualTo(new HttpOperation(15, "//foo.bar.admin.ch:8443/foo-service", "GET", "/{*}"));
         assertThat(unparsableInterfaces("http_request")).isZero();
     }
 

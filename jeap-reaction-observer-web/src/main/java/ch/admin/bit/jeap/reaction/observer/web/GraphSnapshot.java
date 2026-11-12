@@ -26,7 +26,8 @@ import java.util.Objects;
  * <p>
  * <b>Two graphs.</b> {@link #fullGraph()} is the internal model, with every kind of interface node. {@link #graph()}
  * is what the API v1 serves - the view of model version 1, messages only (see {@code MessageGraphFilter}) - and
- * every fingerprint and index of this snapshot is of that view.
+ * every fingerprint and index of this snapshot is of that view. What the API v2 serves from the full graph is in
+ * {@link #v2()}.
  */
 public final class GraphSnapshot {
 
@@ -39,6 +40,7 @@ public final class GraphSnapshot {
     private final IndexPayload systemIndex;
     private final IndexPayload componentIndex;
     private final IndexPayload messageIndex;
+    private final GraphSnapshotV2 v2;
 
     /** Lower-cased, because {@code GraphExtractor} matches a system name ignoring case. */
     private final Map<String, String> fingerprintsBySystem;
@@ -96,10 +98,11 @@ public final class GraphSnapshot {
         }
     }
 
-    @SuppressWarnings("java:S107") // Nine parts of one snapshot; the factory is the only caller
+    @SuppressWarnings("java:S107") // Ten parts of one snapshot; the factory is the only caller
     private GraphSnapshot(Graph fullGraph, Graph graph, String graphFingerprint, List<SystemEntry> systems,
                           List<ComponentEntry> components, List<MessageTypeEntry> messageTypes,
-                          IndexPayload systemIndex, IndexPayload componentIndex, IndexPayload messageIndex) {
+                          IndexPayload systemIndex, IndexPayload componentIndex, IndexPayload messageIndex,
+                          GraphSnapshotV2 v2) {
         this.fullGraph = fullGraph;
         this.graph = graph;
         this.graphFingerprint = graphFingerprint;
@@ -109,6 +112,7 @@ public final class GraphSnapshot {
         this.systemIndex = systemIndex;
         this.componentIndex = componentIndex;
         this.messageIndex = messageIndex;
+        this.v2 = v2;
         this.fingerprintsBySystem = lookup(systems, entry -> entry.name().toLowerCase(Locale.ROOT),
                 SystemEntry::fingerprint);
         this.fingerprintsByComponent = lookup(components, ComponentEntry::name, ComponentEntry::fingerprint);
@@ -120,9 +124,9 @@ public final class GraphSnapshot {
     static GraphSnapshot of(Graph fullGraph, Graph graph, String graphFingerprint, List<SystemEntry> systems,
                             List<ComponentEntry> components, List<MessageTypeEntry> messageTypes,
                             IndexPayload systemIndex, IndexPayload componentIndex,
-                            IndexPayload messageIndex) {
+                            IndexPayload messageIndex, GraphSnapshotV2 v2) {
         return new GraphSnapshot(fullGraph, graph, graphFingerprint, systems, components, messageTypes, systemIndex,
-                componentIndex, messageIndex);
+                componentIndex, messageIndex, v2);
     }
 
     /**
@@ -150,7 +154,7 @@ public final class GraphSnapshot {
     public static GraphSnapshot empty() {
         Graph empty = new Graph(List.of(), List.of());
         return new GraphSnapshot(empty, empty, null, List.of(), List.of(), List.of(),
-                null, null, null);
+                null, null, null, GraphSnapshotV2.empty());
     }
 
     /** The graph the API v1 serves: the view of model version 1, with message nodes only. */
@@ -161,6 +165,11 @@ public final class GraphSnapshot {
     /** The internal model, with every kind of interface node - {@link #graph()} is the view of it the v1 serves. */
     public Graph fullGraph() {
         return fullGraph;
+    }
+
+    /** What the API v2 serves from the {@link #fullGraph()}: its fingerprints and indexes. */
+    public GraphSnapshotV2 v2() {
+        return v2;
     }
 
     public @Nullable String graphFingerprint() {

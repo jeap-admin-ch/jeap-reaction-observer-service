@@ -4,18 +4,16 @@ import ch.admin.bit.jeap.reaction.observer.domain.models.graph.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,7 +56,6 @@ class ReactionGraphBuilderServiceTest {
                 .median(42)
                 .build();
 
-        when(statisticsRepository.findReactionFksObservedSince(any())).thenReturn(Set.of(200L));
         when(statisticsRepository.getMedianPerReaction(any())).thenReturn(medians);
         // The medians go into the graph while it is built: node and edge have to hold the same reaction, or
         // the extractor no longer matches one to the other.
@@ -75,19 +72,25 @@ class ReactionGraphBuilderServiceTest {
                 .containsExactly(42);
     }
 
+    /**
+     * The API v2 promises a median for every reaction. The reactions of the graph are therefore those the
+     * medians were read for, not those of a second read that an aggregation run could come between.
+     */
     @Test
-    void buildGraph_readsTheObservedReactionsBeforeTheMedians() {
-        when(statisticsRepository.findReactionFksObservedSince(any())).thenReturn(Set.of());
-        when(statisticsRepository.getMedianPerReaction(any())).thenReturn(Map.of());
-        when(graphRepository.buildFullGraph(any())).thenReturn(new Graph(List.of(), List.of()));
+    void buildGraph_everyReactionOfTheGraphHasItsMedian_alsoAMedianOfZero() {
+        Reaction counted = Reaction.builder().id(200L).component("comp").system("sys").median(42).build();
+        Reaction countedZero = Reaction.builder().id(201L).component("comp").system("sys").median(0).build();
+        Reaction withoutMedian = Reaction.builder().id(202L).component("comp").system("sys").build();
+        Map<Long, Integer> medians = Map.of(200L, 42, 201L, 0);
+        when(statisticsRepository.getMedianPerReaction(any())).thenReturn(medians);
+        when(graphRepository.buildFullGraph(medians))
+                .thenReturn(new Graph(List.of(counted, countedZero, withoutMedian), List.of()));
 
-        graphBuilderService.buildGraph(LocalDate.now());
+        Graph graph = graphBuilderService.buildGraph(LocalDate.now());
 
-        // An aggregation run landing between the two reads may only add a median, never leave a reaction of
-        // the graph without one.
-        InOrder inOrder = inOrder(statisticsRepository);
-        inOrder.verify(statisticsRepository).findReactionFksObservedSince(any());
-        inOrder.verify(statisticsRepository).getMedianPerReaction(any());
+        assertThat(graph.nodes()).containsExactlyInAnyOrder(counted, countedZero);
+        assertThat(graph.nodes()).extracting(node -> ((Reaction) node).median()).doesNotContainNull();
+        verifyNoMoreInteractions(statisticsRepository);
     }
 
     @Test
@@ -110,7 +113,6 @@ class ReactionGraphBuilderServiceTest {
 
         when(graphRepository.buildFullGraph(any())).thenReturn(graph);
         // Only the recent reaction has been observed within the period - the old one must be filtered out.
-        when(statisticsRepository.findReactionFksObservedSince(any())).thenReturn(Set.of(200L));
         when(statisticsRepository.getMedianPerReaction(any())).thenReturn(Map.of(200L, 42));
 
         // Act
@@ -125,7 +127,6 @@ class ReactionGraphBuilderServiceTest {
 
     @Test
     void buildGraph_whenTheRepositoryReturnsNothing_thenTheGraphIsEmpty() {
-        when(statisticsRepository.findReactionFksObservedSince(any())).thenReturn(Set.of());
         when(statisticsRepository.getMedianPerReaction(any())).thenReturn(Map.of());
         when(graphRepository.buildFullGraph(any())).thenReturn(null);
 

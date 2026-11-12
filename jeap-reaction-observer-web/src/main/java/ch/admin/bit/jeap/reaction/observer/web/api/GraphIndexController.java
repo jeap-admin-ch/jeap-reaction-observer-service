@@ -2,7 +2,6 @@ package ch.admin.bit.jeap.reaction.observer.web.api;
 
 import ch.admin.bit.jeap.reaction.observer.web.GraphHolder;
 import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot;
-import ch.admin.bit.jeap.reaction.observer.web.GraphSnapshot.IndexPayload;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphIndexDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.MessageGraphIndexDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.WebRequest;
 
-import java.nio.charset.StandardCharsets;
 
 /**
  * The replication indexes: which reaction graphs exist, and the entity tag of each.
@@ -39,9 +37,6 @@ import java.nio.charset.StandardCharsets;
 @SecurityRequirement(name = "OIDC")
 public class GraphIndexController {
 
-    /** What an index is before there is a snapshot to serve one from. */
-    private static final byte[] EMPTY_INDEX = "{\"entries\":[]}".getBytes(StandardCharsets.UTF_8);
-
     private final GraphHolder graphHolder;
     private final EtagSupport etagSupport;
 
@@ -54,7 +49,7 @@ public class GraphIndexController {
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/systems", produces = MediaType.APPLICATION_JSON_VALUE)
     public @Nullable ResponseEntity<byte[]> getSystemGraphIndex(WebRequest request) {
-        return respond(request, snapshot().systemIndex());
+        return etagSupport.respondWithIndex(request, snapshot().systemIndex());
     }
 
     @PreAuthorize("hasRole('reactions', 'read')")
@@ -67,7 +62,7 @@ public class GraphIndexController {
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/components", produces = MediaType.APPLICATION_JSON_VALUE)
     public @Nullable ResponseEntity<byte[]> getComponentGraphIndex(WebRequest request) {
-        return respond(request, snapshot().componentIndex());
+        return etagSupport.respondWithIndex(request, snapshot().componentIndex());
     }
 
     @PreAuthorize("hasRole('reactions', 'read')")
@@ -79,25 +74,11 @@ public class GraphIndexController {
     @ApiResponse(responseCode = "304", description = "If-None-Match matched", content = @Content)
     @GetMapping(value = "/messages", produces = MediaType.APPLICATION_JSON_VALUE)
     public @Nullable ResponseEntity<byte[]> getMessageGraphIndex(WebRequest request) {
-        return respond(request, snapshot().messageIndex());
+        return etagSupport.respondWithIndex(request, snapshot().messageIndex());
     }
 
     /** The indexes this instance answers from - see {@link GraphSnapshot#required}. */
     private GraphSnapshot snapshot() {
         return GraphSnapshot.required(graphHolder.getSnapshot());
-    }
-
-    /**
-     * The index as it was built, or an empty one before the first refresh - which is a landscape nothing has
-     * been observed in yet, not an error.
-     */
-    private @Nullable ResponseEntity<byte[]> respond(WebRequest request,
-                                                     @Nullable IndexPayload index) {
-        if (index == null) {
-            // Before the first refresh - which GraphHolder makes a transient state, not a lasting one. No
-            // entity tag, so a consumer asks again rather than caching an emptiness.
-            return ResponseEntity.ok(EMPTY_INDEX);
-        }
-        return etagSupport.respond(request, index.bytes(), index.etag());
     }
 }

@@ -30,7 +30,9 @@ jeap-reaction-observer-persistence/                      # JPA entities, JDBC/JP
   src/main/resources/db/migration/common/                # Schema + evolution migrations, incl. ShedLock table
 jeap-reaction-observer-web/                              # Spring Boot application, REST API, scheduling, security
   src/main/java/ch/admin/bit/jeap/reaction/observer/web/api/
-    GraphController.java                                 # Full graph and filtered subgraph endpoints
+    GraphController.java                                 # API v1: full graph and filtered subgraph endpoints (messages only)
+    GraphV2Controller.java                               # API v2: full graph and subgraphs with every kind of interface
+    GraphIndexController.java, GraphIndexV2Controller.java  # Indexes of the graphs with their entity tags
     ComponentController.java                             # Known component names
     SystemController.java                                # Known system names
     StatisticsController.java                            # Last observation date per component

@@ -15,7 +15,6 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getStartOfDay;
 import static ch.admin.bit.jeap.reaction.observer.domain.aggregation.TimeUtils.getToday;
@@ -412,7 +411,7 @@ class ObservedReactionsAggregatedRepositoryImplTest extends PostgresTestContaine
     }
 
     @Test
-    void findReactionFksObservedSince() {
+    void getMedianPerReaction_hasTheReactionsObservedSince_alsoWithACountOfZero() {
         String system = "system1";
         String component = "component1";
         ZonedDateTime startOfDay = getStartOfDay();
@@ -446,11 +445,11 @@ class ObservedReactionsAggregatedRepositoryImplTest extends PostgresTestContaine
         Long zeroFk = jpaReactionRepository.findIdByComponentAndReactionId(component, "zero").orElseThrow();
         Long oldFk = jpaReactionRepository.findIdByComponentAndReactionId(component, "old").orElseThrow();
 
-        Set<Long> observedSince = observedReactionsAggregatedRepository.findReactionFksObservedSince(getToday().minusDays(32));
+        Map<Long, Integer> medians = observedReactionsAggregatedRepository.getMedianPerReaction(getToday().minusDays(32));
 
-        assertTrue(observedSince.contains(recentFk), "recently observed reaction must be included");
-        assertTrue(observedSince.contains(zeroFk), "reaction observed with count 0 must still be included");
-        assertFalse(observedSince.contains(oldFk), "reaction observed only before the window must be excluded");
-        assertEquals(2, observedSince.size());
+        assertEquals(5, medians.get(recentFk), "recently observed reaction must be included");
+        assertEquals(0, medians.get(zeroFk), "reaction observed with count 0 must still be included");
+        assertFalse(medians.containsKey(oldFk), "reaction observed only before the window must be excluded");
+        assertEquals(2, medians.size());
     }
 }

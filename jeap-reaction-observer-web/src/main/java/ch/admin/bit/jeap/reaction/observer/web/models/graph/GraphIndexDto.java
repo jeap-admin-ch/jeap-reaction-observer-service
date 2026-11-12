@@ -23,6 +23,11 @@ public record GraphIndexDto(List<GraphIndexEntryDto> entries) {
      * @param path   where the graph is served, so a consumer does not have to build the URL from a name
      */
     @Schema(description = "One reaction graph, with the entity tag of its content")
-    public record GraphIndexEntryDto(String name, String system, String etag, String path) {
+    public record GraphIndexEntryDto(
+            String name,
+            @Schema(description = "The system of a component; null in the index of systems", nullable = true)
+            String system,
+            String etag,
+            String path) {
     }
 }

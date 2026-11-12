@@ -199,7 +199,10 @@ class ReactionApiSecurityIT extends KafkaIntegrationTestBase {
         List<String> resources = List.of("/api/graphs", "/api/graphs/systems", "/api/graphs/components",
                 "/api/graphs/messages", "/api/graphs/systems/orders", "/api/graphs/components/orders-intake",
                 "/api/graphs/messages/OrdersPaymentAcceptedEvent", "/api/systems/names",
-                "/api/components/names", "/api/statistics/last-observation-date");
+                "/api/components/names", "/api/statistics/last-observation-date",
+                "/api/v2/graphs", "/api/v2/graphs/systems", "/api/v2/graphs/components", "/api/v2/graphs/interfaces",
+                "/api/v2/graphs/systems/orders", "/api/v2/graphs/components/orders-intake",
+                "/api/v2/graphs/interfaces/I1");
 
         assertThat(resources).allSatisfy(resource ->
                 assertThat(get(resource, bearer(READ_ROLE)).getStatusCode())

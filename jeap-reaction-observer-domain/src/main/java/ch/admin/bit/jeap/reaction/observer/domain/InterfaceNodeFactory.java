@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *     <li>{@code http_request}: an {@link HttpOperation}, the FQN being {@code <provider> <METHOD> <pattern>}</li>
  *     <li>any other type: a {@link GenericInterface}</li>
  * </ul>
+ * Every node keeps the observation type and FQN it was created from.
  * <p>
  * <b>Never throws.</b> An FQN the parser of its type cannot parse becomes a {@link GenericInterface} as well, and is
  * counted in {@link ReactionObserverMetrics#unparsableInterface} - one interface reported wrongly must not break the
@@ -30,9 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class InterfaceNodeFactory {
 
-    static final String TYPE_EVENT = "event";
-    static final String TYPE_COMMAND = "command";
-    static final String TYPE_HTTP_REQUEST = "http_request";
+    static final String TYPE_EVENT = Message.OBSERVATION_TYPE_EVENT;
+    static final String TYPE_COMMAND = Message.OBSERVATION_TYPE_COMMAND;
+    static final String TYPE_HTTP_REQUEST = HttpOperation.OBSERVATION_TYPE;
 
     private final ReactionObserverMetrics metrics;
     private final Set<Long> reportedUnparsableInterfaces = ConcurrentHashMap.newKeySet();
@@ -50,7 +51,7 @@ public class InterfaceNodeFactory {
         String normalizedType = type == null ? "" : type.toLowerCase(Locale.ROOT);
         Optional<Interface> parsed = switch (normalizedType) {
             case TYPE_EVENT, TYPE_COMMAND -> parseMessage(id, type, fqn);
-            case TYPE_HTTP_REQUEST -> parseHttpOperation(id, fqn);
+            case TYPE_HTTP_REQUEST -> parseHttpOperation(id, type, fqn);
             // Not an error: a type the observer does not know yet is presented as it was reported
             default -> Optional.of(new GenericInterface(id, type, fqn));
         };
@@ -71,6 +72,8 @@ public class InterfaceNodeFactory {
         }
         return Optional.of(Message.builder()
                 .id(id)
+                .type(type)
+                .fqn(fqn)
                 .messageType(parts[0])
                 .variant(parts.length > 1 ? parts[1] : null)
                 .semantic(SemanticType.fromValue(type).orElseThrow())
@@ -83,7 +86,7 @@ public class InterfaceNodeFactory {
      * third part is the raw remainder and is not split again: rejected the same way as a stray space before
      * {@code METHOD} already is, instead of being parsed into a path with a leading or trailing space.
      */
-    private static Optional<Interface> parseHttpOperation(long id, String fqn) {
+    private static Optional<Interface> parseHttpOperation(long id, String type, String fqn) {
         if (fqn == null) {
             return Optional.empty();
         }
@@ -94,6 +97,8 @@ public class InterfaceNodeFactory {
         }
         return Optional.of(HttpOperation.builder()
                 .id(id)
+                .type(type)
+                .fqn(fqn)
                 .provider(parts[0])
                 .method(parts[1])
                 .path(parts[2])

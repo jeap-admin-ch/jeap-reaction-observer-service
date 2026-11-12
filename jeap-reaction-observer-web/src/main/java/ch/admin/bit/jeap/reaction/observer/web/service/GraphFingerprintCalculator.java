@@ -3,6 +3,9 @@ package ch.admin.bit.jeap.reaction.observer.web.service;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.EdgeDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.GraphDto;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.NodeDto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.EdgeV2Dto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.GraphV2Dto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.NodeV2Dto;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.erdtman.jcs.JsonCanonicalizer;
@@ -37,21 +40,36 @@ public class GraphFingerprintCalculator {
     }
 
     public String calculate(GraphDto dto) {
+        // Sort nodes and edges by canonical ID
+        var sortedNodes = dto.nodes().stream()
+                .sorted(Comparator.comparing(NodeDto::getCanonicalId))
+                .toList();
+        var sortedEdges = dto.edges().stream()
+                .sorted(Comparator.comparing(EdgeDto::getCanonicalId))
+                .toList();
+        return fingerprintOf(new GraphDto(sortedNodes, sortedEdges));
+    }
+
+    /**
+     * The fingerprint of a graph of the API v2. Nodes are ordered by their id, edges by type, source and target,
+     * and every field of a node is part of the fingerprint - a reaction that changes its status changes it.
+     */
+    public String calculate(GraphV2Dto dto) {
+        var sortedNodes = dto.nodes().stream()
+                .sorted(Comparator.comparing(NodeV2Dto::getId))
+                .toList();
+        var sortedEdges = dto.edges().stream()
+                .sorted(Comparator.comparing(EdgeV2Dto::edgeType)
+                        .thenComparing(EdgeV2Dto::sourceId)
+                        .thenComparing(EdgeV2Dto::targetId))
+                .toList();
+        return fingerprintOf(new GraphV2Dto(sortedNodes, sortedEdges));
+    }
+
+    private String fingerprintOf(Object sortedGraph) {
         try {
-            // Sort nodes by canonical ID
-            var sortedNodes = dto.nodes().stream()
-                    .sorted(Comparator.comparing(NodeDto::getCanonicalId))
-                    .toList();
-
-            // Sort edges by canonical ID
-            var sortedEdges = dto.edges().stream()
-                    .sorted(Comparator.comparing(EdgeDto::getCanonicalId))
-                    .toList();
-
-            var sortedDto = new GraphDto(sortedNodes, sortedEdges);
-
             // Serialize and canonicalize
-            String json = jsonMapper.writeValueAsString(sortedDto);
+            String json = jsonMapper.writeValueAsString(sortedGraph);
             String canonicalJson = new JsonCanonicalizer(json).getEncodedString();
 
             // Return SHA-256 fingerprint

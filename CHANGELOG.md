@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.23.0] - 2026-11-16
+
+- New API v2 under `/api/v2/graphs` with every kind of interface (messages, HTTP operations, types the service does
+  not know), a graph and an index entry per interface, and entity tags of its own. An HTTP operation the caller
+  named has a `provider` starting with `//`. See [docs/rest-api.md](docs/rest-api.md#api-v2) for the model and the
+  contract for consumers.
+- The API v1 is unchanged. The OpenAPI document is split into the groups `reaction-observer-service-api` (v1 and
+  the endpoints without a version, `1.0.0`) and `reaction-observer-service-api-v2` (`2.0.0`).
+
 ## [12.22.0] - 2026-11-15
 
 ### Dependencies

@@ -3,6 +3,7 @@ package ch.admin.bit.jeap.reaction.observer.web;
 import ch.admin.bit.jeap.reaction.observer.domain.GraphExtractor;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Action;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Edge;
+import ch.admin.bit.jeap.reaction.observer.domain.models.graph.GenericInterface;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.HttpOperation;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Node;
 import ch.admin.bit.jeap.reaction.observer.domain.models.graph.Graph;
@@ -247,6 +248,107 @@ class GraphSnapshotFactoryTest {
 
         assertThat(asText(snapshot.systemIndex()))
                 .contains("\"etag\":\"\\\"sha256:" + fingerprintOfTheSystem + "\\\"\"");
+    }
+
+    // --- The API v2, over the full graph ---------------------------------------------------------------------
+
+    /** What the v1 hides is what the v2 is for: a component whose reactions have no message is indexed there. */
+    @Test
+    void of_theV2_coversTheFullGraph_whereTheV1CoversTheMessagesOnly() {
+        GraphSnapshot snapshot = factory.of(GraphV2TestGraph.graph());
+
+        assertThat(asText(snapshot.v2().componentIndex()))
+                .contains("\"name\":\"order-service\"", "\"name\":\"partner-service\"");
+        assertThat(snapshot.v2().fingerprintOfSystem("SHOP")).isNotBlank();
+        assertThat(snapshot.v2().fingerprintOfComponent("partner-service")).isNotBlank();
+        assertThat(snapshot.v2().fingerprintsByInterface()).containsOnlyKeys(11L, 12L, 13L, 14L, 15L, 16L);
+    }
+
+    @Test
+    void of_theV2_hasFingerprintsOfItsOwn() {
+        Graph messagesOnly = aGraph();
+        Reaction restOnly = Reaction.builder().id(900).component("stock-service").system("stock").median(1).build();
+        HttpOperation putStock = new HttpOperation(901, "stock-service", "PUT", "/api/stock/{id}");
+        List<Node> nodes = new ArrayList<>(messagesOnly.nodes());
+        nodes.addAll(List.of(restOnly, putStock));
+        List<Edge> edges = new ArrayList<>(messagesOnly.edges());
+        edges.add(new Trigger(putStock, restOnly, 1));
+
+        GraphSnapshot before = factory.of(messagesOnly);
+        GraphSnapshot after = factory.of(new Graph(nodes, edges));
+
+        // The same graph has another fingerprint in each version, as each fingerprints its own representation
+        assertThat(before.v2().graphFingerprint()).isNotBlank().isNotEqualTo(before.graphFingerprint());
+        assertThat(before.v2().fingerprintOfSystem("orders")).isNotEqualTo(before.fingerprintOfSystem("orders"));
+        // A reaction without a message changes the v2 and leaves the v1 as it is
+        assertThat(after.graphFingerprint()).isEqualTo(before.graphFingerprint());
+        assertThat(after.v2().graphFingerprint()).isNotEqualTo(before.v2().graphFingerprint());
+        assertThat(after.v2().fingerprintOfSystem("stock")).isNotBlank();
+        // And what did not change keeps its fingerprint
+        assertThat(after.v2().fingerprintOfSystem("orders")).isEqualTo(before.v2().fingerprintOfSystem("orders"));
+    }
+
+    @Test
+    void of_theV2InterfaceIndex_listsEveryInterfaceByTypeAndFqn_withTheTagAndPathOfItsGraph() {
+        GraphSnapshotV2 v2 = factory.of(GraphV2TestGraph.graph()).v2();
+
+        String index = asText(v2.interfaceIndex(null));
+        assertThat(index).containsSubsequence(
+                "\"fqn\":\"CreditReserved\"", "\"fqn\":\"OrderChecked/eu\"", "\"fqn\":\"OrderSubmitted\"",
+                "\"fqn\":\"order-service POST /api/orders\"", "\"fqn\":\"partner-service POST /api/credits\"",
+                "\"fqn\":\"nightly-job\"");
+        assertThat(index).contains("{\"id\":\"I14\",\"interfaceType\":\"http_request\","
+                                   + "\"fqn\":\"partner-service POST /api/credits\","
+                                   + "\"etag\":\"\\\"sha256:" + v2.fingerprintOfInterface(14) + "\\\"\","
+                                   + "\"path\":\"" + CONTEXT_PATH + "/api/v2/graphs/interfaces/I14\"}");
+    }
+
+    @Test
+    void of_theV2InterfaceIndex_canBeAskedForOneType() {
+        GraphSnapshotV2 v2 = factory.of(GraphV2TestGraph.graph()).v2();
+
+        assertThat(asText(v2.interfaceIndex("http_request")))
+                .contains("\"id\":\"I14\"", "\"id\":\"I15\"")
+                .doesNotContain("\"interfaceType\":\"event\"", "\"interfaceType\":\"scheduled\"");
+        assertThat(asText(v2.interfaceIndex("scheduled"))).contains("\"id\":\"I16\"").doesNotContain("I14");
+        // A type the graph has no interface of is an empty index with a tag - and the type is matched exactly
+        assertThat(asText(v2.interfaceIndex("unknown"))).isEqualTo("{\"entries\":[]}");
+        assertThat(asText(v2.interfaceIndex("HTTP_REQUEST"))).isEqualTo("{\"entries\":[]}");
+        assertThat(v2.interfaceIndex("unknown").etag()).startsWith("\"sha256:")
+                .isNotEqualTo(v2.interfaceIndex("http_request").etag());
+    }
+
+    /**
+     * A stored interface always has a type and an FQN, a graph built by other means may not. The snapshot is
+     * what every endpoint answers from, the ones of the v1 included, so such an interface must not fail it.
+     */
+    @Test
+    void of_anInterfaceWithoutTypeOrFqn_isIndexedFirst_andNotUnderAType() {
+        Reaction reaction = Reaction.builder().id(1).component("some-service").system("some").build();
+        GenericInterface withoutType = new GenericInterface(2, null, "something");
+        GenericInterface withoutFqn = new GenericInterface(3, "scheduled", null);
+        GenericInterface complete = new GenericInterface(4, "scheduled", "nightly-job");
+        Graph graph = new Graph(List.of(reaction, withoutType, withoutFqn, complete),
+                List.of(new Trigger(withoutType, reaction, 1), new Action(reaction, withoutFqn),
+                        new Action(reaction, complete)));
+
+        GraphSnapshotV2 v2 = factory.of(graph).v2();
+
+        assertThat(asText(v2.interfaceIndex(null)))
+                .containsSubsequence("\"id\":\"I2\"", "\"id\":\"I3\"", "\"id\":\"I4\"");
+        assertThat(asText(v2.interfaceIndex("scheduled")))
+                .containsSubsequence("\"id\":\"I3\"", "\"id\":\"I4\"")
+                .doesNotContain("\"id\":\"I2\"");
+        assertThat(v2.fingerprintOfInterface(2)).isNotBlank();
+    }
+
+    @Test
+    void of_theV2IndexPaths_carryTheContextPathAndTheVersion() {
+        GraphSnapshotV2 v2 = factory.of(GraphV2TestGraph.graph()).v2();
+
+        assertThat(asText(v2.systemIndex())).contains("\"path\":\"" + CONTEXT_PATH + "/api/v2/graphs/systems/shop\"");
+        assertThat(asText(v2.componentIndex()))
+                .contains("\"path\":\"" + CONTEXT_PATH + "/api/v2/graphs/components/order-service\"");
     }
 
     private static String asText(GraphSnapshot.IndexPayload payload) {

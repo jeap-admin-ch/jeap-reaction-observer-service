@@ -37,6 +37,10 @@ Notable verified behaviours from tests include:
 - graph endpoints return `404` for empty system/component subgraphs and variant-specific graphs for message types
 - reactions with HTTP requests, unknown observation types and FQNs of 1000 characters are stored, the graph is
   built, and the API v1 shows their message part only (`ReactionGraphExtensionsIT`)
+- the API v2 shows the same reactions with every kind of interface, an operation the caller named
+  (`//<host>[/<context>] <METHOD> /{*}`) is an HTTP operation with where the call went as provider, the graph of
+  an HTTP operation is fetched with the path from the index of interfaces, and the OpenAPI document of the v2
+  describes the kinds of node and what a node of an unknown kind is read as (`ReactionGraphV2IT`)
 - the reaction model version and the unidentified actions of the events are stored, and events without them count as
   reaction model version 1 without unidentified actions (`ReactionModelVersionIT`)
 - a further identification of a known reaction only replaces its reaction model version, and concurrent first

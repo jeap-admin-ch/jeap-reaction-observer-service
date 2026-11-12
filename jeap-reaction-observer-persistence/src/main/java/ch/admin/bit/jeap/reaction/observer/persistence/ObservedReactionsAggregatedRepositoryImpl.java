@@ -7,11 +7,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @AllArgsConstructor
 class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggregatedRepository {
@@ -39,6 +36,8 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
 
     @Override
     public Map<Long, Integer> getMedianPerReaction(LocalDate fromDate) {
+        // Note: no "count > 0" filter on purpose - a reaction that was observed with a count of zero
+        // still counts as observed/present and must remain in the graph.
         String sql = """
                 SELECT reaction_fk,
                        CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY count) AS INTEGER) AS median
@@ -54,16 +53,6 @@ class ObservedReactionsAggregatedRepositoryImpl implements ObservedReactionsAggr
             }
             return result;
         }, fromDate);
-    }
-
-    @Override
-    public Set<Long> findReactionFksObservedSince(LocalDate fromDate) {
-        // Note: no "count > 0" filter on purpose - a reaction that was observed with a count of zero
-        // still counts as observed/present and must remain in the graph.
-        List<Long> reactionFks = jdbcTemplate.queryForList(
-                "SELECT DISTINCT reaction_fk FROM observed_reactions_aggregated WHERE date >= ?",
-                Long.class, fromDate);
-        return new HashSet<>(reactionFks);
     }
 
     @Override

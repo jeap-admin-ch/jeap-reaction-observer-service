@@ -1,6 +1,11 @@
 package ch.admin.bit.jeap.reaction.observer.web.service;
 
+import ch.admin.bit.jeap.reaction.observer.web.GraphV2TestGraph;
 import ch.admin.bit.jeap.reaction.observer.web.models.graph.*;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.EdgeV2Dto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.GraphV2Dto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.NodeV2Dto;
+import ch.admin.bit.jeap.reaction.observer.web.models.graph.v2.ReactionNodeV2Dto;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -135,5 +140,38 @@ class GraphFingerprintCalculatorTest {
         assertThat(calculator.calculate(graph))
                 .describedAs("if this changed on purpose, every entity tag a consumer stored is invalidated")
                 .isEqualTo("07c9c6171566fc4b3be923a72c7fa0cc9f8411c2106c98cecbb490427f15b525");
+    }
+
+    // --- The API v2 -----------------------------------------------------------------------------------------
+
+    @Test
+    void v2_theSameGraphInAnotherOrder_hasTheSameFingerprint() {
+        GraphV2Dto graph = GraphV2DtoMapper.map(GraphV2TestGraph.graph());
+        GraphV2Dto reversed = new GraphV2Dto(graph.nodes().reversed(), graph.edges().reversed());
+
+        assertThat(calculator.calculate(reversed)).isEqualTo(calculator.calculate(graph)).hasSize(64);
+    }
+
+    /** Every field of a node is fingerprinted, so that e.g. a reaction changing its status moves the entity tag. */
+    @Test
+    void v2_aReactionWithAnotherStatus_hasAnotherFingerprint() {
+        GraphV2Dto graph = GraphV2DtoMapper.map(GraphV2TestGraph.graph());
+        List<NodeV2Dto> nodes = graph.nodes().stream()
+                .map(node -> node instanceof ReactionNodeV2Dto reaction && reaction.getId().equals("R11")
+                        ? reaction.toBuilder().status("SUPERSEDED").build() : node)
+                .toList();
+
+        assertThat(calculator.calculate(new GraphV2Dto(nodes, graph.edges())))
+                .isNotEqualTo(calculator.calculate(graph));
+    }
+
+    @Test
+    void v2_aGraphWithAnotherEdge_hasAnotherFingerprint() {
+        GraphV2Dto graph = GraphV2DtoMapper.map(GraphV2TestGraph.graph());
+        List<EdgeV2Dto> edges = new java.util.ArrayList<>(graph.edges());
+        edges.add(new EdgeV2Dto(EdgeV2Dto.PREDECESSOR, "R11", "R13"));
+
+        assertThat(calculator.calculate(new GraphV2Dto(graph.nodes(), edges)))
+                .isNotEqualTo(calculator.calculate(graph));
     }
 }

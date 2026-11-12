@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @AllArgsConstructor
 @Component
@@ -23,10 +22,7 @@ public class ReactionGraphBuilderService {
         // Only present reactions that have actually been observed within the statistics period.
         // Reactions are never deleted; they are merely hidden while not observed and reappear as soon as
         // they are observed again.
-        Set<Long> recentlyObservedReactionIds = observedReactionsAggregatedRepository.findReactionFksObservedSince(fromDate);
-
-        // Read after the reaction ids, so that an aggregation run landing in between can only add a median,
-        // never leave a reaction of the graph without one.
+        // The reactions observed are those with a median.
         Map<Long, Integer> medians = observedReactionsAggregatedRepository.getMedianPerReaction(fromDate);
 
         // Build the full graph to get stable IDs, with the medians already in it
@@ -37,6 +33,6 @@ public class ReactionGraphBuilderService {
         }
 
         return graphExtractor.getFilteredGraph(graph,
-                reaction -> recentlyObservedReactionIds.contains(reaction.id()));
+                reaction -> medians.containsKey(reaction.id()));
     }
 }
