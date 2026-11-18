@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.24.0] - 2026-11-18
+
+### Dependencies
+- **ch.admin.bit.jeap:jeap-spring-boot-parent**: 41.37.0 → 41.39.0 (minor)
+
 ## [12.23.0] - 2026-11-16
 
 - New API v2 under `/api/v2/graphs` with every kind of interface (messages, HTTP operations, types the service does
