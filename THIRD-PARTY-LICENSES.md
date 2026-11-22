@@ -23,6 +23,7 @@ Apache License Version 2.0
  * ch.admin.bit.jeap:jeap-messaging-infrastructure-kafka-test - [ch.admin.bit.jeap:jeap-messaging-infrastructure-kafka-test](https://github.com/jeap-admin-ch/jeap-messaging/tree/main/jeap-messaging-infrastructure-kafka-test)
  * ch.admin.bit.jeap:jeap-messaging-model - [ch.admin.bit.jeap:jeap-messaging-model](https://github.com/jeap-admin-ch/jeap-messaging/tree/main/jeap-messaging-model)
  * ch.admin.bit.jeap:jeap-reaction-observer-domain - [ch.admin.bit.jeap:jeap-reaction-observer-domain](https://github.com/jeap-admin-ch/jeap-reaction-observer-service/tree/main/jeap-reaction-observer-domain)
+ * ch.admin.bit.jeap:jeap-reaction-observer-header-starter - [ch.admin.bit.jeap:jeap-reaction-observer-header-starter](https://github.com/jeap-admin-ch/jeap-reaction-observer/tree/main/jeap-reaction-observer-header-starter)
  * ch.admin.bit.jeap:jeap-reaction-observer-kafka - [ch.admin.bit.jeap:jeap-reaction-observer-kafka](https://github.com/jeap-admin-ch/jeap-reaction-observer-service/tree/main/jeap-reaction-observer-kafka)
  * ch.admin.bit.jeap:jeap-reaction-observer-persistence - [ch.admin.bit.jeap:jeap-reaction-observer-persistence](https://github.com/jeap-admin-ch/jeap-reaction-observer-service/tree/main/jeap-reaction-observer-persistence)
  * ch.admin.bit.jeap:jeap-reaction-observer-service-test - [ch.admin.bit.jeap:jeap-reaction-observer-service-test](https://github.com/jeap-admin-ch/jeap-reaction-observer-service/tree/main/jeap-reaction-observer-service-test)
