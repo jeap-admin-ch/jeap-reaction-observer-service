@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.26.0] - 2026-11-23
+
+- Reactions triggered by an HTTP request are stored whatever the length of the name of the operation: the column
+  `reaction.reaction_id` is extended from 1024 to 2048 characters. The id of such a reaction starts with the id of
+  its trigger, which embeds the encoded name of the operation, and is up to 1582 characters long.
+
 ## [12.25.0] - 2026-11-22
 
 ### Dependencies

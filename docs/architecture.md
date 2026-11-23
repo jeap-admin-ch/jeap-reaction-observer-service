@@ -111,8 +111,13 @@ Flyway creates four main tables over time:
 
 Later migrations add ShedLock support, multi-action storage, the producer system name, an idempotence index, an
 interface table used to normalize trigger/action interface definitions, and longer interface columns (`type` and
-`fqn` up to 1024 characters, observation ids up to 4096, as an id embeds its encoded FQN), and the reaction model
-version and unidentified actions.
+`fqn` up to 1024 characters, observation ids up to 4096, as an id embeds its encoded FQN), the reaction model
+version and unidentified actions, and a longer reaction id (up to 2048 characters): the id of a reaction with a
+trigger starts with the id of the trigger, so that a reaction triggered by an HTTP request has an id of up to 1582
+characters. The length of the column is not the only limit: component and reaction id together have to fit into
+one entry of the unique index on both, which PostgreSQL limits to about 2700 bytes. The longest id of 1582 bytes
+leaves about 1100 bytes for the name of the component; values that fit both columns can still be rejected by the
+index.
 
 ## Aggregation and graph building
 

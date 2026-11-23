@@ -55,6 +55,10 @@ class ReactionGraphExtensionsIT extends IntegrationTestBase {
             "/api/archive/" + "a:#&%".repeat((1000 - "archive-service PUT /api/archive/".length()) / 5) + "x".repeat(
                     (1000 - "archive-service PUT /api/archive/".length()) % 5));
 
+    /** 512 characters, the longest FQN the library reports, with nearly every character encoded as three in the id */
+    private static final TestObservation LONGEST_HTTP = TestObservation.ofHttpRequest("archive-service", "POST",
+            "/" + ":".repeat(512 - "archive-service POST /".length()));
+
     @Autowired
     AggregationService aggregationService;
     @Autowired
@@ -126,6 +130,30 @@ class ReactionGraphExtensionsIT extends IntegrationTestBase {
         assertThat(getJson("/api/graphs/components").get("entries").valueStream()
                 .map(entry -> entry.get("name").asString()))
                 .containsExactlyInAnyOrder("order-service", "report-service", "archive-service");
+    }
+
+    @Test
+    void aReactionTriggeredByAnHttpRequestWithTheLongestFqn_isStoredCountedAndInTheGraph() {
+        assertThat(LONGEST_HTTP.fqn()).hasSize(512);
+        // given: a REST-triggered reaction with the id the library builds: the id of the trigger, "#" and the hash
+        // of the action ids. The id is longer than the former 1024 characters of the reaction id.
+        String reactionId = LONGEST_HTTP.id() + "#" + "0123456789abcdef".repeat(2);
+        assertThat(reactionId).hasSize(1538);
+        TestReaction restTriggered = new TestReaction(LONGEST_HTTP, List.of(ORDER_CREATED), reactionId);
+
+        // when: the reaction is identified and counted, and the graph is built
+        observe(restTriggered, "archive-service");
+        aggregationService.aggregateData(getToday());
+        scheduledTasksService.refreshReactionGraphInternal();
+
+        // then: the graph has the HTTP operation and the message of the reaction
+        Graph fullGraph = graphHolder.getFullGraph();
+        assertThat(fullGraph.nodes()).filteredOn(HttpOperation.class::isInstance)
+                .extracting(node -> ((HttpOperation) node).provider() + " " + ((HttpOperation) node).method())
+                .containsExactly("archive-service POST");
+        assertThat(fullGraph.nodes()).filteredOn(Message.class::isInstance)
+                .extracting(node -> ((Message) node).messageType())
+                .containsExactly("OrderCreated");
     }
 
     @Test

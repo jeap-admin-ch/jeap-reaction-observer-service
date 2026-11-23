@@ -358,4 +358,76 @@ class ReactionRepositoryImplTest extends PostgresTestContainerBase {
         assertThat(reactionRepository.findByComponentAndReactionId("component0", "reactionWithHttp"))
                 .contains(identifiedReaction);
     }
+
+    @Test
+    void save_reactionTriggeredByAnHttpRequest_withTheLongestReactionId() {
+        // An FQN of 512 characters, the longest the library reports, with every character encoded as three in the id
+        String longestFqn = ":".repeat(512);
+        String longestTriggerId = "http_request:" + "%3A".repeat(512);
+        Observation httpTrigger = new Observation(longestTriggerId, "http_request", longestFqn, Map.of());
+        Observation eventAction = new Observation("event:OrderCreated", "event", "OrderCreated", Map.of());
+        // The id of a reaction with a trigger and actions: the id of the trigger, "#" and the MD5 hash of the action ids
+        String longestReactionId = longestTriggerId + "#" + "0123456789abcdef".repeat(2);
+        assertThat(longestReactionId).hasSize(1582);
+        var withActions = new Reaction("system0", "component0", longestReactionId, httpTrigger,
+                List.of(eventAction), ZonedDateTime.now());
+        // The id of a reaction with a trigger only is the id of the trigger
+        var triggerOnly = new Reaction("system0", "component0", longestTriggerId, httpTrigger,
+                List.of(), ZonedDateTime.now());
+
+        reactionRepository.save(withActions);
+        reactionRepository.save(triggerOnly);
+
+        // then: both are read from the database with their ids unchanged
+        entityManager.flush();
+        entityManager.clear();
+        Reaction storedWithActions = reactionRepository
+                .findByComponentAndReactionId("component0", longestReactionId).orElseThrow();
+        assertThat(storedWithActions.reactionId()).isEqualTo(longestReactionId);
+        assertThat(storedWithActions.trigger()).isEqualTo(httpTrigger);
+        assertThat(storedWithActions.actions()).containsExactly(eventAction);
+        Reaction storedTriggerOnly = reactionRepository
+                .findByComponentAndReactionId("component0", longestTriggerId).orElseThrow();
+        assertThat(storedTriggerOnly.reactionId()).isEqualTo(longestTriggerId);
+        assertThat(storedTriggerOnly.trigger()).isEqualTo(httpTrigger);
+        assertThat(storedTriggerOnly.actions()).isEmpty();
+    }
+
+    /**
+     * Component and reaction id together have to fit into one entry of the unique index on both, which PostgreSQL
+     * limits to about 2700 bytes. PostgreSQL compresses long values of an index: an id of repeated characters fits
+     * whatever its length, so this id is one that does not compress.
+     */
+    @Test
+    void save_longestReactionIdThatDoesNotCompress_withALongComponentName_fitsTheUniqueIndex() {
+        String longComponent = incompressibleText(1000, 1);
+        String longestTriggerId = "http_request:" + incompressibleText(3 * 512, 2);
+        String longestReactionId = longestTriggerId + "#" + incompressibleText(32, 3);
+        assertThat(longestReactionId).hasSize(1582);
+        Observation httpTrigger = new Observation(longestTriggerId, "http_request", "order-service POST /api/orders", Map.of());
+        Observation eventAction = new Observation("event:OrderCreated", "event", "OrderCreated", Map.of());
+
+        reactionRepository.save(new Reaction("system0", longComponent, longestReactionId, httpTrigger,
+                List.of(eventAction), ZonedDateTime.now()));
+
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(reactionRepository.findByComponentAndReactionId(longComponent, longestReactionId))
+                .map(Reaction::reactionId).contains(longestReactionId);
+    }
+
+    /**
+     * @return letters and digits without a pattern a compression could use, the same for the same seed
+     */
+    private static String incompressibleText(int length, long seed) {
+        String alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder text = new StringBuilder(length);
+        long state = seed;
+        for (int i = 0; i < length; i++) {
+            // A linear congruential generator: deterministic, and good enough to leave nothing to compress
+            state = state * 6364136223846793005L + 1442695040888963407L;
+            text.append(alphabet.charAt((int) ((state >>> 33) % alphabet.length())));
+        }
+        return text.toString();
+    }
 }

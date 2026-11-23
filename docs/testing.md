@@ -37,6 +37,10 @@ Notable verified behaviours from tests include:
 - graph endpoints return `404` for empty system/component subgraphs and variant-specific graphs for message types
 - reactions with HTTP requests, unknown observation types and FQNs of 1000 characters are stored, the graph is
   built, and the API v1 shows their message part only (`ReactionGraphExtensionsIT`)
+- a reaction triggered by an HTTP request with an FQN of 512 characters, whose reaction id is longer than 1024
+  characters, is stored, counted and in the graph (`ReactionGraphExtensionsIT`); the longest reaction id of 1582
+  characters is stored, also if it does not compress and the name of the component has 1000 characters, so that
+  it fits the unique index on component and reaction id (`ReactionRepositoryImplTest`)
 - the API v2 shows the same reactions with every kind of interface, an operation the caller named
   (`//<host>[/<context>] <METHOD> /{*}`) is an HTTP operation with where the call went as provider, the graph of
   an HTTP operation is fetched with the path from the index of interfaces, and the OpenAPI document of the v2

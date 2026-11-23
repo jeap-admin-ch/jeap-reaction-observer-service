@@ -27,7 +27,7 @@ class ReactionEntity {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "reaction_id")
+    @Column(name = "reaction_id", length = 2048)
     private String reactionId;
 
     @Column(name = "system")
